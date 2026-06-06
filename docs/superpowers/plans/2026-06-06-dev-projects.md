@@ -290,10 +290,14 @@ function Get-Projects {
             # object has zero properties — use the indexer form instead.
             if ($null -ne $Config.projects.PSObject.Properties[$dir.FullName]) {
                 $saved = $Config.projects.($dir.FullName)
-                if ($saved.PSObject.Properties.Name -contains 'lastUsed') {
-                    if ($saved.lastUsed) { $lastUsed = [datetime]$saved.lastUsed }
+                if ($null -ne $saved.PSObject.Properties['lastUsed']) {
+                    if ($saved.lastUsed) {
+                        # RoundtripKind preserves Kind=Utc for Z-suffixed ISO strings.
+                        $lastUsed = [datetime]::Parse($saved.lastUsed, $null,
+                            [System.Globalization.DateTimeStyles]::RoundtripKind)
+                    }
                 }
-                if ($saved.PSObject.Properties.Name -contains 'flags') {
+                if ($null -ne $saved.PSObject.Properties['flags']) {
                     if ($saved.flags) { $flags = [string]$saved.flags }
                 }
             }
