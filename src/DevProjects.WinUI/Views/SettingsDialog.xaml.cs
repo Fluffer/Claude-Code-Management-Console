@@ -33,15 +33,31 @@ public sealed partial class SettingsDialog : ContentDialog
 
     private async void AddButton_Click(object sender, RoutedEventArgs e)
     {
-        var picker = new FolderPicker(_windowId)
+        try
         {
-            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-        };
-        var result = await picker.PickSingleFolderAsync();
-        if (result is not null)
+            var picker = new FolderPicker(_windowId)
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+            };
+            var result = await picker.PickSingleFolderAsync();
+            if (result is not null)
+            {
+                _viewModel.AddRoot(result.Path);
+                RefreshLists();
+            }
+        }
+        catch (Exception ex)
         {
-            _viewModel.AddRoot(result.Path);
-            RefreshLists();
+            // Picker COM failures / config-save IO errors must not take the
+            // app down. Queued via the gate; shows after this dialog closes.
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot,
+                Title = "Settings",
+                Content = new TextBlock { Text = $"Could not add the folder: {ex.Message}", TextWrapping = TextWrapping.Wrap },
+                CloseButtonText = "OK",
+            };
+            _ = Services.DialogGate.ShowAsync(dialog);
         }
     }
 
