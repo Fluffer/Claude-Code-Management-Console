@@ -212,3 +212,42 @@ Describe 'Build-LaunchCommand' {
         $spec.ArgumentList | Should -Be '-NoExit -Command claude'
     }
 }
+
+Describe 'Update-ProjectUsage' {
+    It 'adds a new project entry and persists it' {
+        $path = Join-Path $TestDrive 'usage\config.json'
+        $config = Get-LauncherConfig -Path $path
+        Update-ProjectUsage -Config $config -ProjectPath 'C:\Dev\Active\P1' -Flags '--model opus' -ConfigPath $path
+
+        $reloaded = Get-LauncherConfig -Path $path
+        $entry = $reloaded.projects.'C:\Dev\Active\P1'
+        $entry.flags | Should -Be '--model opus'
+        ([datetime]$entry.lastUsed) | Should -BeOfType [datetime]
+    }
+
+    It 'updates an existing entry' {
+        $path = Join-Path $TestDrive 'usage2\config.json'
+        $config = Get-LauncherConfig -Path $path
+        Update-ProjectUsage -Config $config -ProjectPath 'C:\P' -Flags 'a' -ConfigPath $path
+        Update-ProjectUsage -Config $config -ProjectPath 'C:\P' -Flags 'b' -ConfigPath $path
+        (Get-LauncherConfig -Path $path).projects.'C:\P'.flags | Should -Be 'b'
+    }
+}
+
+Describe 'Format-RelativeTime' {
+    It 'returns empty for null' {
+        Format-RelativeTime -Timestamp $null | Should -Be ''
+    }
+
+    It 'formats minutes, hours, days' {
+        $now = (Get-Date).ToUniversalTime()
+        Format-RelativeTime -Timestamp $now.AddMinutes(-5) | Should -Be '5m ago'
+        Format-RelativeTime -Timestamp $now.AddHours(-3) | Should -Be '3h ago'
+        Format-RelativeTime -Timestamp $now.AddDays(-2) | Should -Be '2d ago'
+    }
+
+    It 'falls back to a date after a week' {
+        $old = (Get-Date).ToUniversalTime().AddDays(-30)
+        Format-RelativeTime -Timestamp $old | Should -Match '^\d{4}-\d{2}-\d{2}$'
+    }
+}

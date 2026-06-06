@@ -208,3 +208,42 @@ function Invoke-ProjectLaunch {
         Start-Process -FilePath $LaunchSpec.FilePath -ArgumentList $LaunchSpec.ArgumentList
     }
 }
+
+function Update-ProjectUsage {
+    param(
+        [Parameter(Mandatory)] $Config,
+        [Parameter(Mandatory)] [string]$ProjectPath,
+        [string]$Flags = '',
+        [string]$ConfigPath = (Get-ConfigPath)
+    )
+    $stamp = (Get-Date).ToUniversalTime().ToString('o')
+    if ($null -ne $Config.projects.PSObject.Properties[$ProjectPath]) {
+        $Config.projects.$ProjectPath.lastUsed = $stamp
+        $Config.projects.$ProjectPath.flags = $Flags
+    }
+    else {
+        $entry = [pscustomobject]@{ lastUsed = $stamp; flags = $Flags }
+        $Config.projects | Add-Member -NotePropertyName $ProjectPath -NotePropertyValue $entry
+    }
+    Save-LauncherConfig -Config $Config -Path $ConfigPath
+}
+
+function Format-RelativeTime {
+    param([Nullable[datetime]]$Timestamp)
+    if ($null -eq $Timestamp) { return '' }
+    $ts = $Timestamp
+    if ($Timestamp -is [datetime]) {
+        # Plain datetime passed; use directly
+        $ts = $Timestamp
+    }
+    else {
+        # Nullable[datetime] boxed value
+        $ts = $Timestamp.Value
+    }
+    $span = (Get-Date).ToUniversalTime() - $ts.ToUniversalTime()
+    if ($span.TotalMinutes -lt 1) { return 'just now' }
+    if ($span.TotalHours -lt 1) { return ('{0}m ago' -f [int][math]::Floor($span.TotalMinutes)) }
+    if ($span.TotalDays -lt 1) { return ('{0}h ago' -f [int][math]::Floor($span.TotalHours)) }
+    if ($span.TotalDays -lt 7) { return ('{0}d ago' -f [int][math]::Floor($span.TotalDays)) }
+    return $ts.ToLocalTime().ToString('yyyy-MM-dd')
+}
