@@ -31,10 +31,11 @@ public partial class App : Application
     /// <summary>
     /// The native window handle (HWND). Use for file pickers,
     /// <c>DataTransferManager</c>, and any WinRT interop that requires
-    /// <c>InitializeWithWindow</c>.
+    /// <c>InitializeWithWindow</c>. Only valid after <see cref="OnLaunched"/>
+    /// has created the window; returns <c>0</c> before launch.
     /// </summary>
     public static nint WindowHandle =>
-        WinRT.Interop.WindowNative.GetWindowHandle(Window);
+        Window is null ? 0 : WinRT.Interop.WindowNative.GetWindowHandle(Window);
 
     /// <summary>
     /// Initializes the singleton application object.
