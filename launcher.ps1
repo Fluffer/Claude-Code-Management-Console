@@ -255,6 +255,95 @@ try {
 
     $controls.NewProjectButton.Add_Click({ Show-NewProjectDialog })
 
+    # --- Settings dialog ---
+    $script:SettingsXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="340" Width="480" WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize" FontSize="13">
+  <DockPanel Margin="12">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right"
+                Margin="0,10,0,0">
+      <Button x:Name="CloseButton" Content="Close" Width="80" IsDefault="True" IsCancel="True"/>
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Bottom" Margin="0,10,0,0">
+      <TextBlock Text="Default root for new projects:"/>
+      <ComboBox x:Name="DefaultCombo" Margin="0,4,0,0"/>
+    </StackPanel>
+    <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0">
+      <Button x:Name="AddButton" Content="Add..." Width="80" Margin="0,0,0,6"/>
+      <Button x:Name="RemoveButton" Content="Remove" Width="80"/>
+    </StackPanel>
+    <DockPanel>
+      <TextBlock DockPanel.Dock="Top" Text="Source roots:"/>
+      <ListBox x:Name="RootsList" Margin="0,4,0,0"/>
+    </DockPanel>
+  </DockPanel>
+</Window>
+'@
+
+    function Show-SettingsDialog {
+        [xml]$dlgXaml = $script:SettingsXaml
+        $dlg = [System.Windows.Markup.XamlReader]::Load(
+            (New-Object System.Xml.XmlNodeReader $dlgXaml))
+        $dlg.Owner = $window
+        $rootsList = $dlg.FindName('RootsList')
+        $defaultCombo = $dlg.FindName('DefaultCombo')
+        $addButton = $dlg.FindName('AddButton')
+        $removeButton = $dlg.FindName('RemoveButton')
+
+        function Update-SettingsLists {
+            $rootsList.ItemsSource = @($script:Config.roots)
+            $defaultCombo.ItemsSource = @($script:Config.roots)
+            $defaultCombo.SelectedItem = $script:Config.defaultRoot
+        }
+        Update-SettingsLists
+
+        $addButton.Add_Click({
+            # WinForms folder picker (works from WPF; OK on both PS hosts).
+            Add-Type -AssemblyName System.Windows.Forms
+            $picker = New-Object System.Windows.Forms.FolderBrowserDialog
+            $picker.Description = 'Choose a folder containing projects'
+            if ($picker.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+                $newRoot = $picker.SelectedPath
+                if ($script:Config.roots -notcontains $newRoot) {
+                    $script:Config.roots = @($script:Config.roots) + $newRoot
+                    Save-LauncherConfig -Config $script:Config
+                    Update-SettingsLists
+                }
+            }
+        })
+
+        $removeButton.Add_Click({
+            $sel = $rootsList.SelectedItem
+            if ($null -eq $sel) { return }
+            $script:Config.roots = @($script:Config.roots | Where-Object { $_ -ne $sel })
+            if ($script:Config.defaultRoot -eq $sel) {
+                if (@($script:Config.roots).Count -gt 0) {
+                    $script:Config.defaultRoot = $script:Config.roots[0]
+                }
+                else {
+                    $script:Config.defaultRoot = ''
+                }
+            }
+            Save-LauncherConfig -Config $script:Config
+            Update-SettingsLists
+        })
+
+        $defaultCombo.Add_SelectionChanged({
+            $sel = $defaultCombo.SelectedItem
+            if ($null -ne $sel) {
+                $script:Config.defaultRoot = $sel
+                Save-LauncherConfig -Config $script:Config
+            }
+        })
+
+        $dlg.ShowDialog() | Out-Null
+        Invoke-Rescan
+    }
+
+    $controls.SettingsButton.Add_Click({ Show-SettingsDialog })
+
     Invoke-Rescan
 
     $window.ShowDialog() | Out-Null
