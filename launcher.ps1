@@ -29,6 +29,11 @@ try {
         $controls[$name] = $window.FindName($name)
     }
 
+    if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+        $controls.WarningText.Text = "'claude' was not found on PATH. Launches will open a terminal but the command will fail."
+        $controls.WarningBanner.Visibility = 'Visible'
+    }
+
     # --- State ---
     $script:Config = Get-LauncherConfig
     $script:Projects = @()          # raw scan results
@@ -99,6 +104,71 @@ try {
     $controls.SearchBox.Add_TextChanged({ Update-ProjectList })
 
     $controls.RefreshButton.Add_Click({ Invoke-Rescan })
+
+    # --- Flags textbox: bound to selected project; edits persist immediately ---
+    $controls.ProjectList.Add_SelectionChanged({
+        $vm = $controls.ProjectList.SelectedItem
+        $script:LoadingFlags = $true
+        if ($null -ne $vm) {
+            $controls.FlagsBox.IsEnabled = $true
+            $controls.FlagsBox.Text = $vm.Flags
+        }
+        else {
+            $controls.FlagsBox.Text = ''
+            $controls.FlagsBox.IsEnabled = $false
+        }
+        $script:LoadingFlags = $false
+    })
+
+    $controls.FlagsBox.Add_TextChanged({
+        if ($script:LoadingFlags) { return }
+        $vm = $controls.ProjectList.SelectedItem
+        if ($null -eq $vm) { return }
+        $vm.Flags = $controls.FlagsBox.Text
+        # Persist without bumping lastUsed: write flags directly.
+        if ($null -ne $script:Config.projects.PSObject.Properties[$vm.Path]) {
+            $script:Config.projects.($vm.Path).flags = $vm.Flags
+        }
+        else {
+            $entry = [pscustomobject]@{ lastUsed = $null; flags = $vm.Flags }
+            $script:Config.projects | Add-Member -NotePropertyName $vm.Path -NotePropertyValue $entry
+        }
+        Save-LauncherConfig -Config $script:Config
+    })
+
+    # --- Row New/Continue buttons (routed event from the DataTemplate) ---
+    function Start-ProjectSession {
+        param($ViewModel, [bool]$ContinueSession)
+        $spec = Build-LaunchCommand -ProjectName $ViewModel.Name -ProjectPath $ViewModel.Path `
+            -Flags $ViewModel.Flags -Continue:$ContinueSession
+        try {
+            Invoke-ProjectLaunch -LaunchSpec $spec
+        }
+        catch {
+            [System.Windows.MessageBox]::Show("Launch failed: $($_.Exception.Message)",
+                'Dev-Projects', 'OK', 'Error') | Out-Null
+            return
+        }
+        Update-ProjectUsage -Config $script:Config -ProjectPath $ViewModel.Path -Flags $ViewModel.Flags
+        $script:Projects = @(Get-Projects -Config $script:Config)
+        Update-ProjectList
+    }
+
+    $clickHandler = [System.Windows.RoutedEventHandler]{
+        param($s, $e)
+        $btn = $e.OriginalSource
+        if ($btn -isnot [System.Windows.Controls.Button]) { return }
+        if ($null -eq $btn.Tag) { return }
+        $vm = $btn.Tag
+        if ($btn.Content -eq 'New') {
+            Start-ProjectSession -ViewModel $vm -ContinueSession $false
+        }
+        elseif ($btn.Content -eq 'Continue') {
+            Start-ProjectSession -ViewModel $vm -ContinueSession $true
+        }
+        $e.Handled = $true
+    }
+    $controls.ProjectList.AddHandler([System.Windows.Controls.Button]::ClickEvent, $clickHandler)
 
     Invoke-Rescan
 
