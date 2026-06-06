@@ -1,0 +1,45 @@
+<ContentDialog x:Class="DevProjects.App.Views.SettingsDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="Settings"
+               CloseButtonText="Close"
+               DefaultButton="Close">
+    <Grid MinWidth="460" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*" MinHeight="180"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Source roots"
+                   ToolTipService.ToolTip="Folders scanned for projects. Each direct subfolder shows up in the project list."/>
+
+        <Grid Grid.Row="1" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ListView x:Name="RootsList" Grid.Column="0" SelectionMode="Single"
+                      AutomationProperties.AutomationId="RootsList"
+                      BorderThickness="1"
+                      BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                      CornerRadius="{ThemeResource ControlCornerRadius}"/>
+            <StackPanel Grid.Column="1" Spacing="8">
+                <Button x:Name="AddButton" Content="Add…" MinWidth="92" Click="AddButton_Click"
+                        AutomationProperties.AutomationId="AddRootButton"
+                        ToolTipService.ToolTip="Pick a folder that contains your projects — each subfolder becomes a project entry"/>
+                <Button x:Name="RemoveButton" Content="Remove" MinWidth="92" Click="RemoveButton_Click"
+                        AutomationProperties.AutomationId="RemoveRootButton"
+                        ToolTipService.ToolTip="Stop scanning the selected root. Your folders and files are NOT deleted."/>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Spacing="6">
+            <TextBlock Text="Default root for new projects"
+                       ToolTipService.ToolTip="Preselected in the New Project dialog when 'All' is active in the sidebar"/>
+            <ComboBox x:Name="DefaultCombo" HorizontalAlignment="Stretch"
+                      AutomationProperties.AutomationId="DefaultRootCombo"
+                      SelectionChanged="DefaultCombo_SelectionChanged"/>
+        </StackPanel>
+    </Grid>
+</ContentDialog>
