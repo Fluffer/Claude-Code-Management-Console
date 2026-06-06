@@ -1,16 +1,335 @@
-<?xml version="1.0" encoding="utf-8" ?>
-<Window
-    x:Class="DevProjects.App.MainWindow"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:local="using:DevProjects.App"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    Title="Dev-Projects"
-    mc:Ignorable="d">
-    <Window.SystemBackdrop>
-        <MicaBackdrop />
-    </Window.SystemBackdrop>
+<Window x:Class="DevProjects.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DevProjects.App.ViewModels"
+        xmlns:local="using:DevProjects.App"
+        Title="Dev-Projects">
 
-    <Grid />
+    <Grid x:Name="RootGrid" AllowDrop="True" Background="Transparent"
+          DragOver="Root_DragOver" DragLeave="Root_DragLeave" Drop="Root_Drop">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="F" Modifiers="Control" Invoked="FocusSearch_Invoked"/>
+            <KeyboardAccelerator Key="N" Modifiers="Control" Invoked="NewProject_Invoked"/>
+            <KeyboardAccelerator Key="F5" Invoked="Refresh_Invoked"/>
+            <KeyboardAccelerator Key="F1" Invoked="Help_Invoked"/>
+            <KeyboardAccelerator Key="Escape" Invoked="ClearSearch_Invoked"/>
+        </Grid.KeyboardAccelerators>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Warning banner: claude not on PATH -->
+        <InfoBar Grid.Row="0" Severity="Warning" IsClosable="False" Margin="12,8,12,0"
+                 IsOpen="{x:Bind ViewModel.ClaudeMissing, Mode=OneWay}"
+                 Message="'claude' was not found on PATH. Sessions will open a terminal, but the claude command will fail. Install Claude Code or fix PATH, then press Refresh (F5)."/>
+
+        <!-- First-run onboarding -->
+        <InfoBar Grid.Row="1" Severity="Informational" Margin="12,8,12,0"
+                 IsOpen="{x:Bind ViewModel.ShowOnboarding, Mode=OneWay}"
+                 CloseButtonClick="OnboardingClose_Click"
+                 Title="Welcome to Dev-Projects!"
+                 Message="Pick a project and press Enter to continue its last Claude session, or Ctrl+Enter for a fresh one. Filter by folder on the left, search with Ctrl+F, pin favourites with the star, and press F1 anytime for the full guide.">
+            <InfoBar.ActionButton>
+                <Button Content="Open guide" Click="HelpButton_Click"
+                        ToolTipService.ToolTip="Open the full help guide (F1)"/>
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <!-- Main area -->
+        <Grid Grid.Row="2" Margin="0,4,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="240"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar -->
+            <Grid Grid.Column="0" Margin="12,0,0,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="SOURCE ROOTS" Margin="8,4,0,8"
+                           Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6"
+                           ToolTipService.ToolTip="Folders that are scanned for projects. Click one to filter the list."/>
+                <ListView x:Name="SidebarList" Grid.Row="1"
+                          AutomationProperties.AutomationId="SidebarList"
+                          ItemsSource="{x:Bind ViewModel.SidebarItems}"
+                          SelectedItem="{Binding SelectedSidebarItem, Mode=TwoWay}"
+                          SelectionMode="Single"
+                          ContainerContentChanging="SidebarList_ContainerContentChanging">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SidebarItemViewModel">
+                            <TextBlock Text="{x:Bind DisplayName}"/>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                <StackPanel Grid.Row="2" Spacing="8">
+                    <Border Height="1" Margin="0,4"
+                            Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+                    <Grid ToolTipService.ToolTip="Choose the app colour theme. 'System' follows your Windows light/dark setting.">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Theme" VerticalAlignment="Center"
+                                   Margin="4,0,8,0" Opacity="0.8"/>
+                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                  AutomationProperties.AutomationId="ThemeCombo"
+                                  ItemsSource="{x:Bind ViewModel.Themes}"
+                                  SelectedItem="{Binding Theme, Mode=TwoWay}"/>
+                    </Grid>
+                    <Button HorizontalAlignment="Stretch" Click="SettingsButton_Click"
+                            AutomationProperties.AutomationId="SettingsButton"
+                            ToolTipService.ToolTip="Manage source roots and the default folder for new projects">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE713;" FontSize="14"/>
+                            <TextBlock Text="Settings"/>
+                        </StackPanel>
+                    </Button>
+                    <Button HorizontalAlignment="Stretch" Click="HelpButton_Click"
+                            AutomationProperties.AutomationId="HelpButton"
+                            ToolTipService.ToolTip="How everything works, including keyboard shortcuts (F1)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE897;" FontSize="14"/>
+                            <TextBlock Text="Help"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Content -->
+            <Grid Grid.Column="1" Margin="12,0,12,12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Search + sort -->
+                <Grid Grid.Row="0" Margin="0,0,0,8" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="SearchBox" Grid.Column="0"
+                             AutomationProperties.AutomationId="SearchBox"
+                             PlaceholderText="Search projects   (Ctrl+F)"
+                             Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTipService.ToolTip="Type to filter projects by name. Ctrl+F focuses this box; Esc clears it."/>
+                    <ComboBox x:Name="SortCombo" Grid.Column="1" MinWidth="170"
+                              AutomationProperties.AutomationId="SortCombo"
+                              SelectionChanged="SortCombo_SelectionChanged"
+                              ToolTipService.ToolTip="Change how the project list is ordered. Pinned projects always stay on top.">
+                        <ComboBoxItem Content="Sort: Recently used" Tag="LastUsed"/>
+                        <ComboBoxItem Content="Sort: Name A–Z" Tag="Name"/>
+                    </ComboBox>
+                </Grid>
+
+                <!-- Flags row -->
+                <Grid Grid.Row="1" Margin="0,0,0,8" ColumnSpacing="8"
+                      ToolTipService.ToolTip="Extra command-line flags passed to claude when launching the selected project. Select a project first, then add flags (e.g. --model opus). Saved automatically as you type; used by both New and Continue.">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="Flags:" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1"
+                             AutomationProperties.AutomationId="FlagsBox"
+                             Text="{x:Bind ViewModel.FlagsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             IsEnabled="{x:Bind ViewModel.FlagsEnabled, Mode=OneWay}"/>
+                    <DropDownButton Grid.Column="2"
+                                    AutomationProperties.AutomationId="AddFlagButton"
+                                    IsEnabled="{x:Bind ViewModel.FlagsEnabled, Mode=OneWay}"
+                                    ToolTipService.ToolTip="Insert a common claude flag with an explanation of what it does">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                            <TextBlock Text="Flag"/>
+                        </StackPanel>
+                        <DropDownButton.Flyout>
+                            <MenuFlyout x:Name="FlagMenu" Placement="Bottom"/>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+                </Grid>
+
+                <!-- Project list + empty state -->
+                <Grid Grid.Row="2">
+                    <ListView x:Name="ProjectList"
+                              AutomationProperties.AutomationId="ProjectList"
+                              ItemsSource="{x:Bind ViewModel.Projects}"
+                              SelectedItem="{Binding SelectedProject, Mode=TwoWay}"
+                              SelectionMode="Single"
+                              KeyDown="ProjectList_KeyDown">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Padding" Value="8,6"/>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProjectItemViewModel">
+                                <Grid Background="Transparent" ColumnSpacing="6">
+                                    <Grid.ContextFlyout>
+                                        <MenuFlyout Opening="RowFlyout_Opening">
+                                            <MenuFlyoutItem Text="Open in Explorer" Click="OpenInExplorer_Click"/>
+                                            <MenuFlyoutItem Text="Open in VS Code" Click="OpenInVsCode_Click"/>
+                                            <MenuFlyoutItem Text="Copy path" Click="CopyPath_Click"/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Rename…" Click="Rename_Click"
+                                                            ToolTipService.ToolTip="Rename the project folder (config and pin follow the new name)"/>
+                                            <MenuFlyoutSubItem Text="Move to root"
+                                                               ToolTipService.ToolTip="Move the project folder to another source root, e.g. Archive or Stable"/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Pin / Unpin" Click="Pin_Click"/>
+                                        </MenuFlyout>
+                                    </Grid.ContextFlyout>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Pin -->
+                                    <Button Grid.Column="0" Width="32" Height="32" Padding="0"
+                                            Background="Transparent" BorderThickness="0"
+                                            AutomationProperties.Name="{x:Bind PinToolTip, Mode=OneWay}"
+                                            Click="Pin_Click"
+                                            ToolTipService.ToolTip="{x:Bind PinToolTip, Mode=OneWay}">
+                                        <FontIcon Glyph="{x:Bind PinGlyph, Mode=OneWay}" FontSize="14"
+                                                  Opacity="{x:Bind PinOpacity, Mode=OneWay}"
+                                                  Foreground="{x:Bind local:MainWindow.PinBrush(IsPinned), Mode=OneWay}"/>
+                                    </Button>
+
+                                    <!-- Name + metadata -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                                                VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
+                                                   VerticalAlignment="Center"
+                                                   ToolTipService.ToolTip="{x:Bind Path}"/>
+                                        <Border CornerRadius="9" Padding="8,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource AccentFillColorDefaultBrush}"
+                                                ToolTipService.ToolTip="{x:Bind Root}">
+                                            <TextBlock Text="{x:Bind RootName}" FontSize="10"
+                                                       Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </Border>
+                                        <Border CornerRadius="9" Padding="7,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource SystemFillColorSuccessBrush}"
+                                                Visibility="{x:Bind IsRunning, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind RunningToolTip}">
+                                            <TextBlock Text="● live" FontSize="10"
+                                                       Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center"
+                                                    Visibility="{x:Bind HasGitInfo, Mode=OneWay}"
+                                                    ToolTipService.ToolTip="{x:Bind GitToolTip, Mode=OneWay}">
+                                            <TextBlock Text="⎇" FontSize="11" Opacity="0.7"/>
+                                            <TextBlock Text="{x:Bind GitBranch, Mode=OneWay}" FontSize="11" Opacity="0.7"/>
+                                            <TextBlock Text="●" FontSize="10"
+                                                       Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                                       Visibility="{x:Bind local:MainWindow.TrueWhen(GitDirty), Mode=OneWay}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind LastUsedText}" Opacity="0.55"
+                                                   Style="{StaticResource CaptionTextBlockStyle}"
+                                                   VerticalAlignment="Center"
+                                                   ToolTipService.ToolTip="When you last launched a Claude session here from this app"/>
+                                    </StackPanel>
+
+                                    <!-- Launch buttons -->
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
+                                                VerticalAlignment="Center">
+                                        <Button Content="New" Padding="14,4" Click="LaunchNew_Click"
+                                                AutomationProperties.Name="New session"
+                                                ToolTipService.ToolTip="Start a fresh Claude session in this project (Ctrl+Enter)"/>
+                                        <Button Content="Continue" Padding="14,4" Click="LaunchContinue_Click"
+                                                AutomationProperties.Name="Continue session"
+                                                IsEnabled="{x:Bind HasSession, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind ContinueToolTip, Mode=OneWay}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- Empty state -->
+                    <TextBlock Text="{x:Bind ViewModel.EmptyStateText, Mode=OneWay}"
+                               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="420"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               Opacity="0.6"
+                               Visibility="{x:Bind ViewModel.IsListEmpty, Mode=OneWay}"/>
+                </Grid>
+
+                <!-- Bottom action bar -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                    <Button Click="NewProjectButton_Click"
+                            AutomationProperties.AutomationId="NewProjectButton"
+                            ToolTipService.ToolTip="Create a new empty project folder and (optionally) start Claude in it (Ctrl+N)">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                            <TextBlock Text="New Project"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{x:Bind ViewModel.RescanCommand}"
+                            AutomationProperties.AutomationId="RefreshButton"
+                            ToolTipService.ToolTip="Rescan the source roots now (F5). The list also refreshes automatically when folders change.">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE72C;" FontSize="12"/>
+                            <TextBlock Text="Refresh"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <Border Grid.Row="3" Padding="12,6" BorderThickness="0,1,0,0"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.ClaudeVersionText, Mode=OneWay}"
+                           Opacity="0.7" Style="{StaticResource CaptionTextBlockStyle}"
+                           ToolTipService.ToolTip="Version of the claude CLI found on PATH"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                            HorizontalAlignment="Center">
+                    <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" Opacity="0.7"
+                               Style="{StaticResource CaptionTextBlockStyle}"/>
+                    <TextBlock Text="{x:Bind ViewModel.RunningSummary, Mode=OneWay}"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                               ToolTipService.ToolTip="Projects with a claude process running in their folder right now (rechecked every 30 seconds)"/>
+                </StackPanel>
+                <TextBlock Grid.Column="2" Opacity="0.7" Style="{StaticResource CaptionTextBlockStyle}"
+                           Text="Enter = Continue · Ctrl+Enter = New · Ctrl+F = Search · F1 = Help"/>
+            </Grid>
+        </Border>
+
+        <!-- Drag-drop overlay -->
+        <Border x:Name="DropOverlay" Grid.RowSpan="4" Visibility="Collapsed" IsHitTestVisible="False"
+                Background="{ThemeResource SmokeFillColorDefaultBrush}">
+            <Border BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="2"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}" Margin="40"
+                    Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}">
+                <TextBlock Text="Drop a folder here&#10;Add it as a source root, or launch Claude in it"
+                           Style="{StaticResource SubtitleTextBlockStyle}" TextAlignment="Center"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+        </Border>
+
+        <!-- Toast -->
+        <Border x:Name="Toast" Grid.RowSpan="4" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                Margin="0,0,0,48" Padding="16,8" CornerRadius="{ThemeResource OverlayCornerRadius}"
+                Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource SurfaceStrokeColorFlyoutBrush}" BorderThickness="1"
+                Visibility="Collapsed" IsHitTestVisible="False">
+            <TextBlock x:Name="ToastText" Style="{StaticResource CaptionTextBlockStyle}"/>
+        </Border>
+    </Grid>
 </Window>
