@@ -231,15 +231,8 @@ function Update-ProjectUsage {
 function Format-RelativeTime {
     param([Nullable[datetime]]$Timestamp)
     if ($null -eq $Timestamp) { return '' }
+    # PowerShell unwraps Nullable[datetime] on bind; after the null guard this is always a plain datetime.
     $ts = $Timestamp
-    if ($Timestamp -is [datetime]) {
-        # Plain datetime passed; use directly
-        $ts = $Timestamp
-    }
-    else {
-        # Nullable[datetime] boxed value
-        $ts = $Timestamp.Value
-    }
     $span = (Get-Date).ToUniversalTime() - $ts.ToUniversalTime()
     if ($span.TotalMinutes -lt 1) { return 'just now' }
     if ($span.TotalHours -lt 1) { return ('{0}m ago' -f [int][math]::Floor($span.TotalMinutes)) }
