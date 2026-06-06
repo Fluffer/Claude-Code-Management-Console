@@ -671,12 +671,15 @@ function Update-ProjectUsage {
 function Format-RelativeTime {
     param([Nullable[datetime]]$Timestamp)
     if ($null -eq $Timestamp) { return '' }
-    $span = (Get-Date).ToUniversalTime() - $Timestamp.Value.ToUniversalTime()
+    # PowerShell unwraps Nullable[datetime] on bind; after the null guard this is
+    # always a plain datetime (.Value access would throw under StrictMode 2.0).
+    $ts = $Timestamp
+    $span = (Get-Date).ToUniversalTime() - $ts.ToUniversalTime()
     if ($span.TotalMinutes -lt 1) { return 'just now' }
     if ($span.TotalHours -lt 1) { return ('{0}m ago' -f [int][math]::Floor($span.TotalMinutes)) }
     if ($span.TotalDays -lt 1) { return ('{0}h ago' -f [int][math]::Floor($span.TotalHours)) }
     if ($span.TotalDays -lt 7) { return ('{0}d ago' -f [int][math]::Floor($span.TotalDays)) }
-    return $Timestamp.Value.ToLocalTime().ToString('yyyy-MM-dd')
+    return $ts.ToLocalTime().ToString('yyyy-MM-dd')
 }
 ```
 
