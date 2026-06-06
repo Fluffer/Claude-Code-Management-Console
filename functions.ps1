@@ -137,3 +137,70 @@ function New-ProjectFolder {
     New-Item -ItemType Directory -Path $path -ErrorAction Stop | Out-Null
     return $path
 }
+
+function Get-PreferredShell {
+    if (Get-Command pwsh -ErrorAction SilentlyContinue) { return 'pwsh' }
+    return 'powershell'
+}
+
+function Find-WindowsTerminal {
+    $cmd = Get-Command wt.exe -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+    # Store installs expose wt.exe via the App Execution Alias, which may not be on PATH.
+    $alias = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\wt.exe'
+    if (Test-Path $alias) { return $alias }
+    return $null
+}
+
+function ConvertTo-ArgumentString {
+    param([string[]]$Arguments)
+    $quoted = foreach ($arg in $Arguments) {
+        if ($arg -match '[\s"]') {
+            '"' + ($arg -replace '"', '\"') + '"'
+        }
+        else {
+            $arg
+        }
+    }
+    return ($quoted -join ' ')
+}
+
+function Build-LaunchCommand {
+    param(
+        [Parameter(Mandatory)] [string]$ProjectName,
+        [Parameter(Mandatory)] [string]$ProjectPath,
+        [string]$Flags = '',
+        [switch]$Continue,
+        [string]$Shell = (Get-PreferredShell),
+        [string]$WtPath = (Find-WindowsTerminal)
+    )
+    $claudeCmd = 'claude'
+    if ($Continue) { $claudeCmd = $claudeCmd + ' --continue' }
+    if (-not [string]::IsNullOrWhiteSpace($Flags)) { $claudeCmd = $claudeCmd + ' ' + $Flags.Trim() }
+
+    if (-not [string]::IsNullOrWhiteSpace($WtPath)) {
+        $wtArgs = @('-w', '0', 'new-tab', '--title', $ProjectName, '-d', $ProjectPath,
+                    $Shell, '-NoExit', '-Command', $claudeCmd)
+        return [pscustomobject]@{
+            FilePath         = $WtPath
+            ArgumentList     = (ConvertTo-ArgumentString -Arguments $wtArgs)
+            WorkingDirectory = $null
+        }
+    }
+    return [pscustomobject]@{
+        FilePath         = $Shell
+        ArgumentList     = (ConvertTo-ArgumentString -Arguments @('-NoExit', '-Command', $claudeCmd))
+        WorkingDirectory = $ProjectPath
+    }
+}
+
+function Invoke-ProjectLaunch {
+    param([Parameter(Mandatory)] $LaunchSpec)
+    if ($LaunchSpec.WorkingDirectory) {
+        Start-Process -FilePath $LaunchSpec.FilePath -ArgumentList $LaunchSpec.ArgumentList `
+            -WorkingDirectory $LaunchSpec.WorkingDirectory
+    }
+    else {
+        Start-Process -FilePath $LaunchSpec.FilePath -ArgumentList $LaunchSpec.ArgumentList
+    }
+}

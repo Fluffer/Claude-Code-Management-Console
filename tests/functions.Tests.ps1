@@ -157,3 +157,48 @@ Describe 'New-ProjectFolder' {
         { New-ProjectFolder -Root (Join-Path $TestDrive 'NoSuchRoot') -Name 'X' } | Should -Throw
     }
 }
+
+Describe 'Get-PreferredShell' {
+    It 'returns pwsh or powershell' {
+        Get-PreferredShell | Should -BeIn @('pwsh', 'powershell')
+    }
+}
+
+Describe 'ConvertTo-ArgumentString' {
+    It 'passes simple args through' {
+        ConvertTo-ArgumentString -Arguments @('-w', '0', 'new-tab') | Should -Be '-w 0 new-tab'
+    }
+
+    It 'quotes args containing spaces' {
+        ConvertTo-ArgumentString -Arguments @('-d', 'C:\Dev\My Project') |
+            Should -Be '-d "C:\Dev\My Project"'
+    }
+
+    It 'escapes embedded double quotes' {
+        ConvertTo-ArgumentString -Arguments @('claude --append-system-prompt "be brief"') |
+            Should -Be '"claude --append-system-prompt \"be brief\""'
+    }
+}
+
+Describe 'Build-LaunchCommand' {
+    It 'builds a wt new-tab command when wt is available' {
+        $spec = Build-LaunchCommand -ProjectName 'My Proj' -ProjectPath 'C:\Dev\Active\My Proj' `
+            -Shell 'pwsh' -WtPath 'C:\wt\wt.exe'
+        $spec.FilePath | Should -Be 'C:\wt\wt.exe'
+        $spec.ArgumentList | Should -Be '-w 0 new-tab --title "My Proj" -d "C:\Dev\Active\My Proj" pwsh -NoExit -Command claude'
+        $spec.WorkingDirectory | Should -BeNullOrEmpty
+    }
+
+    It 'appends --continue and flags' {
+        $spec = Build-LaunchCommand -ProjectName 'P' -ProjectPath 'C:\P' -Flags '--model opus' `
+            -Continue -Shell 'pwsh' -WtPath 'C:\wt\wt.exe'
+        $spec.ArgumentList | Should -Match '"claude --continue --model opus"$'
+    }
+
+    It 'falls back to a plain shell window when wt is missing' {
+        $spec = Build-LaunchCommand -ProjectName 'P' -ProjectPath 'C:\Dev\P' -Shell 'powershell' -WtPath ''
+        $spec.FilePath | Should -Be 'powershell'
+        $spec.WorkingDirectory | Should -Be 'C:\Dev\P'
+        $spec.ArgumentList | Should -Be '-NoExit -Command claude'
+    }
+}
