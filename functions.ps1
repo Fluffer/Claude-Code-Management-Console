@@ -71,16 +71,18 @@ function Get-Projects {
     $projects = @()
     foreach ($root in $Config.roots) {
         if (-not (Test-Path $root)) { continue }
-        $dirs = @(Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue | Where-Object {
+        $dirs = Get-ChildItem -Path $root -Directory | Where-Object {
             ($_.Name -notlike '.*') -and
             (-not ($_.Attributes -band [System.IO.FileAttributes]::Hidden)) -and
             ($Config.ignore -notcontains $_.Name)
-        })
+        }
         foreach ($dir in $dirs) {
             $lastUsed = $null
             $flags = ''
-            $propNames = @($Config.projects.PSObject.Properties | Select-Object -ExpandProperty Name)
-            if ($propNames -contains $dir.FullName) {
+            # NOTE: spec's `.Properties.Name -contains` throws PropertyNotFoundStrict
+            # under Set-StrictMode 2.0 when projects has no properties (verified on
+            # PS 5.1 and 7.x); the indexer returns $null safely in both engines.
+            if ($null -ne $Config.projects.PSObject.Properties[$dir.FullName]) {
                 $saved = $Config.projects.($dir.FullName)
                 if ($saved.PSObject.Properties.Name -contains 'lastUsed') {
                     if ($saved.lastUsed) { $lastUsed = [datetime]$saved.lastUsed }
