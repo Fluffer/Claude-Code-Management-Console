@@ -172,6 +172,96 @@ try {
     }
     $controls.ProjectList.AddHandler([System.Windows.Controls.Button]::ClickEvent, $clickHandler)
 
+    # --- New Project dialog ---
+    $script:NewProjectXaml = @'
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="New Project" Height="220" Width="420" WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize" FontSize="13">
+  <StackPanel Margin="12">
+    <TextBlock Text="Project name:"/>
+    <TextBox x:Name="NameBox" Margin="0,4,0,10" Padding="4"/>
+    <TextBlock Text="Create in:"/>
+    <ComboBox x:Name="RootCombo" Margin="0,4,0,10"/>
+    <CheckBox x:Name="LaunchCheck" Content="Launch Claude after creation" IsChecked="True"
+              Margin="0,0,0,12"/>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+      <Button x:Name="OkButton" Content="Create" Width="80" Margin="0,0,8,0" IsDefault="True"/>
+      <Button x:Name="CancelButton" Content="Cancel" Width="80" IsCancel="True"/>
+    </StackPanel>
+  </StackPanel>
+</Window>
+'@
+
+    function Show-NewProjectDialog {
+        [xml]$dlgXaml = $script:NewProjectXaml
+        $dlg = [System.Windows.Markup.XamlReader]::Load(
+            (New-Object System.Xml.XmlNodeReader $dlgXaml))
+        $dlg.Owner = $window
+        $nameBox = $dlg.FindName('NameBox')
+        $rootCombo = $dlg.FindName('RootCombo')
+        $launchCheck = $dlg.FindName('LaunchCheck')
+        $okButton = $dlg.FindName('OkButton')
+
+        $existingRoots = @($script:Config.roots | Where-Object { Test-Path $_ })
+        $rootCombo.ItemsSource = $existingRoots
+        # Preselect the sidebar root, else defaultRoot.
+        $preselect = $script:SelectedRoot
+        if (-not $preselect) { $preselect = $script:Config.defaultRoot }
+        if ($existingRoots -contains $preselect) {
+            $rootCombo.SelectedItem = $preselect
+        }
+        elseif ($existingRoots.Count -gt 0) {
+            $rootCombo.SelectedIndex = 0
+        }
+
+        $okButton.Add_Click({
+            $name = $nameBox.Text.Trim()
+            $root = $rootCombo.SelectedItem
+            if ($null -eq $root) {
+                [System.Windows.MessageBox]::Show('No destination root available.',
+                    'New Project', 'OK', 'Warning') | Out-Null
+                return
+            }
+            $error_ = Get-ProjectNameError -Name $name -Root $root
+            if ($error_) {
+                [System.Windows.MessageBox]::Show($error_, 'New Project', 'OK', 'Warning') | Out-Null
+                return
+            }
+            try {
+                $newPath = New-ProjectFolder -Root $root -Name $name
+            }
+            catch {
+                [System.Windows.MessageBox]::Show("Could not create folder: $($_.Exception.Message)",
+                    'New Project', 'OK', 'Error') | Out-Null
+                return
+            }
+            $dlg.Tag = [pscustomobject]@{ Path = $newPath; Name = $name
+                                          Launch = [bool]$launchCheck.IsChecked }
+            $dlg.DialogResult = $true
+        })
+
+        $result = $dlg.ShowDialog()
+        if ($result -and $dlg.Tag) {
+            Invoke-Rescan
+            if ($dlg.Tag.Launch) {
+                $spec = Build-LaunchCommand -ProjectName $dlg.Tag.Name -ProjectPath $dlg.Tag.Path
+                try {
+                    Invoke-ProjectLaunch -LaunchSpec $spec
+                    Update-ProjectUsage -Config $script:Config -ProjectPath $dlg.Tag.Path
+                    $script:Projects = @(Get-Projects -Config $script:Config)
+                    Update-ProjectList
+                }
+                catch {
+                    [System.Windows.MessageBox]::Show("Launch failed: $($_.Exception.Message)",
+                        'Dev-Projects', 'OK', 'Error') | Out-Null
+                }
+            }
+        }
+    }
+
+    $controls.NewProjectButton.Add_Click({ Show-NewProjectDialog })
+
     Invoke-Rescan
 
     $window.ShowDialog() | Out-Null
