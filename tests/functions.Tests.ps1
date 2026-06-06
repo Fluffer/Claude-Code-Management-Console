@@ -61,3 +61,39 @@ Describe 'Get-LauncherConfig / Save-LauncherConfig' {
         ($bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB) | Should -BeFalse
     }
 }
+
+Describe 'Get-Projects' {
+    BeforeEach {
+        $script:rootA = Join-Path $TestDrive 'RootA'
+        $script:rootB = Join-Path $TestDrive 'RootB'
+        New-Item -ItemType Directory -Path (Join-Path $rootA 'Proj1') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $rootA 'Proj2') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $rootA '.git-stuff') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $rootA 'notes') -Force | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $rootB 'Proj3') -Force | Out-Null
+
+        $script:config = Get-DefaultConfig
+        $config.roots = @($rootA, $rootB, (Join-Path $TestDrive 'Missing'))
+        $config.ignore = @('notes')
+    }
+
+    It 'finds direct subfolders across roots, skipping dot/ignored folders and missing roots' {
+        $projects = @(Get-Projects -Config $config)
+        $projects.Count | Should -Be 3
+        ($projects | ForEach-Object { $_.Name }) | Should -Not -Contain '.git-stuff'
+        ($projects | ForEach-Object { $_.Name }) | Should -Not -Contain 'notes'
+    }
+
+    It 'attaches lastUsed and flags from config' {
+        $projPath = Join-Path $rootA 'Proj1'
+        $config.projects | Add-Member -NotePropertyName $projPath -NotePropertyValue ([pscustomobject]@{
+            lastUsed = '2026-06-01T10:00:00.0000000Z'
+            flags    = '--model opus'
+        })
+        $projects = @(Get-Projects -Config $config)
+        $p1 = $projects | Where-Object { $_.Path -eq $projPath }
+        $p1.Flags | Should -Be '--model opus'
+        $p1.LastUsed | Should -BeOfType [datetime]
+        ($projects | Where-Object { $_.Name -eq 'Proj2' }).LastUsed | Should -BeNullOrEmpty
+    }
+}

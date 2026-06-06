@@ -64,3 +64,39 @@ function Get-LauncherConfig {
 
     return $config
 }
+
+function Get-Projects {
+    param([Parameter(Mandatory)] $Config)
+
+    $projects = @()
+    foreach ($root in $Config.roots) {
+        if (-not (Test-Path $root)) { continue }
+        $dirs = @(Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue | Where-Object {
+            ($_.Name -notlike '.*') -and
+            (-not ($_.Attributes -band [System.IO.FileAttributes]::Hidden)) -and
+            ($Config.ignore -notcontains $_.Name)
+        })
+        foreach ($dir in $dirs) {
+            $lastUsed = $null
+            $flags = ''
+            $propNames = @($Config.projects.PSObject.Properties | Select-Object -ExpandProperty Name)
+            if ($propNames -contains $dir.FullName) {
+                $saved = $Config.projects.($dir.FullName)
+                if ($saved.PSObject.Properties.Name -contains 'lastUsed') {
+                    if ($saved.lastUsed) { $lastUsed = [datetime]$saved.lastUsed }
+                }
+                if ($saved.PSObject.Properties.Name -contains 'flags') {
+                    if ($saved.flags) { $flags = [string]$saved.flags }
+                }
+            }
+            $projects += [pscustomobject]@{
+                Name     = $dir.Name
+                Root     = $root
+                Path     = $dir.FullName
+                LastUsed = $lastUsed
+                Flags    = $flags
+            }
+        }
+    }
+    return $projects
+}
