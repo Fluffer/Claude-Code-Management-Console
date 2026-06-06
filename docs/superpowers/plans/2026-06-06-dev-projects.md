@@ -1012,6 +1012,10 @@ Insert before the final `Invoke-Rescan` line:
         Update-ProjectUsage -Config $script:Config -ProjectPath $ViewModel.Path -Flags $ViewModel.Flags
         $script:Projects = @(Get-Projects -Config $script:Config)
         Update-ProjectList
+        # Re-select the launched project: replacing ItemsSource clears selection,
+        # which would blank and disable the FlagsBox after every launch.
+        $newVm = @($controls.ProjectList.ItemsSource) | Where-Object { $_.Path -eq $ViewModel.Path } | Select-Object -First 1
+        if ($null -ne $newVm) { $controls.ProjectList.SelectedItem = $newVm }
     }
 
     $clickHandler = [System.Windows.RoutedEventHandler]{
