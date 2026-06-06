@@ -156,7 +156,11 @@ function ConvertTo-ArgumentString {
     param([string[]]$Arguments)
     $quoted = foreach ($arg in $Arguments) {
         if ($arg -match '[\s"]') {
-            '"' + ($arg -replace '"', '\"') + '"'
+            # CommandLineToArgvW rules: double any backslash run preceding a quote
+            # (or the end of a quoted token), then escape the quote itself.
+            $escaped = $arg -replace '(\\*)"', '$1$1\"'
+            $escaped = $escaped -replace '(\\+)$', '$1$1'
+            '"' + $escaped + '"'
         }
         else {
             $arg

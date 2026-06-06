@@ -178,6 +178,16 @@ Describe 'ConvertTo-ArgumentString' {
         ConvertTo-ArgumentString -Arguments @('claude --append-system-prompt "be brief"') |
             Should -Be '"claude --append-system-prompt \"be brief\""'
     }
+
+    It 'doubles a trailing backslash inside a quoted arg' {
+        ConvertTo-ArgumentString -Arguments @('-d', 'C:\My Dir\') |
+            Should -Be '-d "C:\My Dir\\"'
+    }
+
+    It 'handles backslashes preceding an embedded quote' {
+        ConvertTo-ArgumentString -Arguments @('say \"hi\"') |
+            Should -Be '"say \\\"hi\\\""'
+    }
 }
 
 Describe 'Build-LaunchCommand' {
