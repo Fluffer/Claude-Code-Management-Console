@@ -85,10 +85,14 @@ function Get-Projects {
             # PS 5.1 and 7.x); the indexer returns $null safely in both engines.
             if ($null -ne $Config.projects.PSObject.Properties[$dir.FullName]) {
                 $saved = $Config.projects.($dir.FullName)
-                if ($saved.PSObject.Properties.Name -contains 'lastUsed') {
-                    if ($saved.lastUsed) { $lastUsed = [datetime]$saved.lastUsed }
+                if ($null -ne $saved.PSObject.Properties['lastUsed']) {
+                    if ($saved.lastUsed) {
+                        # RoundtripKind keeps Z-suffixed ISO strings as Kind=Utc;
+                        # a plain [datetime] cast would shift them to Kind=Local.
+                        $lastUsed = [datetime]::Parse($saved.lastUsed, $null, [System.Globalization.DateTimeStyles]::RoundtripKind)
+                    }
                 }
-                if ($saved.PSObject.Properties.Name -contains 'flags') {
+                if ($null -ne $saved.PSObject.Properties['flags']) {
                     if ($saved.flags) { $flags = [string]$saved.flags }
                 }
             }

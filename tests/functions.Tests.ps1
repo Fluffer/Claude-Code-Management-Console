@@ -103,6 +103,17 @@ Describe 'Get-Projects' {
         $p1 = $projects | Where-Object { $_.Path -eq $projPath }
         $p1.Flags | Should -Be '--model opus'
         $p1.LastUsed | Should -BeOfType [datetime]
+        $p1.LastUsed.Kind | Should -Be ([System.DateTimeKind]::Utc)
+        $p1.LastUsed | Should -Be ([datetime]::Parse('2026-06-01T10:00:00.0000000Z', $null, [System.Globalization.DateTimeStyles]::RoundtripKind))
         ($projects | Where-Object { $_.Name -eq 'Proj2' }).LastUsed | Should -BeNullOrEmpty
+    }
+
+    It 'tolerates an empty project entry object' {
+        $projPath = Join-Path $rootA 'Proj2'
+        $config.projects | Add-Member -NotePropertyName $projPath -NotePropertyValue ([pscustomobject]@{})
+        $projects = @(Get-Projects -Config $config)
+        $p2 = $projects | Where-Object { $_.Path -eq $projPath }
+        $p2.Flags | Should -Be ''
+        $p2.LastUsed | Should -BeNullOrEmpty
     }
 }
