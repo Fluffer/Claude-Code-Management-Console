@@ -17,17 +17,18 @@ multiple sessions can be launched into separate Windows Terminal tabs.
 | App name | Dev-Projects |
 | Mode | Persistent launcher hub (stays open after launching) |
 | Source roots | Configurable list; seeded with `C:\Dev\Active`, `C:\Dev\Archive`, `C:\Dev\Scratch`, `C:\Dev\Stable`, `C:\Dev\third-party` |
-| Tech stack | PowerShell 7 + WPF (XAML) |
+| Tech stack | PowerShell + WPF (XAML); prefers PowerShell 7 (`pwsh`), falls back to Windows PowerShell 5.1 (`powershell`) when pwsh is not installed — all code must be 5.1-compatible |
 | Layout | Sidebar (roots as filters) + searchable project list (option A from mockups) |
 | New project | Creates empty folder only (no git init, no templates), then auto-launches a fresh claude session in it |
 | Terminal | Windows Terminal new tab in existing window (`wt.exe -w 0 new-tab`) |
 | Launch actions | Per-project **New** (`claude`) and **Continue** (`claude --continue`) buttons + optional custom flags field |
-| Structure | 3 files: `launcher.ps1`, `MainWindow.xaml`, `functions.ps1` + Pester tests |
+| Structure | 4 files: `launcher.cmd` (shell-picking shim), `launcher.ps1`, `MainWindow.xaml`, `functions.ps1` + Pester tests |
 
 ## Architecture
 
 ```
 Claude Cli Management\
+├─ launcher.cmd                  # shim: runs launcher.ps1 with pwsh if present, else powershell 5.1
 ├─ launcher.ps1                  # entry: load XAML, wire events, run window
 ├─ MainWindow.xaml               # WPF UI (sidebar + list layout)
 ├─ functions.ps1                 # logic: config, scan, launch, create
@@ -36,6 +37,15 @@ Claude Cli Management\
 
 `functions.ps1` contains all non-UI logic so it can be unit-tested without WPF.
 `launcher.ps1` dot-sources it, loads the XAML, and wires UI events to functions.
+
+### PowerShell version compatibility
+- Preferred host: PowerShell 7 (`pwsh`). Fallback: Windows PowerShell 5.1
+  (`powershell.exe`, always present on Windows 10/11).
+- All `.ps1` code must be **5.1-compatible**: no `&&`/`||` pipeline chains, no
+  ternary/null-coalescing operators, no `ConvertFrom-Json -AsHashtable`.
+- A `Get-PreferredShell` helper in `functions.ps1` resolves `pwsh` via
+  `Get-Command`, falling back to `powershell`; used for spawned terminal sessions.
+- Both hosts default to STA on Windows (5.1 since PS 3.0; pwsh 7 verified) — WPF safe.
 
 ## Components
 
@@ -66,7 +76,8 @@ Claude Cli Management\
 - Roots missing on disk are skipped and shown greyed-out in the sidebar.
 
 ### Launcher
-- Command: `wt.exe -w 0 new-tab --title "<project name>" -d "<project path>" pwsh -NoExit -Command "claude <flags>"`
+- Command: `wt.exe -w 0 new-tab --title "<project name>" -d "<project path>" <shell> -NoExit -Command "claude <flags>"`
+  where `<shell>` = `Get-PreferredShell` result (`pwsh`, else `powershell`).
 - `-w 0` attaches the tab to the most recently used Windows Terminal window,
   or opens a new window if none exists.
 - **New** button: `claude` + custom flags. **Continue** button: `claude --continue` + custom flags.
@@ -77,7 +88,7 @@ Claude Cli Management\
 - `wt.exe` detection: `Get-Command wt.exe`, falling back to probing the App Execution
   Alias at `%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe` (Store installs may not be on PATH).
 - Fallback when `wt.exe` is not available:
-  `Start-Process pwsh -WorkingDirectory <path> -ArgumentList '-NoExit','-Command','claude <flags>'`
+  `Start-Process <shell> -WorkingDirectory <path> -ArgumentList '-NoExit','-Command','claude <flags>'`
 
 ### Creator (New Project dialog)
 - Fields: project name (text) + destination root (dropdown).
@@ -110,9 +121,10 @@ Claude Cli Management\
 
 ## Startup & Distribution
 
-- Launched via a desktop/Start Menu shortcut:
-  `pwsh.exe -WindowStyle Hidden -File "C:\Dev\Active\Claude Cli Management\launcher.ps1"`
-- PowerShell 7 defaults to STA on Windows (verified) — no apartment-state handling needed for WPF.
+- Launched via a desktop/Start Menu shortcut pointing at `launcher.cmd`, which picks
+  the shell: `where pwsh` succeeds → `pwsh -WindowStyle Hidden -File launcher.ps1`,
+  else `powershell -WindowStyle Hidden -File launcher.ps1`.
+- Both hosts default to STA on Windows — no apartment-state handling needed for WPF.
 - Single-instance guard: named mutex (`Global\Dev-Projects`); a second launch activates
   the existing window and exits. Also prevents concurrent config.json writes.
 
