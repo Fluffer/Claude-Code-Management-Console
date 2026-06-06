@@ -24,7 +24,8 @@ function Save-LauncherConfig {
     if (-not (Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
-    $Config | ConvertTo-Json -Depth 5 | Set-Content -Path $Path -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, ($Config | ConvertTo-Json -Depth 5), $utf8NoBom)
 }
 
 function Get-LauncherConfig {
@@ -37,10 +38,11 @@ function Get-LauncherConfig {
     }
 
     try {
-        $raw = Get-Content -Path $Path -Raw -ErrorAction Stop
+        $raw = [System.IO.File]::ReadAllText($Path)
         $config = $raw | ConvertFrom-Json -ErrorAction Stop
     }
     catch {
+        if (Test-Path "$Path.bad") { Remove-Item "$Path.bad" -Force }
         Move-Item -Path $Path -Destination "$Path.bad" -Force
         $config = Get-DefaultConfig
         Save-LauncherConfig -Config $config -Path $Path
@@ -54,5 +56,11 @@ function Get-LauncherConfig {
             $config | Add-Member -NotePropertyName $prop -NotePropertyValue $defaults.$prop
         }
     }
+
+    # Normalize arrays: PS 5.1 ConvertFrom-Json can yield scalars/null for
+    # single-element/empty arrays.
+    $config.roots = @($config.roots | Where-Object { $null -ne $_ })
+    $config.ignore = @($config.ignore | Where-Object { $null -ne $_ })
+
     return $config
 }

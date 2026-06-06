@@ -25,7 +25,12 @@ Describe 'Get-LauncherConfig / Save-LauncherConfig' {
         $config = Get-LauncherConfig -Path $path
         $config.defaultRoot = 'C:\Dev\Scratch'
         Save-LauncherConfig -Config $config -Path $path
-        (Get-LauncherConfig -Path $path).defaultRoot | Should -Be 'C:\Dev\Scratch'
+        $reloaded = Get-LauncherConfig -Path $path
+        $reloaded.defaultRoot | Should -Be 'C:\Dev\Scratch'
+        @($reloaded.roots).Count | Should -Be 5
+        # Pester's BeNull treats empty arrays as null, so do an explicit
+        # scalar null comparison ($null on the left avoids array filtering).
+        ($null -eq $reloaded.ignore) | Should -BeFalse
     }
 
     It 'recovers from corrupt JSON, preserving the bad file' {
@@ -45,5 +50,14 @@ Describe 'Get-LauncherConfig / Save-LauncherConfig' {
         $config.defaultRoot | Should -Be 'C:\Dev\Active'
         $config.PSObject.Properties.Name | Should -Contain 'projects'
         $config.PSObject.Properties.Name | Should -Contain 'ignore'
+        @($config.roots).Count | Should -Be 1
+        $config.roots[0] | Should -Be 'C:\Dev\Active'
+    }
+
+    It 'writes config without a UTF-8 BOM' {
+        $path = Join-Path $TestDrive 'bom\config.json'
+        Get-LauncherConfig -Path $path | Out-Null
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        ($bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB) | Should -BeFalse
     }
 }
