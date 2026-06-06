@@ -54,6 +54,15 @@ Describe 'Get-LauncherConfig / Save-LauncherConfig' {
         $config.roots[0] | Should -Be 'C:\Dev\Active'
     }
 
+    It 'backfills everything when the config file is an empty JSON object' {
+        $path = Join-Path $TestDrive 'empty\config.json'
+        New-Item -ItemType Directory -Path (Split-Path $path -Parent) -Force | Out-Null
+        Set-Content -Path $path -Value '{}'
+        $config = Get-LauncherConfig -Path $path
+        $config.defaultRoot | Should -Be 'C:\Dev\Active'
+        @($config.roots).Count | Should -Be 5
+    }
+
     It 'writes config without a UTF-8 BOM' {
         $path = Join-Path $TestDrive 'bom\config.json'
         Get-LauncherConfig -Path $path | Out-Null

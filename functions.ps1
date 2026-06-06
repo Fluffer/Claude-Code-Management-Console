@@ -52,7 +52,8 @@ function Get-LauncherConfig {
     # Backfill any properties missing from older/hand-edited configs.
     $defaults = Get-DefaultConfig
     foreach ($prop in @('roots', 'defaultRoot', 'ignore', 'projects')) {
-        if (-not ($config.PSObject.Properties.Name -contains $prop)) {
+        # Indexer form: .Name throws under StrictMode 2.0 on property-less objects ('{}' config).
+        if ($null -eq $config.PSObject.Properties[$prop]) {
             $config | Add-Member -NotePropertyName $prop -NotePropertyValue $defaults.$prop
         }
     }
