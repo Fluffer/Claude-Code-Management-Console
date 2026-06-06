@@ -117,3 +117,43 @@ Describe 'Get-Projects' {
         $p2.LastUsed | Should -BeNullOrEmpty
     }
 }
+
+Describe 'Get-ProjectNameError' {
+    BeforeEach {
+        $script:root = Join-Path $TestDrive 'NameRoot'
+        New-Item -ItemType Directory -Path (Join-Path $root 'Taken') -Force | Out-Null
+    }
+
+    It 'rejects empty and whitespace names' {
+        Get-ProjectNameError -Name '' -Root $root | Should -Not -BeNullOrEmpty
+        Get-ProjectNameError -Name '   ' -Root $root | Should -Not -BeNullOrEmpty
+    }
+
+    It 'rejects invalid filename characters' {
+        foreach ($bad in @('a<b', 'a>b', 'a:b', 'a"b', 'a/b', 'a\b', 'a|b', 'a?b', 'a*b')) {
+            Get-ProjectNameError -Name $bad -Root $root | Should -Not -BeNullOrEmpty
+        }
+    }
+
+    It 'rejects duplicates' {
+        Get-ProjectNameError -Name 'Taken' -Root $root | Should -Not -BeNullOrEmpty
+    }
+
+    It 'accepts a valid new name' {
+        Get-ProjectNameError -Name 'My-New Project' -Root $root | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'New-ProjectFolder' {
+    It 'creates the folder and returns its path' {
+        $root = Join-Path $TestDrive 'CreateRoot'
+        New-Item -ItemType Directory -Path $root -Force | Out-Null
+        $path = New-ProjectFolder -Root $root -Name 'Fresh'
+        $path | Should -Be (Join-Path $root 'Fresh')
+        Test-Path $path | Should -BeTrue
+    }
+
+    It 'throws when creation fails' {
+        { New-ProjectFolder -Root (Join-Path $TestDrive 'NoSuchRoot') -Name 'X' } | Should -Throw
+    }
+}

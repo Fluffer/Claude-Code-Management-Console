@@ -107,3 +107,33 @@ function Get-Projects {
     }
     return $projects
 }
+
+function Get-ProjectNameError {
+    param(
+        [string]$Name,
+        [Parameter(Mandatory)] [string]$Root
+    )
+    if ([string]::IsNullOrWhiteSpace($Name)) {
+        return 'Project name cannot be empty.'
+    }
+    if ($Name -match '[<>:"/\\|?*]') {
+        return 'Project name contains invalid characters: < > : " / \ | ? *'
+    }
+    if (Test-Path (Join-Path $Root $Name)) {
+        return "A folder named '$Name' already exists in $Root."
+    }
+    return $null
+}
+
+function New-ProjectFolder {
+    param(
+        [Parameter(Mandatory)] [string]$Root,
+        [Parameter(Mandatory)] [string]$Name
+    )
+    if (-not (Test-Path $Root)) {
+        throw "Root folder does not exist: $Root"
+    }
+    $path = Join-Path $Root $Name
+    New-Item -ItemType Directory -Path $path -ErrorAction Stop | Out-Null
+    return $path
+}
