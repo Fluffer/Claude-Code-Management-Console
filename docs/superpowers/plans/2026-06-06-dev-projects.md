@@ -191,7 +191,8 @@ function Get-LauncherConfig {
     # Backfill any properties missing from older/hand-edited configs.
     $defaults = Get-DefaultConfig
     foreach ($prop in @('roots', 'defaultRoot', 'ignore', 'projects')) {
-        if (-not ($config.PSObject.Properties.Name -contains $prop)) {
+        # Indexer form: .Name throws under StrictMode 2.0 on property-less objects ('{}' config).
+        if ($null -eq $config.PSObject.Properties[$prop]) {
             $config | Add-Member -NotePropertyName $prop -NotePropertyValue $defaults.$prop
         }
     }
@@ -285,7 +286,9 @@ function Get-Projects {
         foreach ($dir in $dirs) {
             $lastUsed = $null
             $flags = ''
-            if ($Config.projects.PSObject.Properties.Name -contains $dir.FullName) {
+            # NOTE: .PSObject.Properties.Name throws under StrictMode 2.0 when the
+            # object has zero properties — use the indexer form instead.
+            if ($null -ne $Config.projects.PSObject.Properties[$dir.FullName]) {
                 $saved = $Config.projects.($dir.FullName)
                 if ($saved.PSObject.Properties.Name -contains 'lastUsed') {
                     if ($saved.lastUsed) { $lastUsed = [datetime]$saved.lastUsed }
@@ -646,7 +649,7 @@ function Update-ProjectUsage {
         [string]$ConfigPath = (Get-ConfigPath)
     )
     $stamp = (Get-Date).ToUniversalTime().ToString('o')
-    if ($Config.projects.PSObject.Properties.Name -contains $ProjectPath) {
+    if ($null -ne $Config.projects.PSObject.Properties[$ProjectPath]) {
         $Config.projects.$ProjectPath.lastUsed = $stamp
         $Config.projects.$ProjectPath.flags = $Flags
     }
@@ -972,7 +975,7 @@ Insert before the final `Invoke-Rescan` line:
         if ($null -eq $vm) { return }
         $vm.Flags = $controls.FlagsBox.Text
         # Persist without bumping lastUsed: write flags directly.
-        if ($script:Config.projects.PSObject.Properties.Name -contains $vm.Path) {
+        if ($null -ne $script:Config.projects.PSObject.Properties[$vm.Path]) {
             $script:Config.projects.($vm.Path).flags = $vm.Flags
         }
         else {
