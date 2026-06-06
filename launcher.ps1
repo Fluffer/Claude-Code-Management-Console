@@ -152,6 +152,8 @@ try {
         Update-ProjectUsage -Config $script:Config -ProjectPath $ViewModel.Path -Flags $ViewModel.Flags
         $script:Projects = @(Get-Projects -Config $script:Config)
         Update-ProjectList
+        $newVm = @($controls.ProjectList.ItemsSource) | Where-Object { $_.Path -eq $ViewModel.Path } | Select-Object -First 1
+        if ($null -ne $newVm) { $controls.ProjectList.SelectedItem = $newVm }
     }
 
     $clickHandler = [System.Windows.RoutedEventHandler]{
