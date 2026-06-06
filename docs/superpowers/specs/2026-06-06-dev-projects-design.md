@@ -47,6 +47,7 @@ Claude Cli Management\
     "roots": ["C:\\Dev\\Active", "C:\\Dev\\Archive", "C:\\Dev\\Scratch",
               "C:\\Dev\\Stable", "C:\\Dev\\third-party"],
     "defaultRoot": "C:\\Dev\\Active",
+    "ignore": [],
     "projects": {
       "C:\\Dev\\Active\\Hotel-Search": {
         "lastUsed": "2026-06-06T14:30:00Z",
@@ -60,6 +61,7 @@ Claude Cli Management\
 
 ### Scanner
 - Enumerates direct subfolders (one level) of each configured root; hidden folders and names starting with `.` are skipped.
+- Folders listed in the optional config `ignore` array (exact names, e.g. `"notes"`) are skipped. No UI for this — hand-edit config.json.
 - Produces project entries: name, root, full path, lastUsed (from config, may be null).
 - Roots missing on disk are skipped and shown greyed-out in the sidebar.
 
@@ -70,6 +72,10 @@ Claude Cli Management\
 - **New** button: `claude` + custom flags. **Continue** button: `claude --continue` + custom flags.
 - Every launch updates the project's `lastUsed` and saves the current flags text
   to that project's `flags` in config.
+- Arguments are built as arrays (never naive string concatenation); flags containing
+  spaces or quotes are escaped correctly for both `wt.exe` and `Start-Process`.
+- `wt.exe` detection: `Get-Command wt.exe`, falling back to probing the App Execution
+  Alias at `%LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe` (Store installs may not be on PATH).
 - Fallback when `wt.exe` is not available:
   `Start-Process pwsh -WorkingDirectory <path> -ArgumentList '-NoExit','-Command','claude <flags>'`
 
@@ -79,8 +85,9 @@ Claude Cli Management\
   preselects `defaultRoot`.
 - Validation: non-empty, no invalid filename characters (`<>:"/\|?*`), folder must
   not already exist in the chosen root.
+- "Launch Claude after creation" checkbox, default checked.
 - On OK: creates the empty folder, closes the dialog, refreshes the list, and
-  auto-launches a fresh claude session in the new folder.
+  (if checkbox checked) auto-launches a fresh claude session in the new folder.
 - Creation failure (permissions, path too long): message box; dialog stays open.
 
 ### Settings dialog
@@ -92,14 +99,22 @@ Claude Cli Management\
 - **Left sidebar:** "All (n)" + one entry per root with project count; Settings entry at bottom. Acts as a filter for the list.
 - **Main pane:**
   - Search box: live, case-insensitive substring filter on project name, applied within the current sidebar selection.
-  - Custom flags textbox: selecting a project row loads that project's saved flags
-    into the textbox. **New/Continue on the currently selected row uses the textbox
-    content; on any other row uses that project's saved flags** (the click does not
-    steal the textbox). Flags used by a launch are saved back to that project.
+  - Custom flags textbox: bound to the currently selected project — selecting a row
+    loads its saved flags; edits persist to config immediately (on change).
+    **New/Continue buttons always launch with that row's saved flags.** No ambiguity:
+    to change a project's flags, select it, edit, then launch.
   - Project list: rows show name, root tag, relative lastUsed; sorted lastUsed-desc, then name. Each row has **New** and **Continue** buttons.
   - Bottom bar: **＋ New Project** button, **Refresh** button (rescan roots to catch externally created folders).
 - Warning banner shown at top if `claude` is not found on PATH at startup.
 - Hub stays open after launches; user closes it manually.
+
+## Startup & Distribution
+
+- Launched via a desktop/Start Menu shortcut:
+  `pwsh.exe -WindowStyle Hidden -File "C:\Dev\Active\Claude Cli Management\launcher.ps1"`
+- PowerShell 7 defaults to STA on Windows (verified) — no apartment-state handling needed for WPF.
+- Single-instance guard: named mutex (`Global\Dev-Projects`); a second launch activates
+  the existing window and exits. Also prevents concurrent config.json writes.
 
 ## Data Flow
 
@@ -127,7 +142,8 @@ Claude Cli Management\
   - Config: load, save, defaults on first run, corrupt-file recovery.
   - Scanner: against temp directory trees.
   - Project name validation: invalid chars, empty, duplicates.
-  - Launch command building: string assertions only, no real process spawn.
+  - Launch command building: string/array assertions only, no real process spawn;
+    includes flags containing spaces and quotes.
 - **UI:** manual smoke test — start hub, search, filter by root, launch, create project, edit settings.
 
 ## Out of Scope (YAGNI)
