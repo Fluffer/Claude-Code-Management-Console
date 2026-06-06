@@ -245,17 +245,10 @@ try {
         if ($result -and $dlg.Tag) {
             Invoke-Rescan
             if ($dlg.Tag.Launch) {
-                $spec = Build-LaunchCommand -ProjectName $dlg.Tag.Name -ProjectPath $dlg.Tag.Path
-                try {
-                    Invoke-ProjectLaunch -LaunchSpec $spec
-                    Update-ProjectUsage -Config $script:Config -ProjectPath $dlg.Tag.Path
-                    $script:Projects = @(Get-Projects -Config $script:Config)
-                    Update-ProjectList
-                }
-                catch {
-                    [System.Windows.MessageBox]::Show("Launch failed: $($_.Exception.Message)",
-                        'Dev-Projects', 'OK', 'Error') | Out-Null
-                }
+                # Reuse Start-ProjectSession: handles launch, error message box,
+                # usage stamping, list refresh and re-selection consistently.
+                $vm = [pscustomobject]@{ Name = $dlg.Tag.Name; Path = $dlg.Tag.Path; Flags = '' }
+                Start-ProjectSession -ViewModel $vm -ContinueSession $false
             }
         }
     }
