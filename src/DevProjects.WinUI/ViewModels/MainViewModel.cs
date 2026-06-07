@@ -62,7 +62,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>"LastUsed" or "Name".</summary>
     [ObservableProperty] private string _sortMode = "LastUsed";
 
-    /// <summary>"System", "Light" or "Dark".</summary>
+    /// <summary>"System", "Light", "Dark", or a palette name (e.g. "Dracula", "Nord").</summary>
     [ObservableProperty] private string _theme = "System";
     [ObservableProperty] private string _accent = "Default";
     [ObservableProperty] private string _font = "Segoe UI Variable";

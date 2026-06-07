@@ -6,7 +6,7 @@
 ## Goal
 
 Port WSL Command Center's appearance system into Dev-Projects (WinUI 3): 6 developer
-palettes (Dracula, Nord, Catppuccin, Tokyo Night, One Dark, Gruvbox), 8 accent colors,
+palettes (Dracula, Nord, Catppuccin Mocha, Tokyo Night, One Dark, Gruvbox), 8 accent colors,
 and a 7-font picker. All appearance controls live in the Settings dialog; the sidebar
 theme ComboBox is removed.
 
