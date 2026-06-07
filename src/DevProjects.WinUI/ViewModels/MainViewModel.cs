@@ -64,15 +64,19 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>"System", "Light" or "Dark".</summary>
     [ObservableProperty] private string _theme = "System";
+    [ObservableProperty] private string _accent = "Default";
+    [ObservableProperty] private string _font = "Segoe UI Variable";
 
     public string[] SortModes { get; } = ["LastUsed", "Name"];
-    public string[] Themes { get; } = ["System", "Light", "Dark"];
+    public string[] Themes { get; } = ["System", "Light", "Dark", .. Theming.Palettes.Names()];
+    public string[] AccentOptions { get; } = Theming.Accents.Names();
+    public string[] FontOptions { get; } = Theming.AppFonts.All;
 
     /// <summary>Raised when a transient confirmation toast should be shown.</summary>
     public event Action<string>? ToastRequested;
 
-    /// <summary>Raised when the user picks a theme; the window applies it to its root element.</summary>
-    public event Action<string>? ThemeChangeRequested;
+    /// <summary>Raised when the user changes theme, accent or font; the window re-applies appearance.</summary>
+    public event Action? AppearanceChangeRequested;
 
     public bool VsCodeAvailable { get; } = CommandLocator.FindOnPath("code") is not null;
 
@@ -112,6 +116,8 @@ public sealed partial class MainViewModel : ObservableObject
         _config = _configService.Load();
         _state = _stateService.Load();
         Theme = _state.Theme;
+        Accent = _state.Accent;
+        Font = _state.Font;
         SortMode = _state.SortMode;
         ShowOnboarding = !_state.OnboardingDismissed;
         ClaudeMissing = !_claudeCli.IsOnPath;
@@ -311,9 +317,23 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnThemeChanged(string value)
     {
-        ThemeChangeRequested?.Invoke(value);
         _state.Theme = value;
         _stateService.Save(_state);
+        AppearanceChangeRequested?.Invoke();
+    }
+
+    partial void OnAccentChanged(string value)
+    {
+        _state.Accent = value;
+        _stateService.Save(_state);
+        AppearanceChangeRequested?.Invoke();
+    }
+
+    partial void OnFontChanged(string value)
+    {
+        _state.Font = value;
+        _stateService.Save(_state);
+        AppearanceChangeRequested?.Invoke();
     }
 
     // ---------- Flags ----------
