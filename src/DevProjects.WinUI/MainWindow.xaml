@@ -5,6 +5,8 @@
         xmlns:local="using:DevProjects.App"
         Title="Dev-Projects">
 
+    <ContentControl x:Name="FontHost" IsTabStop="False"
+                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
     <Grid x:Name="RootGrid" AllowDrop="True" Background="Transparent"
           DragOver="Root_DragOver" DragLeave="Root_DragLeave" Drop="Root_Drop">
         <Grid.KeyboardAccelerators>
@@ -70,18 +72,6 @@
                 <StackPanel Grid.Row="2" Spacing="8">
                     <Border Height="1" Margin="0,4"
                             Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
-                    <Grid ToolTipService.ToolTip="Choose the app colour theme. 'System' follows your Windows light/dark setting.">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Theme" VerticalAlignment="Center"
-                                   Margin="4,0,8,0" Opacity="0.8"/>
-                        <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
-                                  AutomationProperties.AutomationId="ThemeCombo"
-                                  ItemsSource="{x:Bind ViewModel.Themes}"
-                                  SelectedItem="{Binding Theme, Mode=TwoWay}"/>
-                    </Grid>
                     <Button HorizontalAlignment="Stretch" Click="SettingsButton_Click"
                             AutomationProperties.AutomationId="SettingsButton"
                             ToolTipService.ToolTip="Manage source roots and the default folder for new projects">
@@ -332,4 +322,5 @@
             <TextBlock x:Name="ToastText" Style="{StaticResource CaptionTextBlockStyle}"/>
         </Border>
     </Grid>
+    </ContentControl>
 </Window>

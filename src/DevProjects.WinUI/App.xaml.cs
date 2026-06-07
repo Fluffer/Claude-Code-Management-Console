@@ -71,6 +71,11 @@ public partial class App : Application
             return;
         }
 
+        // Accent + font must be in Application.Resources before any XAML loads
+        // so the first paint already has them.
+        var state = new DevProjects.Core.Services.StateService().Load();
+        Theming.Appearance.OverrideResources(state.Accent, state.Font, Theming.Palettes.Resolve(state.Theme));
+
         _window = new MainWindow();
         Window = _window;
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();

@@ -37,12 +37,11 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
 
         Title = "Dev-Projects";
-        SystemBackdrop = new MicaBackdrop();
         RootGrid.DataContext = ViewModel;
 
         ViewModel.ToastRequested += ShowToast;
-        ViewModel.ThemeChangeRequested += ApplyTheme;
-        ApplyTheme(ViewModel.Theme);
+        ViewModel.AppearanceChangeRequested += () => ApplyAppearance(rebuild: true);
+        ApplyAppearance(rebuild: false);
 
         _toastTimer = DispatcherQueue.CreateTimer();
         _toastTimer.Interval = TimeSpan.FromSeconds(2.6);
@@ -82,14 +81,47 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ApplyTheme(string theme)
+    /// <summary>
+    /// Applies theme + accent + font from the ViewModel. The theme is either a base
+    /// theme (System/Light/Dark → Mica) or a palette name (solid background + dark
+    /// base). When <paramref name="rebuild"/> is true the element theme is flipped
+    /// and restored so {ThemeResource} consumers re-resolve the new resources.
+    /// </summary>
+    private void ApplyAppearance(bool rebuild)
     {
-        RootGrid.RequestedTheme = theme switch
+        var pal = Theming.Palettes.Resolve(ViewModel.Theme);
+        Theming.Appearance.OverrideResources(ViewModel.Accent, ViewModel.Font, pal);
+
+        if (!string.IsNullOrWhiteSpace(ViewModel.Font))
+            FontHost.FontFamily = new FontFamily(ViewModel.Font); // inherited path for non-styled text
+
+        if (pal is not null)
         {
-            "Light" => ElementTheme.Light,
-            "Dark" => ElementTheme.Dark,
-            _ => ElementTheme.Default,
-        };
+            // Solid palette background; Mica would tint it with the desktop wallpaper.
+            SystemBackdrop = null;
+            RootGrid.Background = new SolidColorBrush(pal.Background);
+            RootGrid.RequestedTheme = ElementTheme.Dark; // all palettes are dark-based
+        }
+        else
+        {
+            // Background must stay non-null (Transparent) or drop hit-testing dies.
+            RootGrid.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+            SystemBackdrop ??= new MicaBackdrop();
+            RootGrid.RequestedTheme = ViewModel.Theme switch
+            {
+                "Light" => ElementTheme.Light,
+                "Dark" => ElementTheme.Dark,
+                _ => ElementTheme.Default,
+            };
+        }
+
+        if (rebuild)
+        {
+            // Force {ThemeResource} consumers (accent pills, buttons) to re-resolve.
+            var t = RootGrid.RequestedTheme;
+            RootGrid.RequestedTheme = t == ElementTheme.Dark ? ElementTheme.Light : ElementTheme.Dark;
+            RootGrid.RequestedTheme = t;
+        }
     }
 
     // ---------- x:Bind helpers ----------
