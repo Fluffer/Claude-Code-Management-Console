@@ -7,14 +7,42 @@
     <Grid MinWidth="460" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="180"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Source roots"
+        <StackPanel Grid.Row="0" Spacing="6">
+            <TextBlock Text="Appearance"
+                       ToolTipService.ToolTip="Theme, accent color and font. Changes apply immediately."/>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="ThemeCombo" Grid.Column="0" HorizontalAlignment="Stretch"
+                          Header="Theme"
+                          AutomationProperties.AutomationId="ThemeCombo"
+                          SelectionChanged="ThemeCombo_SelectionChanged"
+                          ToolTipService.ToolTip="'System' follows Windows light/dark; palettes use a fixed dark color scheme"/>
+                <ComboBox x:Name="AccentCombo" Grid.Column="1" HorizontalAlignment="Stretch"
+                          Header="Accent"
+                          AutomationProperties.AutomationId="AccentCombo"
+                          SelectionChanged="AccentCombo_SelectionChanged"
+                          ToolTipService.ToolTip="'Default' follows the Windows accent color (or the palette's signature color)"/>
+                <ComboBox x:Name="FontCombo" Grid.Column="2" HorizontalAlignment="Stretch"
+                          Header="Font"
+                          AutomationProperties.AutomationId="FontCombo"
+                          SelectionChanged="FontCombo_SelectionChanged"
+                          ToolTipService.ToolTip="UI font for the whole app"/>
+            </Grid>
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" Text="Source roots"
                    ToolTipService.ToolTip="Folders scanned for projects. Each direct subfolder shows up in the project list."/>
 
-        <Grid Grid.Row="1" ColumnSpacing="10">
+        <Grid Grid.Row="2" ColumnSpacing="10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
@@ -34,7 +62,7 @@
             </StackPanel>
         </Grid>
 
-        <StackPanel Grid.Row="2" Spacing="6">
+        <StackPanel Grid.Row="3" Spacing="6">
             <TextBlock Text="Default root for new projects"
                        ToolTipService.ToolTip="Preselected in the New Project dialog when 'All' is active in the sidebar"/>
             <ComboBox x:Name="DefaultCombo" HorizontalAlignment="Stretch"

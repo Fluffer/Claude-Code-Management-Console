@@ -3,6 +3,7 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Windows.Storage.Pickers;
+using System.Linq;
 
 namespace DevProjects.App.Views;
 
@@ -18,6 +19,12 @@ public sealed partial class SettingsDialog : ContentDialog
         _viewModel = viewModel;
         _windowId = windowId;
         RefreshLists();
+        ThemeCombo.ItemsSource = _viewModel.Themes;
+        ThemeCombo.SelectedItem = _viewModel.Themes.FirstOrDefault(t => t == _viewModel.Theme) ?? "System";
+        AccentCombo.ItemsSource = _viewModel.AccentOptions;
+        AccentCombo.SelectedItem = _viewModel.AccentOptions.FirstOrDefault(a => a == _viewModel.Accent) ?? "Default";
+        FontCombo.ItemsSource = _viewModel.FontOptions;
+        FontCombo.SelectedItem = _viewModel.FontOptions.FirstOrDefault(f => f == _viewModel.Font) ?? "Segoe UI Variable";
     }
 
     private void RefreshLists()
@@ -73,5 +80,20 @@ public sealed partial class SettingsDialog : ContentDialog
         if (_loading) return;
         if (DefaultCombo.SelectedItem is string root)
             _viewModel.SetDefaultRoot(root);
+    }
+
+    private void ThemeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ThemeCombo.SelectedItem is string theme) _viewModel.Theme = theme;
+    }
+
+    private void AccentCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (AccentCombo.SelectedItem is string accent) _viewModel.Accent = accent;
+    }
+
+    private void FontCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (FontCombo.SelectedItem is string font) _viewModel.Font = font;
     }
 }
