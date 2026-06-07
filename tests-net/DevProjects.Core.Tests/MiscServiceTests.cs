@@ -148,6 +148,7 @@ public class ClaudeSessionDetectorTests : IDisposable
 public class StateServiceTests : IDisposable
 {
     private readonly string _dir = Directory.CreateTempSubdirectory("devprojects-state-").FullName;
+    private string StatePath => Path.Combine(_dir, "state.json");
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 
@@ -179,6 +180,39 @@ public class StateServiceTests : IDisposable
         Assert.Equal("Name", state.SortMode);
         Assert.Equal([@"C:\Dev\Active\Foo"], state.Pinned);
         Assert.True(state.OnboardingDismissed);
+    }
+
+    [Fact]
+    public void Defaults_IncludeAccentAndFont()
+    {
+        var state = new AppState();
+        Assert.Equal("Default", state.Accent);
+        Assert.Equal("Segoe UI Variable", state.Font);
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesAccentAndFont()
+    {
+        var svc = new StateService(StatePath);
+        svc.Save(new AppState { Theme = "Dracula", Accent = "Teal", Font = "Cascadia Code" });
+
+        var loaded = new StateService(StatePath).Load();
+        Assert.Equal("Dracula", loaded.Theme);
+        Assert.Equal("Teal", loaded.Accent);
+        Assert.Equal("Cascadia Code", loaded.Font);
+    }
+
+    [Fact]
+    public void OldStateJson_WithoutNewFields_LoadsDefaults()
+    {
+        // A state.json written before the appearance port has no accent/font keys.
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(StatePath, """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true}""");
+
+        var loaded = new StateService(StatePath).Load();
+        Assert.Equal("Dark", loaded.Theme);
+        Assert.Equal("Default", loaded.Accent);
+        Assert.Equal("Segoe UI Variable", loaded.Font);
     }
 }
 
