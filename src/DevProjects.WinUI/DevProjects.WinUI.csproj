@@ -16,6 +16,9 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Packaged for the dev loop (winapp run); unpackaged self-contained for the publish/ folder the launcher shim starts. -->
+    <WindowsPackageType Condition="'$(UnpackagedPublish)' == 'true'">None</WindowsPackageType>
+    <WindowsAppSDKSelfContained Condition="'$(UnpackagedPublish)' == 'true'">true</WindowsAppSDKSelfContained>
   </PropertyGroup>
 
   <ItemGroup>

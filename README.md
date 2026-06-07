@@ -3,13 +3,13 @@
 A Windows launcher hub for [Claude Code](https://claude.com/claude-code). It scans your
 source-root folders (e.g. `C:\Dev\Active`), lists every project, and opens Claude
 sessions in Windows Terminal tabs — new (`claude`) or continued (`claude --continue`) —
-with per-project flags. Built with .NET 9 WPF and the Fluent theme (light/dark/system).
+with per-project flags. Built with .NET 9 and WinUI 3 (Windows App SDK).
 
-![Stack](https://img.shields.io/badge/.NET-9.0-blueviolet) ![UI](https://img.shields.io/badge/WPF-Fluent-blue)
+![Stack](https://img.shields.io/badge/.NET-9.0-blueviolet) ![UI](https://img.shields.io/badge/WinUI-3-blue)
 
 ## Features
 
-- **Fluent design** with System/Light/Dark theme toggle
+- **Fluent design** with Mica backdrop and System/Light/Dark theme toggle
 - **Keyboard-first**: `Enter` = Continue, `Ctrl+Enter` = New, `Ctrl+F` = search,
   `Ctrl+N` = new project, `F5` = refresh, `F1` = help
 - **Smart Continue** — the Continue button greys out (with an explanatory tooltip)
@@ -31,24 +31,24 @@ with per-project flags. Built with .NET 9 WPF and the Fluent theme (light/dark/s
 
 ```
 src/DevProjects.Core        # logic: config, scanning, launch building, git/session probes
-src/DevProjects.App         # WPF app: MVVM (CommunityToolkit), Fluent theme
+src/DevProjects.WinUI       # WinUI 3 app: MVVM (CommunityToolkit), Mica, ContentDialogs
 tests-net/…Core.Tests       # xUnit suite (ported from the original Pester suite)
 legacy/                     # the original PowerShell + XamlReader implementation (v1)
-docs/                       # design spec & implementation plan
+docs/                       # design spec & implementation plans
 ```
 
 ## Build & run
 
 ```powershell
-dotnet build DevProjects.sln
+dotnet build DevProjects.sln -p:Platform=x64
 dotnet test tests-net/DevProjects.Core.Tests
-dotnet run --project src/DevProjects.App
+winapp run "src/DevProjects.WinUI/bin/x64/Debug/net9.0-windows10.0.26100.0/win-x64"
 ```
 
-Publish a single-file exe (framework-dependent, ~0.4 MB, <1s cold start):
+Publish an unpackaged self-contained build for the launcher shim:
 
 ```powershell
-dotnet publish src/DevProjects.App -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+dotnet publish "src/DevProjects.WinUI" -c Release -r win-x64 -p:Platform=x64 -p:UnpackagedPublish=true -o publish
 ```
 
 `launcher.cmd` starts `publish\Dev-Projects.exe` when present (and falls back to the
@@ -59,7 +59,7 @@ legacy PowerShell launcher otherwise), so existing shortcuts keep working.
 - `%APPDATA%\Dev-Projects\config.json` — roots, default root, per-project lastUsed/flags.
   **Schema-compatible with the v1 PowerShell launcher** (both can read each other's file;
   a corrupt file is quarantined to `config.json.bad` and regenerated).
-- `%APPDATA%\Dev-Projects\state.json` — v2-only UI state (theme, sort, pins, onboarding).
+- `%APPDATA%\Dev-Projects\state.json` — v2+-only UI state (theme, sort, pins, onboarding).
 - Single instance: launching a second copy activates the existing window.
 
 ## Notes
