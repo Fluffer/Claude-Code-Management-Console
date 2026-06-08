@@ -67,6 +67,14 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasClaudeMd;
 
+    /// <summary>Whether this project's .claude/settings.json is present but fails to parse.</summary>
+    [ObservableProperty]
+    private bool _hasSettingsError;
+
+    /// <summary>The JSON parse error message when <see cref="HasSettingsError"/> is true; empty otherwise.</summary>
+    [ObservableProperty]
+    private string _settingsError = "";
+
     public string RunningToolTip =>
         "A Claude session is running in this folder right now";
 

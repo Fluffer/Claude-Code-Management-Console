@@ -244,6 +244,7 @@ public sealed partial class MainViewModel : ObservableObject
                     var git = await _gitInfoProvider.GetAsync(row.Path, ct).ConfigureAwait(false);
                     var hasClaudeMd = ProjectClaudeInfo.HasClaudeMd(row.Path);
                     var defaultModel = ProjectModelInfo.ResolveDefaultModel(row.Path);
+                    var settings = SettingsJsonValidator.Validate(row.Path);
                     _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
                     {
                         // Re-check on the UI thread so a stale pass never
@@ -257,6 +258,8 @@ public sealed partial class MainViewModel : ObservableObject
                         }
                         row.HasClaudeMd = hasClaudeMd;
                         row.DefaultModel = defaultModel;
+                        row.HasSettingsError = !settings.IsValid;
+                        row.SettingsError = settings.Error ?? "";
                     });
                 }
             }
@@ -595,6 +598,23 @@ public sealed partial class MainViewModel : ObservableObject
             // No app is registered for .md, or the file vanished after the badge was set.
             await _dialogs.ShowMessageAsync("Open CLAUDE.md",
                 $"Could not open CLAUDE.md: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenSettingsJsonAsync(ProjectItemViewModel? project)
+    {
+        var path = project is null ? null : SettingsJsonValidator.Validate(project.Path).SettingsPath;
+        if (path is null) return;
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+            // No app registered for .json, or the file vanished after the badge was set.
+            await _dialogs.ShowMessageAsync("Open settings.json",
+                $"Could not open settings.json: {ex.Message}");
         }
     }
 

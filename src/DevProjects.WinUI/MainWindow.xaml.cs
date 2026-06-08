@@ -284,6 +284,9 @@ public sealed partial class MainWindow : Window
     private void OpenClaudeMd_Click(object sender, RoutedEventArgs e) =>
         ViewModel.OpenClaudeMdCommand.Execute(ItemOf(sender));
 
+    private void OpenSettingsJson_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.OpenSettingsJsonCommand.Execute(ItemOf(sender));
+
     private void CopyPath_Click(object sender, RoutedEventArgs e) =>
         ViewModel.CopyPathCommand.Execute(ItemOf(sender));
 

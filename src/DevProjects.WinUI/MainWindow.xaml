@@ -173,6 +173,10 @@
                                             <MenuFlyoutItem Text="Open CLAUDE.md" Click="OpenClaudeMd_Click"
                                                             AutomationProperties.AutomationId="OpenClaudeMdMenuItem"
                                                             ToolTipService.ToolTip="Open the CLAUDE.md project guidance file in the default editor"/>
+                                            <MenuFlyoutItem Text="Open settings.json" Click="OpenSettingsJson_Click"
+                                                            Visibility="{x:Bind HasSettingsError, Mode=OneWay}"
+                                                            AutomationProperties.AutomationId="OpenSettingsJsonMenuItem"
+                                                            ToolTipService.ToolTip="Open the malformed .claude/settings.json in the default editor to fix it"/>
                                             <MenuFlyoutItem Text="Copy path" Click="CopyPath_Click"/>
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Rename…" Click="Rename_Click"
@@ -244,6 +248,17 @@
                                                 ToolTipService.ToolTip="This project has a CLAUDE.md (Claude project guidance). Right-click to open it.">
                                             <TextBlock Text="CLAUDE.md" FontSize="10"
                                                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </Border>
+                                        <Border CornerRadius="9" Padding="7,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource SystemFillColorCautionBrush}"
+                                                Visibility="{x:Bind HasSettingsError, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind SettingsError, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE7BA;" FontSize="10"
+                                                          Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                                <TextBlock Text="settings.json" FontSize="10"
+                                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                            </StackPanel>
                                         </Border>
                                         <TextBlock Text="{x:Bind LastUsedText}" Opacity="0.55"
                                                    Style="{StaticResource CaptionTextBlockStyle}"
