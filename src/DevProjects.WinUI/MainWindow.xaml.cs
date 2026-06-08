@@ -237,6 +237,29 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    // ---------- Recent menu ----------
+
+    private void RecentMenu_Opening(object sender, object e)
+    {
+        if (sender is not MenuFlyout flyout) return;
+        flyout.Items.Clear();
+        if (ViewModel.RecentProjects.Count == 0)
+        {
+            flyout.Items.Add(new MenuFlyoutItem { Text = "(no recent launches)", IsEnabled = false });
+            return;
+        }
+        foreach (var row in ViewModel.RecentProjects)
+        {
+            var item = new MenuFlyoutItem
+            {
+                Text = $"{row.Name}  —  {row.RootName}",
+                Command = ViewModel.LaunchContinueCommand,
+                CommandParameter = row,
+            };
+            flyout.Items.Add(item);
+        }
+    }
+
     // ---------- Project list interaction ----------
 
     private static ProjectItemViewModel? ItemOf(object sender) =>

@@ -45,6 +45,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public ObservableCollection<SidebarItemViewModel> SidebarItems { get; } = [];
     public ObservableCollection<ProjectItemViewModel> Projects { get; } = [];
+    public ObservableCollection<ProjectItemViewModel> RecentProjects { get; } = [];
     public IReadOnlyList<FlagPreset> FlagPresets => ClaudeFlagCatalog.Presets;
 
     [ObservableProperty] private SidebarItemViewModel? _selectedSidebarItem;
@@ -202,6 +203,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         StartEnrichment();
         RefreshRunningStates();
+        RebuildRecent();
     }
 
     private string ComputeEmptyStateText()
@@ -429,6 +431,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         _configService.UpdateUsage(_config, project.Path, project.Flags);
+        PushRecent(project.Path);
         _allProjects = ProjectScanner.Scan(_config);
         ApplyFilter();
         SelectedProject = Projects.FirstOrDefault(p =>
@@ -466,6 +469,23 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             await _dialogs.ShowMessageAsync("Dev-Projects", $"Launch failed: {ex.Message}");
+        }
+    }
+
+    private void PushRecent(string path)
+    {
+        _state.RecentLaunches = MruList.Add(_state.RecentLaunches, path, cap: 15);
+        _stateService.Save(_state);
+        RebuildRecent();
+    }
+
+    private void RebuildRecent()
+    {
+        RecentProjects.Clear();
+        foreach (var p in _state.RecentLaunches)
+        {
+            var row = Projects.FirstOrDefault(r => string.Equals(r.Path, p, StringComparison.OrdinalIgnoreCase));
+            if (row is not null) RecentProjects.Add(row);
         }
     }
 

@@ -310,6 +310,16 @@
                                 <TextBlock Text="Refresh"/>
                             </StackPanel>
                         </Button>
+                        <DropDownButton AutomationProperties.AutomationId="RecentButton"
+                                        ToolTipService.ToolTip="Recently launched projects — click one to continue its session">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE81C;" FontSize="12"/>
+                                <TextBlock Text="Recent"/>
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout Opening="RecentMenu_Opening"/>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
                     </StackPanel>
                     <Button Grid.Column="1"
                             Command="{x:Bind ViewModel.StopAllCommand}"
