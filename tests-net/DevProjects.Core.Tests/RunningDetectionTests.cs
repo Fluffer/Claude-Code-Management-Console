@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DevProjects.Core.Models;
 using DevProjects.Core.Services;
 
 namespace DevProjects.Core.Tests;
@@ -86,5 +87,25 @@ public class RunningClaudeDetectorTests
         var dirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { @"C:\Dev\Active\Proj" };
         Assert.True(RunningClaudeDetector.IsProjectRunning(dirs, @"C:\Dev\Active"));
         Assert.False(RunningClaudeDetector.IsProjectRunning(dirs, @"C:\Dev\Act"));
+    }
+
+    [Fact]
+    public void SessionsForProject_MatchesExactAndSubdir()
+    {
+        var sessions = new[]
+        {
+            new RunningSession(100, "claude", @"C:\Dev\Active\Foo"),
+            new RunningSession(101, "node",   @"C:\Dev\Active\Foo\sub"),
+            new RunningSession(102, "claude", @"C:\Dev\Active\Bar"),
+        };
+        var hits = RunningClaudeDetector.SessionsForProject(sessions, @"C:\Dev\Active\Foo").ToList();
+        Assert.Equal(new[] { 100, 101 }, hits.Select(s => s.Pid).OrderBy(x => x).ToArray());
+    }
+
+    [Fact]
+    public void SessionsForProject_NoFalsePrefixMatch()
+    {
+        var sessions = new[] { new RunningSession(1, "claude", @"C:\Dev\Active\FooBar") };
+        Assert.Empty(RunningClaudeDetector.SessionsForProject(sessions, @"C:\Dev\Active\Foo"));
     }
 }

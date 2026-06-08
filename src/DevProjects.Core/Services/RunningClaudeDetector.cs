@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using DevProjects.Core.Models;
 
 namespace DevProjects.Core.Services;
 
@@ -15,13 +16,14 @@ public sealed class RunningClaudeDetector
     private static readonly string[] CandidateProcessNames = ["claude", "node", "bun"];
 
     /// <summary>
-    /// Working directories (no trailing separator) of all processes that look
-    /// like a Claude CLI session. Best-effort: processes we cannot inspect
-    /// (died mid-scan, access denied) are skipped silently.
+    /// All processes that look like a Claude CLI session, each with PID,
+    /// process name, and working directory (no trailing separator).
+    /// Best-effort: processes we cannot inspect (died mid-scan, access denied)
+    /// are skipped silently.
     /// </summary>
-    public IReadOnlySet<string> GetRunningClaudeDirectories()
+    public IReadOnlyList<RunningSession> GetRunningSessions()
     {
-        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var sessions = new List<RunningSession>();
         foreach (var name in CandidateProcessNames)
         {
             Process[] processes;
@@ -45,8 +47,8 @@ public sealed class RunningClaudeDetector
                             !commandLine.Contains("claude", StringComparison.OrdinalIgnoreCase))
                             continue;
 
-                        cwd = cwd.TrimEnd('\\', '/');
-                        if (cwd.Length > 0) directories.Add(cwd);
+                        cwd = TrimCwd(cwd);
+                        if (cwd.Length > 0) sessions.Add(new RunningSession(process.Id, name, cwd));
                     }
                     catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
                     {
@@ -55,6 +57,19 @@ public sealed class RunningClaudeDetector
                 }
             }
         }
+        return sessions;
+    }
+
+    /// <summary>
+    /// Working directories (no trailing separator) of all processes that look
+    /// like a Claude CLI session. Best-effort: processes we cannot inspect
+    /// (died mid-scan, access denied) are skipped silently.
+    /// </summary>
+    public IReadOnlySet<string> GetRunningClaudeDirectories()
+    {
+        var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var session in GetRunningSessions())
+            directories.Add(session.WorkingDirectory);
         return directories;
     }
 
@@ -69,4 +84,22 @@ public sealed class RunningClaudeDetector
         var prefix = normalized + System.IO.Path.DirectorySeparatorChar;
         return runningDirectories.Any(d => d.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
+
+    /// <summary>
+    /// Returns the sessions whose working directory is exactly <paramref name="projectPath"/>
+    /// or is anywhere under it.
+    /// </summary>
+    public static IEnumerable<RunningSession> SessionsForProject(
+        IEnumerable<RunningSession> sessions, string projectPath)
+    {
+        var normalized = TrimCwd(projectPath);
+        foreach (var s in sessions)
+        {
+            if (string.Equals(s.WorkingDirectory, normalized, StringComparison.OrdinalIgnoreCase)) yield return s;
+            else if (s.WorkingDirectory.StartsWith(normalized + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                yield return s;
+        }
+    }
+
+    private static string TrimCwd(string cwd) => cwd.TrimEnd('\\', '/');
 }
