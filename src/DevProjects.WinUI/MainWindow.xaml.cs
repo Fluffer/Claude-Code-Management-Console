@@ -377,9 +377,6 @@ public sealed partial class MainWindow : Window
             if (entry is MenuFlyoutItem { Text: "Open CLAUDE.md" } claudeMd)
                 claudeMd.Visibility = project.HasClaudeMd ? Visibility.Visible : Visibility.Collapsed;
 
-            if (entry is MenuFlyoutItem { Text: "Resume session…" } resume)
-                resume.Visibility = project.HasSession ? Visibility.Visible : Visibility.Collapsed;
-
             if (entry is MenuFlyoutItem { Text: "Stop session" } stop)
                 stop.Visibility = project.IsRunning ? Visibility.Visible : Visibility.Collapsed;
 

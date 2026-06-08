@@ -21,8 +21,20 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CurrentModelLabel))]
     private string _flags;
 
+    /// <summary>
+    /// The project's configured default model (from .claude/settings.json), resolved
+    /// during enrichment. Null when none is set. Surfaced on the picker when there is
+    /// no explicit <c>--model</c> override in the flags.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentModelLabel))]
+    private string? _defaultModel;
+
+    /// <summary>The explicit <c>--model</c> override in this project's flags, if any.</summary>
     public string? CurrentModel => FlagsEditor.CurrentModel(Flags);
-    public string CurrentModelLabel => CurrentModel ?? "—";
+
+    /// <summary>Override wins; else the settings.json default; else "Default" (Claude's built-in choice).</summary>
+    public string CurrentModelLabel => CurrentModel ?? DefaultModel ?? "Default";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PinGlyph))]

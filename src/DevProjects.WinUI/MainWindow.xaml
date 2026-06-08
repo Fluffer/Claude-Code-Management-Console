@@ -182,9 +182,6 @@
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Pin / Unpin" Click="Pin_Click"/>
                                             <MenuFlyoutSeparator/>
-                                            <MenuFlyoutItem Text="Resume session…" Click="ResumeSession_Click"
-                                                            AutomationProperties.AutomationId="ResumeSessionMenuItem"
-                                                            ToolTipService.ToolTip="Pick a past Claude session to resume (claude --resume)"/>
                                             <MenuFlyoutItem Text="Stop session" Click="StopSession_Click"
                                                             AutomationProperties.AutomationId="StopSessionMenuItem"
                                                             ToolTipService.ToolTip="Kill all running Claude sessions in this project. Unsaved work is lost."/>
@@ -274,6 +271,13 @@
                                                 AutomationProperties.Name="Continue session"
                                                 IsEnabled="{x:Bind HasSession, Mode=OneWay}"
                                                 ToolTipService.ToolTip="{x:Bind ContinueToolTip, Mode=OneWay}"/>
+                                        <Button Padding="8,4" Click="ResumeSession_Click"
+                                                AutomationProperties.AutomationId="ResumeSessionButton"
+                                                AutomationProperties.Name="Resume a past session"
+                                                Visibility="{x:Bind HasSession, Mode=OneWay}"
+                                                ToolTipService.ToolTip="Pick a specific past Claude session to resume (claude --resume)">
+                                            <FontIcon Glyph="&#xE81C;" FontSize="14"/>
+                                        </Button>
                                     </StackPanel>
                                 </Grid>
                             </DataTemplate>

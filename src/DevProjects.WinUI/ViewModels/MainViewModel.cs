@@ -243,6 +243,7 @@ public sealed partial class MainViewModel : ObservableObject
                     var hasSession = _sessionDetector.HasSession(row.Path);
                     var git = await _gitInfoProvider.GetAsync(row.Path, ct).ConfigureAwait(false);
                     var hasClaudeMd = ProjectClaudeInfo.HasClaudeMd(row.Path);
+                    var defaultModel = ProjectModelInfo.ResolveDefaultModel(row.Path);
                     _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
                     {
                         // Re-check on the UI thread so a stale pass never
@@ -255,6 +256,7 @@ public sealed partial class MainViewModel : ObservableObject
                             row.GitDirty = git.IsDirty;
                         }
                         row.HasClaudeMd = hasClaudeMd;
+                        row.DefaultModel = defaultModel;
                     });
                 }
             }
