@@ -116,4 +116,25 @@ public class LaunchCommandBuilderTests
 
         Assert.Contains("\\\"C:\\Other Dir\\\"", spec.Arguments);
     }
+
+    [Fact]
+    public void BuildClaudeCommand_WithPrompt_SingleQuotesForPowerShell()
+    {
+        var cmd = LaunchCommandBuilder.BuildClaudeCommand("", continueSession: false, initialPrompt: "fix the $bug & ship");
+        Assert.Equal("claude 'fix the $bug & ship'", cmd);
+    }
+
+    [Fact]
+    public void BuildClaudeCommand_WithPrompt_DoublesSingleQuotes()
+    {
+        var cmd = LaunchCommandBuilder.BuildClaudeCommand("--model opus", continueSession: false, initialPrompt: "it's broken");
+        Assert.Equal("claude 'it''s broken' --model opus", cmd);
+    }
+
+    [Fact]
+    public void BuildClaudeCommand_PromptIgnoredWhenContinue()
+    {
+        var cmd = LaunchCommandBuilder.BuildClaudeCommand("", continueSession: true, initialPrompt: "hi");
+        Assert.Equal("claude --continue", cmd);
+    }
 }

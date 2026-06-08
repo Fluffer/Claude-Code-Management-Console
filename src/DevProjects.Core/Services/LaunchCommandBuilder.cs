@@ -21,12 +21,14 @@ public static class LaunchCommandBuilder
 
     public static bool AreFlagsSafe(string flags) => flags.IndexOfAny(UnsafeFlagChars) < 0;
 
-    public static string BuildClaudeCommand(string flags, bool continueSession)
+    public static string BuildClaudeCommand(string flags, bool continueSession, string? initialPrompt = null)
     {
         if (!AreFlagsSafe(flags))
             throw new ArgumentException(UnsafeFlagMessage, nameof(flags));
         var command = "claude";
         if (continueSession) command += " --continue";
+        else if (!string.IsNullOrWhiteSpace(initialPrompt))
+            command += " '" + initialPrompt.Replace("'", "''") + "'";
         if (!string.IsNullOrWhiteSpace(flags)) command += " " + flags.Trim();
         return command;
     }
@@ -38,13 +40,14 @@ public static class LaunchCommandBuilder
         bool continueSession,
         string? shell = null,
         string? wtPath = null,
-        bool probeWindowsTerminal = true)
+        bool probeWindowsTerminal = true,
+        string? initialPrompt = null)
     {
         shell ??= CommandLocator.GetPreferredShell();
         if (wtPath is null && probeWindowsTerminal)
             wtPath = CommandLocator.FindWindowsTerminal();
 
-        var claudeCommand = BuildClaudeCommand(flags, continueSession);
+        var claudeCommand = BuildClaudeCommand(flags, continueSession, initialPrompt);
 
         if (!string.IsNullOrWhiteSpace(wtPath))
         {
