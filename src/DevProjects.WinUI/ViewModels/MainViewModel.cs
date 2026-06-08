@@ -451,6 +451,12 @@ public sealed partial class MainViewModel : ObservableObject
     public async Task LaunchGroupAsync(LaunchGroup group)
     {
         var launched = 0;
+        // Persist any pending (debounced) flags edit first, then snapshot from config so a
+        // group member that was just edited launches with its current flags, not stale ones.
+        FlushPendingFlagsSave();
+        _allProjects = ProjectScanner.Scan(_config);
+        // AllProjects (unfiltered) intentionally: a group opens every member regardless of
+        // the current sidebar/search filter.
         var all = AllProjects;
         foreach (var path in group.ProjectPaths)
         {

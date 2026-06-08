@@ -77,9 +77,19 @@ public sealed partial class MainWindow : Window
         _hotkey = new GlobalHotkey();
         _hotkey.Pressed += () => DispatcherQueue.TryEnqueue(async () =>
         {
-            // Bring the window to the foreground, then open the existing Ctrl+P palette.
-            AppWindow.Show();
-            await ShowCommandPaletteAsync();
+            // async-void callback: an unhandled exception here would crash the app, so
+            // guard it. The summon is a convenience — failing to open must never take
+            // the process down.
+            try
+            {
+                // Bring the window to the foreground, then open the existing Ctrl+P palette.
+                AppWindow.Show();
+                await ShowCommandPaletteAsync();
+            }
+            catch (Exception)
+            {
+                // Best-effort summon; swallow so the message-pump callback can't crash.
+            }
         });
         if (!_hotkey.Register(hwnd))
             ShowToast("Global hotkey Ctrl+Alt+Space is in use by another app — summon disabled.");
