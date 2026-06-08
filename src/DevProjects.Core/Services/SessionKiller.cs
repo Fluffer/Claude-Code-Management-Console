@@ -19,6 +19,6 @@ public static class SessionKiller
         }
         catch (ArgumentException) { return true; }        // already exited
         catch (InvalidOperationException) { return true; } // already exited
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception) { return false; } // access denied
+        catch (System.ComponentModel.Win32Exception) { return false; } // access denied
     }
 }

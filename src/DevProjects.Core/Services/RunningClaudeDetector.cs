@@ -79,7 +79,7 @@ public sealed class RunningClaudeDetector
     /// </summary>
     public static bool IsProjectRunning(IReadOnlySet<string> runningDirectories, string projectPath)
     {
-        var normalized = projectPath.TrimEnd('\\', '/');
+        var normalized = TrimCwd(projectPath);
         if (runningDirectories.Contains(normalized)) return true;
         var prefix = normalized + System.IO.Path.DirectorySeparatorChar;
         return runningDirectories.Any(d => d.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
