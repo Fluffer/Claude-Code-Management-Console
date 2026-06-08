@@ -3,9 +3,9 @@
 A Windows launcher hub for [Claude Code](https://claude.com/claude-code). It scans your
 source-root folders (e.g. `C:\Dev\Active`), lists every project, and opens Claude
 sessions in Windows Terminal tabs — new (`claude`) or continued (`claude --continue`) —
-with per-project flags. Built with .NET 9 and WinUI 3 (Windows App SDK).
+with per-project flags. Built with .NET 10 and WinUI 3 (Windows App SDK).
 
-![Stack](https://img.shields.io/badge/.NET-9.0-blueviolet) ![UI](https://img.shields.io/badge/WinUI-3-blue)
+![Stack](https://img.shields.io/badge/.NET-10.0-blueviolet) ![UI](https://img.shields.io/badge/WinUI-3-blue)
 
 ## Features
 
@@ -42,7 +42,7 @@ docs/                       # design spec & implementation plans
 ```powershell
 dotnet build DevProjects.sln -p:Platform=x64
 dotnet test tests-net/DevProjects.Core.Tests
-winapp run "src/DevProjects.WinUI/bin/x64/Debug/net9.0-windows10.0.26100.0/win-x64"
+winapp run "src/DevProjects.WinUI/bin/x64/Debug/net10.0-windows10.0.26100.0/win-x64"
 ```
 
 Publish an unpackaged self-contained build for the launcher shim:
