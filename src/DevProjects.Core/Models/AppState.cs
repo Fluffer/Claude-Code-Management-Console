@@ -26,4 +26,7 @@ public sealed class AppState
 
     /// <summary>Most-recently-launched project paths, newest first. Capped on write.</summary>
     public List<string> RecentLaunches { get; set; } = [];
+
+    /// <summary>Reusable named launcher-flag bundles (Tier 2). Applied to a project's saved flags.</summary>
+    public List<LaunchProfile> Profiles { get; set; } = [];
 }

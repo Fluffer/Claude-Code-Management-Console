@@ -226,6 +226,35 @@ public class StateServiceTests : IDisposable
         File.WriteAllText(StatePath, """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true}""");
         Assert.Empty(new StateService(StatePath).Load().RecentLaunches);
     }
+
+    [Fact]
+    public void Defaults_IncludeEmptyProfiles() =>
+        Assert.Empty(new AppState().Profiles);
+
+    [Fact]
+    public void OldStateJson_WithoutProfiles_LoadsEmptyList()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(StatePath,
+            """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true,"recentLaunches":[]}""");
+        Assert.Empty(new StateService(StatePath).Load().Profiles);
+    }
+
+    [Fact]
+    public void Profiles_RoundTripThroughSaveLoad()
+    {
+        Directory.CreateDirectory(_dir);
+        var svc = new StateService(StatePath);
+        var state = svc.Load();
+        state.Profiles.Add(new LaunchProfile { Name = "Opus", Model = "opus", AllowedTools = ["Read"] });
+        svc.Save(state);
+
+        var reloaded = svc.Load();
+        Assert.Single(reloaded.Profiles);
+        Assert.Equal("Opus", reloaded.Profiles[0].Name);
+        Assert.Equal("opus", reloaded.Profiles[0].Model);
+        Assert.Equal(["Read"], reloaded.Profiles[0].AllowedTools);
+    }
 }
 
 public class GitInfoProviderTests : IDisposable
