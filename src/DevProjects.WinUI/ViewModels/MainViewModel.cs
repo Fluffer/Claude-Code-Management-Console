@@ -555,11 +555,20 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void OpenClaudeMd(ProjectItemViewModel? project)
+    private async Task OpenClaudeMdAsync(ProjectItemViewModel? project)
     {
         var path = project is null ? null : ProjectClaudeInfo.ClaudeMdPath(project.Path);
         if (path is null) return;
-        using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+            // No app is registered for .md, or the file vanished after the badge was set.
+            await _dialogs.ShowMessageAsync("Open CLAUDE.md",
+                $"Could not open CLAUDE.md: {ex.Message}");
+        }
     }
 
     [RelayCommand]
