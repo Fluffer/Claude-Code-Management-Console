@@ -11,7 +11,22 @@ with per-project flags. Built with .NET 10 and WinUI 3 (Windows App SDK).
 
 - **Fluent design** with Mica backdrop and System/Light/Dark theme toggle
 - **Keyboard-first**: `Enter` = Continue, `Ctrl+Enter` = New, `Ctrl+F` = search,
-  `Ctrl+N` = new project, `F5` = refresh, `F1` = help
+  `Ctrl+N` = new project, `Ctrl+P` = command palette, `Ctrl+Shift+Enter` = quick prompt,
+  `F5` = refresh, `F1` = help
+- **Command palette** (`Ctrl+P`) — fuzzy-jump to any project across all roots; `Enter`
+  continues it, `Ctrl+Enter` starts a fresh session
+- **Quick prompt** — right-click → Quick prompt… (or `Ctrl+Shift+Enter`) opens a new
+  session seeded with a first message; the prompt is safely single-quoted for the shell
+- **Resume a specific session** — right-click → Resume session… lists past sessions
+  (first-message preview + relative time, newest first) and launches `claude --resume <id>`
+- **Stop sessions** — right-click → Stop session, or **Stop all** in the bottom bar;
+  both confirm first (killing a session loses unsaved work)
+- **Per-row model picker** — choose Default / sonnet / opus / haiku per project; writes
+  `--model` into that project's saved flags
+- **Recent launches** — a Recent dropdown lists the last projects you launched (newest
+  first, deduped, capped), persisted across restarts
+- **CLAUDE.md badge** — projects with a `CLAUDE.md` show a pill; open it from the context menu
+- **Update nudge** — the status bar flags when a newer `claude` CLI is published on npm
 - **Smart Continue** — the Continue button greys out (with an explanatory tooltip)
   when no previous Claude session exists for that folder
 - **Flags builder** — `＋ Flag` inserts common claude flags with plain-English descriptions
