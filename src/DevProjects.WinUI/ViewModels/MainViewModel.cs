@@ -401,7 +401,7 @@ public sealed partial class MainViewModel : ObservableObject
         await LaunchWithFlagsAsync(project, project.Flags, continueSession);
     }
 
-    private async Task LaunchWithFlagsAsync(ProjectItemViewModel project, string launchFlags, bool continueSession)
+    private async Task LaunchWithFlagsAsync(ProjectItemViewModel project, string launchFlags, bool continueSession, string? initialPrompt = null)
     {
         FlushPendingFlagsSave();
         if (!LaunchCommandBuilder.AreFlagsSafe(launchFlags))
@@ -409,7 +409,7 @@ public sealed partial class MainViewModel : ObservableObject
             await _dialogs.ShowMessageAsync("Dev-Projects", LaunchCommandBuilder.UnsafeFlagMessage);
             return;
         }
-        var spec = LaunchCommandBuilder.Build(project.Name, project.Path, launchFlags, continueSession);
+        var spec = LaunchCommandBuilder.Build(project.Name, project.Path, launchFlags, continueSession, initialPrompt: initialPrompt);
         try
         {
             SessionLauncher.Launch(spec);
@@ -427,6 +427,12 @@ public sealed partial class MainViewModel : ObservableObject
         ToastRequested?.Invoke(continueSession
             ? $"Continuing Claude session in “{project.Name}”"
             : $"Opened a new Claude session in “{project.Name}”");
+    }
+
+    public async Task LaunchQuickPromptAsync(ProjectItemViewModel project, string prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt)) return;
+        await LaunchWithFlagsAsync(project, project.Flags, continueSession: false, initialPrompt: prompt);
     }
 
     public IReadOnlyList<SessionSummary> ListSessions(ProjectItemViewModel project) =>

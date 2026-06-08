@@ -279,6 +279,25 @@ public sealed partial class MainWindow : Window
         _ = ShowRenameDialogAsync(project);
     }
 
+    private void QuickPrompt_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is { } project) _ = ShowQuickPromptDialogAsync(project);
+    }
+
+    private void QuickPrompt_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (DialogGate.AnyOpen || ViewModel.SelectedProject is null) return;
+        args.Handled = true;
+        _ = ShowQuickPromptDialogAsync(ViewModel.SelectedProject);
+    }
+
+    private async Task ShowQuickPromptDialogAsync(ProjectItemViewModel project)
+    {
+        var dialog = new QuickPromptDialog { XamlRoot = Content.XamlRoot, RequestedTheme = RootGrid.RequestedTheme };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            await ViewModel.LaunchQuickPromptAsync(project, dialog.PromptText);
+    }
+
     private async Task ShowRenameDialogAsync(ProjectItemViewModel project)
     {
         var dialog = new RenameProjectDialog(ViewModel, project)

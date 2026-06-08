@@ -15,6 +15,7 @@
             <KeyboardAccelerator Key="F5" Invoked="Refresh_Invoked"/>
             <KeyboardAccelerator Key="F1" Invoked="Help_Invoked"/>
             <KeyboardAccelerator Key="Escape" Invoked="ClearSearch_Invoked"/>
+            <KeyboardAccelerator Key="Enter" Modifiers="Control,Shift" Invoked="QuickPrompt_Invoked"/>
         </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -183,6 +184,10 @@
                                             <MenuFlyoutItem Text="Stop session" Click="StopSession_Click"
                                                             AutomationProperties.AutomationId="StopSessionMenuItem"
                                                             ToolTipService.ToolTip="Kill all running Claude sessions in this project. Unsaved work is lost."/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Quick prompt…" Click="QuickPrompt_Click"
+                                                            AutomationProperties.AutomationId="QuickPromptMenuItem"
+                                                            ToolTipService.ToolTip="Open a fresh Claude session seeded with a first message (Ctrl+Shift+Enter)"/>
                                         </MenuFlyout>
                                     </Grid.ContextFlyout>
                                     <Grid.ColumnDefinitions>
