@@ -244,6 +244,18 @@
                                     <!-- Launch buttons -->
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6"
                                                 VerticalAlignment="Center">
+                                        <DropDownButton Content="{x:Bind CurrentModelLabel, Mode=OneWay}" Padding="10,4"
+                                                        AutomationProperties.AutomationId="ModelPicker"
+                                                        ToolTipService.ToolTip="Choose the Claude model for this project (writes --model into its flags)">
+                                            <DropDownButton.Flyout>
+                                                <MenuFlyout>
+                                                    <MenuFlyoutItem Text="Default" Click="SetModel_Click"/>
+                                                    <MenuFlyoutItem Text="sonnet"  Tag="sonnet" Click="SetModel_Click"/>
+                                                    <MenuFlyoutItem Text="opus"    Tag="opus"   Click="SetModel_Click"/>
+                                                    <MenuFlyoutItem Text="haiku"   Tag="haiku"  Click="SetModel_Click"/>
+                                                </MenuFlyout>
+                                            </DropDownButton.Flyout>
+                                        </DropDownButton>
                                         <Button Content="New" Padding="14,4" Click="LaunchNew_Click"
                                                 AutomationProperties.Name="New session"
                                                 ToolTipService.ToolTip="Start a fresh Claude session in this project (Ctrl+Enter)"/>

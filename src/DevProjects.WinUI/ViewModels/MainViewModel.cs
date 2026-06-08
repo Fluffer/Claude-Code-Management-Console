@@ -379,6 +379,13 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    public void SetRowModel(ProjectItemViewModel project, string? model)
+    {
+        project.Flags = FlagsEditor.SetModel(project.Flags, model);
+        _configService.UpdateFlags(_config, project.Path, project.Flags);
+        if (ReferenceEquals(SelectedProject, project)) FlagsText = project.Flags; // keep the flags box in sync
+    }
+
     [RelayCommand]
     private void InsertFlag(FlagPreset preset)
     {

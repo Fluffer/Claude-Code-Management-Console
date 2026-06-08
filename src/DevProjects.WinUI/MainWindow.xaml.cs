@@ -260,6 +260,13 @@ public sealed partial class MainWindow : Window
     private void CopyPath_Click(object sender, RoutedEventArgs e) =>
         ViewModel.CopyPathCommand.Execute(ItemOf(sender));
 
+    private void SetModel_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is not { } project) return;
+        var model = (sender as FrameworkElement)?.Tag as string; // null for "Default"
+        ViewModel.SetRowModel(project, model);
+    }
+
     private void StopSession_Click(object sender, RoutedEventArgs e) =>
         ViewModel.StopSessionCommand.Execute(ItemOf(sender));
 

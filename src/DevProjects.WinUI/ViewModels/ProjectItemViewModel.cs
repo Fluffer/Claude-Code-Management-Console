@@ -17,7 +17,12 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     public string LastUsedText => RelativeTimeFormatter.Format(Info.LastUsedUtc);
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CurrentModel))]
+    [NotifyPropertyChangedFor(nameof(CurrentModelLabel))]
     private string _flags;
+
+    public string? CurrentModel => FlagsEditor.CurrentModel(Flags);
+    public string CurrentModelLabel => CurrentModel ?? "—";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PinGlyph))]
