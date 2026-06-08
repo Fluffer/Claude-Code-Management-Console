@@ -329,6 +329,26 @@ public sealed partial class MainWindow : Window
             await ViewModel.ResumeSessionAsync(project, id);
     }
 
+    private async void LaunchInWorktree_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is not { } project) return;
+        var worktrees = await ViewModel.ListWorktreesAsync(project);
+        var others = worktrees.Where(w => !w.IsBare).ToList();
+        if (others.Count <= 1)
+        {
+            await _dialogs.ShowMessageAsync("Worktrees", "This project has no additional git worktrees.");
+            return;
+        }
+
+        var dialog = new WorktreePickerDialog(others)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary && dialog.SelectedWorktree is { } wt)
+            await ViewModel.LaunchInWorktreeAsync(project, wt);
+    }
+
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is not { } project) return;
@@ -402,6 +422,9 @@ public sealed partial class MainWindow : Window
 
             if (entry is MenuFlyoutItem { Text: "Stop session" } stop)
                 stop.Visibility = project.IsRunning ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutItem { Text: "Launch in worktree…" } worktree)
+                worktree.Visibility = project.HasGitInfo ? Visibility.Visible : Visibility.Collapsed;
 
             if (entry is MenuFlyoutSubItem { Text: "Apply profile" } applyProfile)
             {

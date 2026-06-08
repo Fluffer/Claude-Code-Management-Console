@@ -35,6 +35,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly RunningClaudeDetector _runningDetector = new();
     private readonly ClaudeSessionLister _sessionLister = new();
+    private readonly GitWorktreeProvider _worktreeProvider = new();
 
     /// <summary>
     /// Fallback signal only: how recent a transcript write still counts as
@@ -492,6 +493,35 @@ public sealed partial class MainViewModel : ObservableObject
     {
         // sessionId is a uuid (hex + dashes) — safe under AreFlagsSafe.
         await LaunchWithFlagsAsync(project, $"--resume {sessionId}", continueSession: false);
+    }
+
+    public Task<IReadOnlyList<GitWorktree>> ListWorktreesAsync(ProjectItemViewModel project) =>
+        _worktreeProvider.ListAsync(project.Path);
+
+    /// <summary>Launch a new session in a specific worktree path, using the project's saved flags.</summary>
+    public async Task LaunchInWorktreeAsync(ProjectItemViewModel project, GitWorktree worktree)
+    {
+        FlushPendingFlagsSave();
+        if (!LaunchCommandBuilder.AreFlagsSafe(project.Flags))
+        {
+            await _dialogs.ShowMessageAsync("Dev-Projects", LaunchCommandBuilder.UnsafeFlagMessage);
+            return;
+        }
+
+        var title = $"{project.Name} [{worktree.Branch ?? "detached"}]";
+        var spec = LaunchCommandBuilder.Build(title, worktree.Path, project.Flags, continueSession: false);
+        try
+        {
+            SessionLauncher.Launch(spec);
+        }
+        catch (Exception ex)
+        {
+            await _dialogs.ShowMessageAsync("Dev-Projects", $"Launch failed: {ex.Message}");
+            return;
+        }
+        // Worktree launches target a sibling path, not the tracked project, so they are
+        // intentionally NOT recorded in RecentLaunches/usage.
+        ToastRequested?.Invoke($"Opened a new Claude session in {title}");
     }
 
     /// <summary>One-off launch in a folder that is not a tracked project (drag-drop).</summary>

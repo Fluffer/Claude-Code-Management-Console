@@ -195,6 +195,9 @@
                                             <MenuFlyoutItem Text="Quick prompt…" Click="QuickPrompt_Click"
                                                             AutomationProperties.AutomationId="QuickPromptMenuItem"
                                                             ToolTipService.ToolTip="Open a fresh Claude session seeded with a first message (Ctrl+Shift+Enter)"/>
+                                            <MenuFlyoutItem Text="Launch in worktree…" Click="LaunchInWorktree_Click"
+                                                            AutomationProperties.AutomationId="LaunchInWorktreeMenuItem"
+                                                            ToolTipService.ToolTip="Open a new Claude session in another git worktree of this repository"/>
                                         </MenuFlyout>
                                     </Grid.ContextFlyout>
                                     <Grid.ColumnDefinitions>
