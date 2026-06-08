@@ -214,6 +214,18 @@ public class StateServiceTests : IDisposable
         Assert.Equal("Default", loaded.Accent);
         Assert.Equal("Segoe UI Variable", loaded.Font);
     }
+
+    [Fact]
+    public void Defaults_IncludeEmptyRecentLaunches() =>
+        Assert.Empty(new AppState().RecentLaunches);
+
+    [Fact]
+    public void OldStateJson_WithoutRecentLaunches_LoadsEmptyList()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(StatePath, """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true}""");
+        Assert.Empty(new StateService(StatePath).Load().RecentLaunches);
+    }
 }
 
 public class GitInfoProviderTests : IDisposable

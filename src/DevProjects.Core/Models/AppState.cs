@@ -23,4 +23,7 @@ public sealed class AppState
 
     /// <summary>UI font family name.</summary>
     public string Font { get; set; } = "Segoe UI Variable";
+
+    /// <summary>Most-recently-launched project paths, newest first. Capped on write.</summary>
+    public List<string> RecentLaunches { get; set; } = [];
 }
