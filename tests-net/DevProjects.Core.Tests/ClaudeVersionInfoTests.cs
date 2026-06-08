@@ -28,6 +28,7 @@ public class ClaudeVersionInfoTests
     [InlineData("2.1.5", "2.1.0", false)]
     [InlineData("garbage", "2.1.0", false)]
     [InlineData("2.1.0", "garbage", false)]
-    public void IsOutdated(string installed, string latest, bool expected) =>
+    [InlineData(null, "2.1.0", false)]
+    public void IsOutdated_ComparesCases(string? installed, string? latest, bool expected) =>
         Assert.Equal(expected, ClaudeVersionInfo.IsOutdated(installed, latest));
 }

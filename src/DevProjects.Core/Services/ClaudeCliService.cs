@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net.Http;
+using System.Text.Json;
 
 namespace DevProjects.Core.Services;
 
@@ -7,6 +9,7 @@ public sealed class ClaudeCliService
 {
     private readonly Lazy<string?> _claudePath = new(() => CommandLocator.FindOnPath("claude"));
     private Task<string?>? _versionTask;
+    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(5) };
 
     public bool IsOnPath => _claudePath.Value is not null;
 
@@ -57,15 +60,14 @@ public sealed class ClaudeCliService
     {
         try
         {
-            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
-            var json = await http.GetStringAsync(
+            var json = await _http.GetStringAsync(
                 "https://registry.npmjs.org/@anthropic-ai/claude-code/latest").ConfigureAwait(false);
-            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            using var doc = JsonDocument.Parse(json);
             return doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() : null;
         }
         catch (Exception ex) when (
-            ex is System.Net.Http.HttpRequestException or TaskCanceledException
-               or System.Text.Json.JsonException or IOException)
+            ex is HttpRequestException or TaskCanceledException
+               or JsonException or IOException)
         {
             return null;
         }
