@@ -236,6 +236,13 @@
                                             <TextBlock Text="● live" FontSize="10"
                                                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                         </Border>
+                                        <Border CornerRadius="9" Padding="7,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                Visibility="{x:Bind IsStale, Mode=OneWay}"
+                                                ToolTipService.ToolTip="No session activity in over a week.">
+                                            <TextBlock Text="stale" FontSize="10"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        </Border>
                                         <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center"
                                                     Visibility="{x:Bind HasGitInfo, Mode=OneWay}"
                                                     ToolTipService.ToolTip="{x:Bind GitToolTip, Mode=OneWay}">

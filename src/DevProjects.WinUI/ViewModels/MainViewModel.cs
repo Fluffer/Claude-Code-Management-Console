@@ -242,6 +242,7 @@ public sealed partial class MainViewModel : ObservableObject
                 {
                     if (ct.IsCancellationRequested) return;
                     var hasSession = _sessionDetector.HasSession(row.Path);
+                    var newestSession = _sessionLister.NewestSessionUtc(row.Path);
                     var git = await _gitInfoProvider.GetAsync(row.Path, ct).ConfigureAwait(false);
                     var hasClaudeMd = ProjectClaudeInfo.HasClaudeMd(row.Path);
                     var defaultModel = ProjectModelInfo.ResolveDefaultModel(row.Path);
@@ -252,6 +253,8 @@ public sealed partial class MainViewModel : ObservableObject
                         // writes to rows a newer filter already replaced.
                         if (ct.IsCancellationRequested) return;
                         row.HasSession = hasSession;
+                        row.NewestSessionUtc = newestSession;
+                        row.IsStale = SessionStaleness.IsStale(newestSession, DateTime.UtcNow, row.IsRunning, thresholdDays: 7);
                         if (git is not null)
                         {
                             row.GitBranch = git.Branch;
@@ -318,7 +321,10 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 if (ct.IsCancellationRequested) return;
                 foreach (var (row, isRunning) in results)
+                {
                     row.IsRunning = isRunning;
+                    row.IsStale = SessionStaleness.IsStale(row.NewestSessionUtc, DateTime.UtcNow, isRunning, thresholdDays: 7);
+                }
                 UpdateRunningSummary();
             });
         });

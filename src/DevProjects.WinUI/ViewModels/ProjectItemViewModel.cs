@@ -63,6 +63,22 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRunning;
 
+    /// <summary>
+    /// Whether this project's most recent Claude session is stale: no transcript
+    /// activity in over a week and not currently running. Computed during
+    /// enrichment and re-evaluated whenever the running state changes.
+    /// </summary>
+    [ObservableProperty]
+    private bool _isStale;
+
+    /// <summary>
+    /// UTC timestamp of this project's newest Claude session transcript, or null
+    /// when none exists. Cached so staleness can be re-evaluated in the running-state
+    /// pass without re-reading the session files.
+    /// </summary>
+    [ObservableProperty]
+    private DateTime? _newestSessionUtc;
+
     /// <summary>Whether a CLAUDE.md file exists in this project folder.</summary>
     [ObservableProperty]
     private bool _hasClaudeMd;
