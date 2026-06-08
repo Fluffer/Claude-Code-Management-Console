@@ -435,6 +435,36 @@ public sealed partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(Profiles));
     }
 
+    // ---------- Launch groups ----------
+
+    public IReadOnlyList<LaunchGroup> Groups => _state.Groups;
+
+    /// <summary>Replace the saved group set (from the manager dialog) and persist.</summary>
+    public void SaveGroups(IEnumerable<LaunchGroup> groups)
+    {
+        _state.Groups = groups.Where(g => !string.IsNullOrWhiteSpace(g.Name) && g.ProjectPaths.Count > 0).ToList();
+        _stateService.Save(_state);
+        OnPropertyChanged(nameof(Groups));
+    }
+
+    /// <summary>Launch every project in a group (continue), in listed order, with a small stagger.</summary>
+    public async Task LaunchGroupAsync(LaunchGroup group)
+    {
+        var launched = 0;
+        var all = AllProjects;
+        foreach (var path in group.ProjectPaths)
+        {
+            var row = all.FirstOrDefault(p => string.Equals(p.Path, path, StringComparison.OrdinalIgnoreCase));
+            if (row is null) continue; // project removed since the group was saved — skip silently
+            await LaunchContinueAsync(row);
+            launched++;
+            await Task.Delay(250); // stagger so Windows Terminal opens N tabs reliably
+        }
+        ToastRequested?.Invoke(launched == group.ProjectPaths.Count
+            ? $"Launched group “{group.Name}” ({launched})"
+            : $"Launched {launched} of {group.ProjectPaths.Count} in “{group.Name}” (some projects no longer exist)");
+    }
+
     [RelayCommand]
     private void InsertFlag(FlagPreset preset)
     {

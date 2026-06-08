@@ -317,6 +317,43 @@ public sealed partial class MainWindow : Window
             ViewModel.SaveProfiles(dialog.Profiles);
     }
 
+    private void GroupsMenu_Opening(object sender, object e)
+    {
+        if (sender is not MenuFlyout flyout) return;
+        flyout.Items.Clear();
+        foreach (var group in ViewModel.Groups)
+        {
+            var item = new MenuFlyoutItem
+            {
+                Text = $"{group.Name}  ({group.ProjectPaths.Count})",
+                Tag = group,
+            };
+            item.Click += LaunchGroup_Click;
+            flyout.Items.Add(item);
+        }
+        if (ViewModel.Groups.Count > 0)
+            flyout.Items.Add(new MenuFlyoutSeparator());
+        var manage = new MenuFlyoutItem { Text = "Manage groups…" };
+        manage.Click += ManageGroups_Click;
+        flyout.Items.Add(manage);
+    }
+
+    private async void LaunchGroup_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: LaunchGroup group }) await ViewModel.LaunchGroupAsync(group);
+    }
+
+    private async void ManageGroups_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new GroupManagerDialog(ViewModel.Groups, ViewModel.AllProjects)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            ViewModel.SaveGroups(dialog.Groups);
+    }
+
     private void StopSession_Click(object sender, RoutedEventArgs e) =>
         ViewModel.StopSessionCommand.Execute(ItemOf(sender));
 

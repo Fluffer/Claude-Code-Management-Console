@@ -370,6 +370,16 @@
                                 <TextBlock Text="Profiles"/>
                             </StackPanel>
                         </Button>
+                        <DropDownButton AutomationProperties.AutomationId="GroupsButton"
+                                        ToolTipService.ToolTip="Launch a saved set of projects together, or manage your launch groups">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE902;" FontSize="12"/>
+                                <TextBlock Text="Groups"/>
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout Opening="GroupsMenu_Opening"/>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
                     </StackPanel>
                     <Button Grid.Column="1"
                             Command="{x:Bind ViewModel.StopAllCommand}"
