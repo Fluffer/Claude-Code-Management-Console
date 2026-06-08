@@ -51,6 +51,10 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _isRunning;
 
+    /// <summary>Whether a CLAUDE.md file exists in this project folder.</summary>
+    [ObservableProperty]
+    private bool _hasClaudeMd;
+
     public string RunningToolTip =>
         "A Claude session is running in this folder right now";
 

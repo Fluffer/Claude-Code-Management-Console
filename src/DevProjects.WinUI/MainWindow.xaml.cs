@@ -257,6 +257,9 @@ public sealed partial class MainWindow : Window
     private void OpenInVsCode_Click(object sender, RoutedEventArgs e) =>
         ViewModel.OpenInVsCodeCommand.Execute(ItemOf(sender));
 
+    private void OpenClaudeMd_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.OpenClaudeMdCommand.Execute(ItemOf(sender));
+
     private void CopyPath_Click(object sender, RoutedEventArgs e) =>
         ViewModel.CopyPathCommand.Execute(ItemOf(sender));
 
@@ -328,6 +331,9 @@ public sealed partial class MainWindow : Window
         {
             if (entry is MenuFlyoutItem { Text: "Open in VS Code" } vsCode)
                 vsCode.Visibility = ViewModel.VsCodeAvailable ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutItem { Text: "Open CLAUDE.md" } claudeMd)
+                claudeMd.Visibility = project.HasClaudeMd ? Visibility.Visible : Visibility.Collapsed;
 
             if (entry is MenuFlyoutItem { Text: "Resume session…" } resume)
                 resume.Visibility = project.HasSession ? Visibility.Visible : Visibility.Collapsed;

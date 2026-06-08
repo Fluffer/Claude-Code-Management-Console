@@ -232,6 +232,7 @@ public sealed partial class MainViewModel : ObservableObject
                     if (ct.IsCancellationRequested) return;
                     var hasSession = _sessionDetector.HasSession(row.Path);
                     var git = await _gitInfoProvider.GetAsync(row.Path, ct).ConfigureAwait(false);
+                    var hasClaudeMd = ProjectClaudeInfo.HasClaudeMd(row.Path);
                     _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
                     {
                         // Re-check on the UI thread so a stale pass never
@@ -243,6 +244,7 @@ public sealed partial class MainViewModel : ObservableObject
                             row.GitBranch = git.Branch;
                             row.GitDirty = git.IsDirty;
                         }
+                        row.HasClaudeMd = hasClaudeMd;
                     });
                 }
             }
@@ -522,6 +524,14 @@ public sealed partial class MainViewModel : ObservableObject
         if (project is null) return;
         using var process = Process.Start(
             new ProcessStartInfo("explorer.exe", $"\"{project.Path}\"") { UseShellExecute = true });
+    }
+
+    [RelayCommand]
+    private void OpenClaudeMd(ProjectItemViewModel? project)
+    {
+        var path = project is null ? null : ProjectClaudeInfo.ClaudeMdPath(project.Path);
+        if (path is null) return;
+        using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
     }
 
     [RelayCommand]
