@@ -284,9 +284,17 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{x:Bind ViewModel.ClaudeVersionText, Mode=OneWay}"
-                           Opacity="0.7" Style="{StaticResource CaptionTextBlockStyle}"
-                           ToolTipService.ToolTip="Version of the claude CLI found on PATH"/>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12">
+                    <TextBlock Text="{x:Bind ViewModel.ClaudeVersionText, Mode=OneWay}"
+                               Opacity="0.7" Style="{StaticResource CaptionTextBlockStyle}"
+                               ToolTipService.ToolTip="Version of the claude CLI found on PATH"/>
+                    <TextBlock Text="{x:Bind ViewModel.UpdateNudgeText, Mode=OneWay}"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                               Visibility="{x:Bind ViewModel.UpdateAvailable, Mode=OneWay}"
+                               ToolTipService.ToolTip="A newer Claude Code CLI is published on npm."
+                               AutomationProperties.AutomationId="UpdateNudgeText"/>
+                </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6"
                             HorizontalAlignment="Center">
                     <TextBlock Text="{x:Bind ViewModel.StatusText, Mode=OneWay}" Opacity="0.7"

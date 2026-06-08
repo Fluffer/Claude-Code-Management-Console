@@ -56,6 +56,8 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _claudeVersionText = "claude: checking…";
     [ObservableProperty] private bool _claudeMissing;
     [ObservableProperty] private bool _showOnboarding;
+    [ObservableProperty] private string _updateNudgeText = "";
+    [ObservableProperty] private bool _updateAvailable;
     [ObservableProperty] private string _emptyStateText = "";
     [ObservableProperty] private bool _isListEmpty;
 
@@ -642,6 +644,19 @@ public sealed partial class MainViewModel : ObservableObject
         }
         var version = await _claudeCli.GetVersionAsync().ConfigureAwait(true);
         ClaudeVersionText = version is null ? "claude: version unknown" : $"claude {version}";
+        if (version is not null)
+            _ = CheckForUpdateAsync(version);
+    }
+
+    private async Task CheckForUpdateAsync(string installedRaw)
+    {
+        var latest = await _claudeCli.GetLatestPublishedVersionAsync();
+        if (latest is null || !ClaudeVersionInfo.IsOutdated(installedRaw, latest)) return;
+        _dispatcherQueue.TryEnqueue(() =>
+        {
+            UpdateAvailable = true;
+            UpdateNudgeText = $"claude {latest} available — run `claude update`";
+        });
     }
 
     /// <summary>Watches each root for folder add/remove/rename and rescans (debounced).</summary>
