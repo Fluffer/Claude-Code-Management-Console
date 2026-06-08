@@ -1422,7 +1422,7 @@ public static class FuzzyMatcher
         {
             if (char.ToLowerInvariant(candidate[ci]) == char.ToLowerInvariant(query[qi]))
             {
-                score += 1 + streak;                                   // reward consecutive hits
+                score += 1 + streak * 4;                               // reward consecutive hits (streak*4 so contiguous beats scattered)
                 if (ci == 0 || !char.IsLetterOrDigit(candidate[ci - 1]))
                     score += 5;                                        // reward word-boundary hits
                 streak++;
