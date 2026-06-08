@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using DevProjects.App.Services;
 using DevProjects.App.ViewModels;
 using DevProjects.App.Views;
+using DevProjects.Core.Models;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -293,6 +294,25 @@ public sealed partial class MainWindow : Window
         ViewModel.SetRowModel(project, model);
     }
 
+    private void ApplyProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item &&
+            item.DataContext is ProjectItemViewModel project &&
+            item.Tag is LaunchProfile profile)
+            ViewModel.ApplyProfile(project, profile);
+    }
+
+    private async void ManageProfiles_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ProfileManagerDialog(ViewModel.Profiles)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            ViewModel.SaveProfiles(dialog.Profiles);
+    }
+
     private void StopSession_Click(object sender, RoutedEventArgs e) =>
         ViewModel.StopSessionCommand.Execute(ItemOf(sender));
 
@@ -379,6 +399,34 @@ public sealed partial class MainWindow : Window
 
             if (entry is MenuFlyoutItem { Text: "Stop session" } stop)
                 stop.Visibility = project.IsRunning ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutSubItem { Text: "Apply profile" } applyProfile)
+            {
+                applyProfile.Items.Clear();
+                var profiles = ViewModel.Profiles;
+                if (profiles.Count == 0)
+                {
+                    applyProfile.Items.Add(new MenuFlyoutItem
+                    {
+                        Text = "(no profiles — use “Profiles…”)",
+                        IsEnabled = false,
+                    });
+                }
+                else
+                {
+                    foreach (var profile in profiles)
+                    {
+                        var item = new MenuFlyoutItem
+                        {
+                            Text = profile.Name,
+                            Tag = profile,
+                            DataContext = project,
+                        };
+                        item.Click += ApplyProfile_Click;
+                        applyProfile.Items.Add(item);
+                    }
+                }
+            }
 
             if (entry is MenuFlyoutSubItem { Text: "Move to root" } move)
             {

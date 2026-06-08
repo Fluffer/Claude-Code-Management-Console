@@ -400,6 +400,31 @@ public sealed partial class MainViewModel : ObservableObject
         if (ReferenceEquals(SelectedProject, project)) FlagsText = project.Flags; // keep the flags box in sync
     }
 
+    // ---------- Launch profiles ----------
+
+    public IReadOnlyList<LaunchProfile> Profiles => _state.Profiles;
+
+    /// <summary>Apply a profile's composed flags to a project's saved flags (config.json).</summary>
+    public void ApplyProfile(ProjectItemViewModel project, LaunchProfile profile)
+    {
+        string composed;
+        try { composed = ProfileComposer.Compose(profile); }
+        catch (ArgumentException ex) { _ = _dialogs.ShowMessageAsync("Apply profile", ex.Message); return; }
+
+        project.Flags = composed;
+        _configService.UpdateFlags(_config, project.Path, project.Flags);
+        if (ReferenceEquals(SelectedProject, project)) FlagsText = project.Flags;
+        ToastRequested?.Invoke($"Applied profile “{profile.Name}” to {project.Name}");
+    }
+
+    /// <summary>Replace the saved profile set (from the manager dialog) and persist.</summary>
+    public void SaveProfiles(IEnumerable<LaunchProfile> profiles)
+    {
+        _state.Profiles = profiles.Where(p => !string.IsNullOrWhiteSpace(p.Name)).ToList();
+        _stateService.Save(_state);
+        OnPropertyChanged(nameof(Profiles));
+    }
+
     [RelayCommand]
     private void InsertFlag(FlagPreset preset)
     {

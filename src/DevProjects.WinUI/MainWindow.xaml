@@ -179,6 +179,8 @@
                                                             ToolTipService.ToolTip="Rename the project folder (config and pin follow the new name)"/>
                                             <MenuFlyoutSubItem Text="Move to root"
                                                                ToolTipService.ToolTip="Move the project folder to another source root, e.g. Archive or Stable"/>
+                                            <MenuFlyoutSubItem Text="Apply profile"
+                                                               ToolTipService.ToolTip="Apply a saved launch profile's flags to this project. Manage profiles with the Profiles… button."/>
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Pin / Unpin" Click="Pin_Click"/>
                                             <MenuFlyoutSeparator/>
@@ -325,6 +327,14 @@
                                 <MenuFlyout Opening="RecentMenu_Opening"/>
                             </DropDownButton.Flyout>
                         </DropDownButton>
+                        <Button Click="ManageProfiles_Click"
+                                AutomationProperties.AutomationId="ProfilesButton"
+                                ToolTipService.ToolTip="Create and edit reusable launch-flag profiles, then apply them to a project from its right-click menu">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE748;" FontSize="12"/>
+                                <TextBlock Text="Profiles"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                     <Button Grid.Column="1"
                             Command="{x:Bind ViewModel.StopAllCommand}"
