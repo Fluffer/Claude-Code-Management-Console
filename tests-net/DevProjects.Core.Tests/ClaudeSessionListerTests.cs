@@ -9,7 +9,7 @@ public class ClaudeSessionListerTests : IDisposable
 
     private string MakeSessionDir()
     {
-        var dir = Path.Combine(_projectsDir, "C--Dev-Proj"); // == ClaudeSessionDetector.EncodeProjectPath(@"C:\Dev\Proj")
+        var dir = Path.Combine(_projectsDir, ClaudeSessionDetector.EncodeProjectPath(@"C:\Dev\Proj"));
         Directory.CreateDirectory(dir);
         return dir;
     }
