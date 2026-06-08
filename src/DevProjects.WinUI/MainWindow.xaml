@@ -176,6 +176,10 @@
                                                                ToolTipService.ToolTip="Move the project folder to another source root, e.g. Archive or Stable"/>
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Pin / Unpin" Click="Pin_Click"/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Stop session" Click="StopSession_Click"
+                                                            AutomationProperties.AutomationId="StopSessionMenuItem"
+                                                            ToolTipService.ToolTip="Kill all running Claude sessions in this project. Unsaved work is lost."/>
                                         </MenuFlyout>
                                     </Grid.ContextFlyout>
                                     <Grid.ColumnDefinitions>
@@ -254,24 +258,40 @@
                 </Grid>
 
                 <!-- Bottom action bar -->
-                <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                    <Button Click="NewProjectButton_Click"
-                            AutomationProperties.AutomationId="NewProjectButton"
-                            ToolTipService.ToolTip="Create a new empty project folder and (optionally) start Claude in it (Ctrl+N)">
+                <Grid Grid.Row="3" Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                        <Button Click="NewProjectButton_Click"
+                                AutomationProperties.AutomationId="NewProjectButton"
+                                ToolTipService.ToolTip="Create a new empty project folder and (optionally) start Claude in it (Ctrl+N)">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE710;" FontSize="12"/>
+                                <TextBlock Text="New Project"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Command="{x:Bind ViewModel.RescanCommand}"
+                                AutomationProperties.AutomationId="RefreshButton"
+                                ToolTipService.ToolTip="Rescan the source roots now (F5). The list also refreshes automatically when folders change.">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE72C;" FontSize="12"/>
+                                <TextBlock Text="Refresh"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                    <Button Grid.Column="1"
+                            Command="{x:Bind ViewModel.StopAllCommand}"
+                            AutomationProperties.AutomationId="StopAllButton"
+                            Visibility="{x:Bind ViewModel.AnySessionRunning, Mode=OneWay}"
+                            ToolTipService.ToolTip="Stop every running Claude session. Unsaved work in all sessions is lost.">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE710;" FontSize="12"/>
-                            <TextBlock Text="New Project"/>
+                            <FontIcon Glyph="&#xE71A;" FontSize="12"/>
+                            <TextBlock Text="Stop all"/>
                         </StackPanel>
                     </Button>
-                    <Button Command="{x:Bind ViewModel.RescanCommand}"
-                            AutomationProperties.AutomationId="RefreshButton"
-                            ToolTipService.ToolTip="Rescan the source roots now (F5). The list also refreshes automatically when folders change.">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon Glyph="&#xE72C;" FontSize="12"/>
-                            <TextBlock Text="Refresh"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
+                </Grid>
             </Grid>
         </Grid>
 

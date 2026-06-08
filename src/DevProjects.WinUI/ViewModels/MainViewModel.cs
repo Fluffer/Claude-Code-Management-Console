@@ -53,6 +53,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private bool _flagsEnabled;
     [ObservableProperty] private string _statusText = "";
     [ObservableProperty] private string _runningSummary = "";
+    [ObservableProperty] private bool _anySessionRunning;
     [ObservableProperty] private string _claudeVersionText = "claude: checking…";
     [ObservableProperty] private bool _claudeMissing;
     [ObservableProperty] private bool _showOnboarding;
@@ -264,6 +265,7 @@ public sealed partial class MainViewModel : ObservableObject
             1 => "· 1 live session",
             _ => $"· {count} live sessions",
         };
+        AnySessionRunning = count > 0;
     }
 
     /// <summary>
@@ -453,6 +455,35 @@ public sealed partial class MainViewModel : ObservableObject
         ApplyFilter();
         SelectedProject = Projects.FirstOrDefault(p =>
             string.Equals(p.Path, keep, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // ---------- Stop session(s) ----------
+
+    [RelayCommand]
+    private async Task StopSessionAsync(ProjectItemViewModel? project)
+    {
+        if (project is null) return;
+        var sessions = RunningClaudeDetector.SessionsForProject(_runningDetector.GetRunningSessions(), project.Path).ToList();
+        if (sessions.Count == 0) return;
+        if (!await _dialogs.ConfirmAsync("Stop session",
+                $"Stop {sessions.Count} running Claude session(s) in {project.Name}? Unsaved work in those sessions is lost.",
+                "Stop", "Cancel"))
+            return;
+        foreach (var s in sessions) SessionKiller.Kill(s.Pid);
+        RefreshRunningStates();
+    }
+
+    [RelayCommand]
+    private async Task StopAllAsync()
+    {
+        var sessions = _runningDetector.GetRunningSessions();
+        if (sessions.Count == 0) return;
+        if (!await _dialogs.ConfirmAsync("Stop all sessions",
+                $"Stop all {sessions.Count} running Claude session(s)? Unsaved work is lost.",
+                "Stop all", "Cancel"))
+            return;
+        foreach (var s in sessions) SessionKiller.Kill(s.Pid);
+        RefreshRunningStates();
     }
 
     // ---------- Quick actions ----------
