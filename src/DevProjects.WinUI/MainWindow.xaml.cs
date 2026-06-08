@@ -28,6 +28,7 @@ public sealed partial class MainWindow : Window
     private readonly ContentDialogUserDialogs _dialogs;
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _toastTimer;
     private HelpWindow? _helpWindow;
+    private GlobalHotkey? _hotkey;
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hWnd);
@@ -53,8 +54,35 @@ public sealed partial class MainWindow : Window
         BuildFlagMenu();
         SyncSortCombo();
         ConfigureAppWindow();
+        RegisterGlobalHotkey();
 
-        Closed += (_, _) => ViewModel.Shutdown();
+        Closed += (_, _) =>
+        {
+            _hotkey?.Dispose();
+            ViewModel.Shutdown();
+        };
+    }
+
+    // ---------- Global summon hotkey ----------
+
+    /// <summary>
+    /// Registers the system-wide Ctrl+Alt+Space summon hotkey. Fail-soft: if the combo
+    /// is already owned by another app, <see cref="GlobalHotkey.Register"/> restores the
+    /// original WndProc and returns false; we show a one-time non-blocking toast and
+    /// continue — no crash, no retry.
+    /// </summary>
+    private void RegisterGlobalHotkey()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _hotkey = new GlobalHotkey();
+        _hotkey.Pressed += () => DispatcherQueue.TryEnqueue(async () =>
+        {
+            // Bring the window to the foreground, then open the existing Ctrl+P palette.
+            AppWindow.Show();
+            await ShowCommandPaletteAsync();
+        });
+        if (!_hotkey.Register(hwnd))
+            ShowToast("Global hotkey Ctrl+Alt+Space is in use by another app — summon disabled.");
     }
 
     // ---------- Window chrome / sizing ----------
@@ -422,13 +450,13 @@ public sealed partial class MainWindow : Window
 
     private void CommandPalette_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (DialogGate.AnyOpen) return;
         args.Handled = true;
         _ = ShowCommandPaletteAsync();
     }
 
     private async Task ShowCommandPaletteAsync()
     {
+        if (DialogGate.AnyOpen) return; // shared guard: both the Ctrl+P accelerator and the global hotkey route here
         var dialog = new CommandPaletteDialog(ViewModel.AllProjects)
         {
             XamlRoot = Content.XamlRoot,
