@@ -137,4 +137,18 @@ public class LaunchCommandBuilderTests
         var cmd = LaunchCommandBuilder.BuildClaudeCommand("", continueSession: true, initialPrompt: "hi");
         Assert.Equal("claude --continue", cmd);
     }
+
+    // Security regression guard: a prompt that tries to break out of the single-quoted
+    // string must stay fully quoted (every ' doubled). If this ever fails, command
+    // injection into the spawned PowerShell tab has reopened.
+    [Theory]
+    [InlineData("'; Invoke-Expression 'whoami'", "claude '''; Invoke-Expression ''whoami'''")]
+    [InlineData("'", "claude ''''")]
+    public void BuildClaudeCommand_PromptInjectionProbe_StaysSingleQuoted(string prompt, string expected) =>
+        Assert.Equal(expected, LaunchCommandBuilder.BuildClaudeCommand("", continueSession: false, initialPrompt: prompt));
+
+    [Fact]
+    public void BuildClaudeCommand_NullFlags_Throws() =>
+        Assert.Throws<ArgumentNullException>(() =>
+            LaunchCommandBuilder.BuildClaudeCommand(null!, continueSession: false));
 }

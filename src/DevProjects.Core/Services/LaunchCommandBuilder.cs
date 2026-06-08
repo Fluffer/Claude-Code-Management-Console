@@ -17,12 +17,13 @@ public static class LaunchCommandBuilder
         [';', '|', '&', '$', '`', '(', ')', '{', '}', '<', '>', '\n', '\r', '#'];
 
     public const string UnsafeFlagMessage =
-        "Flags may not contain shell characters: ; | & $ ` ( ) { } < > #";
+        "Flags may not contain shell characters (; | & $ ` ( ) { } < > #) or line breaks.";
 
     public static bool AreFlagsSafe(string flags) => flags.IndexOfAny(UnsafeFlagChars) < 0;
 
     public static string BuildClaudeCommand(string flags, bool continueSession, string? initialPrompt = null)
     {
+        ArgumentNullException.ThrowIfNull(flags);
         if (!AreFlagsSafe(flags))
             throw new ArgumentException(UnsafeFlagMessage, nameof(flags));
         var command = "claude";
