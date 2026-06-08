@@ -16,6 +16,7 @@
             <KeyboardAccelerator Key="F1" Invoked="Help_Invoked"/>
             <KeyboardAccelerator Key="Escape" Invoked="ClearSearch_Invoked"/>
             <KeyboardAccelerator Key="Enter" Modifiers="Control,Shift" Invoked="QuickPrompt_Invoked"/>
+            <KeyboardAccelerator Key="P" Modifiers="Control" Invoked="CommandPalette_Invoked"/>
         </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>

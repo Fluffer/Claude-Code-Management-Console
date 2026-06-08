@@ -324,6 +324,25 @@ public sealed partial class MainWindow : Window
         _ = ShowQuickPromptDialogAsync(ViewModel.SelectedProject);
     }
 
+    private void CommandPalette_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (DialogGate.AnyOpen) return;
+        args.Handled = true;
+        _ = ShowCommandPaletteAsync();
+    }
+
+    private async Task ShowCommandPaletteAsync()
+    {
+        var dialog = new CommandPaletteDialog(ViewModel.AllProjects)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        await DialogGate.ShowAsync(dialog);
+        if (dialog.ChosenProject is { } project)
+            await ViewModel.LaunchFromPaletteAsync(project, dialog.ChosenIsNew);
+    }
+
     private async Task ShowQuickPromptDialogAsync(ProjectItemViewModel project)
     {
         var dialog = new QuickPromptDialog { XamlRoot = Content.XamlRoot, RequestedTheme = RootGrid.RequestedTheme };

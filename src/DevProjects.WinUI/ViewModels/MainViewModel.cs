@@ -85,6 +85,14 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool VsCodeAvailable { get; } = CommandLocator.FindOnPath("code") is not null;
 
+    /// <summary>All scanned projects as row VMs (unfiltered), for the command palette.</summary>
+    public IReadOnlyList<ProjectItemViewModel> AllProjects =>
+        _allProjects.Select(info => new ProjectItemViewModel(
+            info, _state.Pinned.Contains(info.Path, StringComparer.OrdinalIgnoreCase))).ToList();
+
+    public Task LaunchFromPaletteAsync(ProjectItemViewModel project, bool isNew) =>
+        isNew ? LaunchNewAsync(project) : LaunchContinueAsync(project);
+
     public MainViewModel(
         DispatcherQueue dispatcherQueue,
         IUserDialogs dialogs,
