@@ -48,4 +48,26 @@ public sealed class ClaudeCliService
             return null;
         }
     }
+
+    /// <summary>
+    /// Latest published version of @anthropic-ai/claude-code from the npm registry,
+    /// or null on any failure. Fail-soft: a missing answer simply means "don't nag".
+    /// </summary>
+    public async Task<string?> GetLatestPublishedVersionAsync()
+    {
+        try
+        {
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+            var json = await http.GetStringAsync(
+                "https://registry.npmjs.org/@anthropic-ai/claude-code/latest").ConfigureAwait(false);
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("version", out var v) ? v.GetString() : null;
+        }
+        catch (Exception ex) when (
+            ex is System.Net.Http.HttpRequestException or TaskCanceledException
+               or System.Text.Json.JsonException or IOException)
+        {
+            return null;
+        }
+    }
 }
