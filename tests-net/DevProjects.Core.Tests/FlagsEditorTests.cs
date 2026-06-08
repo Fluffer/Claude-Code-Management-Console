@@ -21,4 +21,10 @@ public class FlagsEditorTests
     [Fact]
     public void CurrentModel_NullWhenAbsent() =>
         Assert.Null(FlagsEditor.CurrentModel("--verbose"));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void CurrentModel_NullOrEmpty_ReturnsNull(string? flags) =>
+        Assert.Null(FlagsEditor.CurrentModel(flags));
 }

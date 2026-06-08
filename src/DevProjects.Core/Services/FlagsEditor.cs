@@ -8,15 +8,19 @@ public static partial class FlagsEditor
     [GeneratedRegex(@"--model\s+\S+")]
     private static partial Regex ModelFlag();
 
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex MultiSpace();
+
     /// <summary>Replace (or remove, when model is null/blank) the --model token. Order: existing flags then model.</summary>
     public static string SetModel(string flags, string? model)
     {
         var without = ModelFlag().Replace(flags ?? "", "").Trim();
-        without = Regex.Replace(without, @"\s+", " ").Trim();
+        without = MultiSpace().Replace(without, " ").Trim();
         if (string.IsNullOrWhiteSpace(model)) return without;
         return string.IsNullOrEmpty(without) ? $"--model {model}" : $"{without} --model {model}";
     }
 
+    /// <summary>Returns the value of the --model flag, or null if absent.</summary>
     public static string? CurrentModel(string? flags)
     {
         var m = ModelFlag().Match(flags ?? "");
