@@ -177,6 +177,9 @@
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Pin / Unpin" Click="Pin_Click"/>
                                             <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Resume session…" Click="ResumeSession_Click"
+                                                            AutomationProperties.AutomationId="ResumeSessionMenuItem"
+                                                            ToolTipService.ToolTip="Pick a past Claude session to resume (claude --resume)"/>
                                             <MenuFlyoutItem Text="Stop session" Click="StopSession_Click"
                                                             AutomationProperties.AutomationId="StopSessionMenuItem"
                                                             ToolTipService.ToolTip="Kill all running Claude sessions in this project. Unsaved work is lost."/>

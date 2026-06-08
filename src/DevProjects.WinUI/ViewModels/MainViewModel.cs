@@ -34,6 +34,7 @@ public sealed partial class MainViewModel : ObservableObject
     private (string Path, string Flags)? _pendingFlagsSave;
 
     private readonly RunningClaudeDetector _runningDetector = new();
+    private readonly ClaudeSessionLister _sessionLister = new();
 
     /// <summary>
     /// Fallback signal only: how recent a transcript write still counts as
@@ -397,13 +398,18 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task LaunchAsync(ProjectItemViewModel? project, bool continueSession)
     {
         if (project is null) return;
+        await LaunchWithFlagsAsync(project, project.Flags, continueSession);
+    }
+
+    private async Task LaunchWithFlagsAsync(ProjectItemViewModel project, string launchFlags, bool continueSession)
+    {
         FlushPendingFlagsSave();
-        if (!LaunchCommandBuilder.AreFlagsSafe(project.Flags))
+        if (!LaunchCommandBuilder.AreFlagsSafe(launchFlags))
         {
             await _dialogs.ShowMessageAsync("Dev-Projects", LaunchCommandBuilder.UnsafeFlagMessage);
             return;
         }
-        var spec = LaunchCommandBuilder.Build(project.Name, project.Path, project.Flags, continueSession);
+        var spec = LaunchCommandBuilder.Build(project.Name, project.Path, launchFlags, continueSession);
         try
         {
             SessionLauncher.Launch(spec);
@@ -421,6 +427,15 @@ public sealed partial class MainViewModel : ObservableObject
         ToastRequested?.Invoke(continueSession
             ? $"Continuing Claude session in “{project.Name}”"
             : $"Opened a new Claude session in “{project.Name}”");
+    }
+
+    public IReadOnlyList<SessionSummary> ListSessions(ProjectItemViewModel project) =>
+        _sessionLister.ListSessions(project.Path);
+
+    public async Task ResumeSessionAsync(ProjectItemViewModel project, string sessionId)
+    {
+        // sessionId is a uuid (hex + dashes) — safe under AreFlagsSafe.
+        await LaunchWithFlagsAsync(project, $"--resume {sessionId}", continueSession: false);
     }
 
     /// <summary>One-off launch in a folder that is not a tracked project (drag-drop).</summary>

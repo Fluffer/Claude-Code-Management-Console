@@ -263,6 +263,16 @@ public sealed partial class MainWindow : Window
     private void StopSession_Click(object sender, RoutedEventArgs e) =>
         ViewModel.StopSessionCommand.Execute(ItemOf(sender));
 
+    private async void ResumeSession_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is not { } project) return;
+        var sessions = ViewModel.ListSessions(project);
+        if (sessions.Count == 0) { await _dialogs.ShowMessageAsync("Resume", "No past sessions found."); return; }
+        var dialog = new ResumeSessionDialog(sessions) { XamlRoot = Content.XamlRoot, RequestedTheme = RootGrid.RequestedTheme };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary && dialog.SelectedSessionId is { } id)
+            await ViewModel.ResumeSessionAsync(project, id);
+    }
+
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is not { } project) return;
@@ -292,6 +302,9 @@ public sealed partial class MainWindow : Window
         {
             if (entry is MenuFlyoutItem { Text: "Open in VS Code" } vsCode)
                 vsCode.Visibility = ViewModel.VsCodeAvailable ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutItem { Text: "Resume session…" } resume)
+                resume.Visibility = project.HasSession ? Visibility.Visible : Visibility.Collapsed;
 
             if (entry is MenuFlyoutItem { Text: "Stop session" } stop)
                 stop.Visibility = project.IsRunning ? Visibility.Visible : Visibility.Collapsed;
