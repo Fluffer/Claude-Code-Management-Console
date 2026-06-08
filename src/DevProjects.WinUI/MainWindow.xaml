@@ -198,6 +198,16 @@
                                             <MenuFlyoutItem Text="Launch in worktree…" Click="LaunchInWorktree_Click"
                                                             AutomationProperties.AutomationId="LaunchInWorktreeMenuItem"
                                                             ToolTipService.ToolTip="Open a new Claude session in another git worktree of this repository"/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutSubItem Text="Project files"
+                                                               ToolTipService.ToolTip="Edit the project's .env or open its .claudeignore">
+                                                <MenuFlyoutItem Text="Edit .env…" Click="EditEnv_Click"
+                                                                AutomationProperties.AutomationId="EditEnvMenuItem"
+                                                                ToolTipService.ToolTip="Edit the project's .env file (values are masked)"/>
+                                                <MenuFlyoutItem Text="Open .claudeignore" Click="OpenClaudeIgnore_Click"
+                                                                AutomationProperties.AutomationId="OpenClaudeIgnoreMenuItem"
+                                                                ToolTipService.ToolTip="Open the project's .claudeignore in the default editor"/>
+                                            </MenuFlyoutSubItem>
                                         </MenuFlyout>
                                     </Grid.ContextFlyout>
                                     <Grid.ColumnDefinitions>

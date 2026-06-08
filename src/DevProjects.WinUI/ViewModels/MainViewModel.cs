@@ -654,6 +654,52 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    // ---------- Project files (.env / .claudeignore) ----------
+
+    public string EnvPath(ProjectItemViewModel project) => Path.Combine(project.Path, ".env");
+
+    public bool HasEnv(ProjectItemViewModel project) => File.Exists(EnvPath(project));
+
+    public string ReadEnv(ProjectItemViewModel project)
+    {
+        var path = EnvPath(project);
+        try { return File.Exists(path) ? File.ReadAllText(path) : ""; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return ""; }
+    }
+
+    public async Task WriteEnvAsync(ProjectItemViewModel project, string text)
+    {
+        try
+        {
+            await File.WriteAllTextAsync(EnvPath(project), text);
+            ToastRequested?.Invoke($"Saved .env for {project.Name}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _dialogs.ShowMessageAsync(".env", $"Could not save .env: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenClaudeIgnoreAsync(ProjectItemViewModel? project)
+    {
+        var path = project is null ? null : ClaudeIgnoreInfo.Path(project.Path);
+        if (path is null)
+        {
+            if (project is not null)
+                await _dialogs.ShowMessageAsync(".claudeignore", "This project has no .claudeignore.");
+            return;
+        }
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+            await _dialogs.ShowMessageAsync(".claudeignore", $"Could not open .claudeignore: {ex.Message}");
+        }
+    }
+
     [RelayCommand]
     private void OpenInVsCode(ProjectItemViewModel? project)
     {

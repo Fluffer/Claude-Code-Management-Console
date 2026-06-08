@@ -4,6 +4,7 @@ using DevProjects.App.Services;
 using DevProjects.App.ViewModels;
 using DevProjects.App.Views;
 using DevProjects.Core.Models;
+using DevProjects.Core.Services;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -349,6 +350,21 @@ public sealed partial class MainWindow : Window
             await ViewModel.LaunchInWorktreeAsync(project, wt);
     }
 
+    private async void EditEnv_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is not { } project) return;
+        var dialog = new EnvEditorDialog(ViewModel.ReadEnv(project))
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            await ViewModel.WriteEnvAsync(project, dialog.ResultText);
+    }
+
+    private void OpenClaudeIgnore_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.OpenClaudeIgnoreCommand.Execute(ItemOf(sender));
+
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is not { } project) return;
@@ -425,6 +441,16 @@ public sealed partial class MainWindow : Window
 
             if (entry is MenuFlyoutItem { Text: "Launch in worktree…" } worktree)
                 worktree.Visibility = project.HasGitInfo ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutSubItem { Text: "Project files" } projectFiles)
+            {
+                var hasIgnore = ClaudeIgnoreInfo.Has(project.Path);
+                foreach (var sub in projectFiles.Items)
+                {
+                    if (sub is MenuFlyoutItem { Text: "Open .claudeignore" } openIgnore)
+                        openIgnore.Visibility = hasIgnore ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
 
             if (entry is MenuFlyoutSubItem { Text: "Apply profile" } applyProfile)
             {
