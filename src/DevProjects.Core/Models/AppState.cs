@@ -29,4 +29,7 @@ public sealed class AppState
 
     /// <summary>Reusable named launcher-flag bundles (Tier 2). Applied to a project's saved flags.</summary>
     public List<LaunchProfile> Profiles { get; set; } = [];
+
+    /// <summary>Saved multi-project launch groups (Tier 2). Launched in listed order.</summary>
+    public List<LaunchGroup> Groups { get; set; } = [];
 }
