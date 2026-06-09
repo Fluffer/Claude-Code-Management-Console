@@ -17,8 +17,9 @@ public sealed class ConfigServiceTests : IDisposable
         var config = service.Load();
 
         Assert.True(File.Exists(ConfigPath));
-        Assert.Contains(@"C:\Dev\Active", config.Roots!);
-        Assert.Equal(@"C:\Dev\Active", config.DefaultRoot);
+        Assert.NotNull(config.Roots);
+        Assert.Empty(config.Roots);
+        Assert.Null(config.DefaultRoot);
         Assert.Empty(config.Projects!);
     }
 
@@ -51,7 +52,8 @@ public sealed class ConfigServiceTests : IDisposable
         var config = service.Load();
 
         Assert.True(File.Exists(ConfigPath + ".bad"));
-        Assert.Contains(@"C:\Dev\Active", config.Roots!);
+        Assert.NotNull(config.Roots);
+        Assert.Empty(config.Roots!);
         // Regenerated file must now parse.
         Assert.NotNull(service.Load());
     }
@@ -86,7 +88,7 @@ public sealed class ConfigServiceTests : IDisposable
         var config = new ConfigService(ConfigPath).Load();
 
         Assert.NotNull(config.Roots);
-        Assert.NotEmpty(config.Roots);
+        Assert.Empty(config.Roots);
         Assert.NotNull(config.Ignore);
         Assert.NotNull(config.Projects);
     }
@@ -112,7 +114,7 @@ public sealed class ConfigServiceTests : IDisposable
         using (var _ = new FileStream(ConfigPath, FileMode.Open, FileAccess.Read, FileShare.None))
         {
             var fallback = service.Load();
-            Assert.Equal(@"C:\Dev\Active", fallback.DefaultRoot); // in-memory defaults
+            Assert.Null(fallback.DefaultRoot); // in-memory defaults (now empty)
         }
 
         // File on disk untouched after the lock is released.
@@ -161,5 +163,18 @@ public sealed class ConfigServiceTests : IDisposable
 
         var reloaded = service.Load();
         Assert.True(reloaded.Projects!.ContainsKey(@"c:\dev\active\FOO"));
+    }
+
+    [Fact]
+    public void CreateDefault_IsEmpty_NoPersonalPaths()
+    {
+        var config = LauncherConfig.CreateDefault();
+        Assert.NotNull(config.Roots);
+        Assert.Empty(config.Roots);
+        Assert.Null(config.DefaultRoot);
+        Assert.NotNull(config.Ignore);
+        Assert.Empty(config.Ignore);
+        Assert.NotNull(config.Projects);
+        Assert.Empty(config.Projects);
     }
 }

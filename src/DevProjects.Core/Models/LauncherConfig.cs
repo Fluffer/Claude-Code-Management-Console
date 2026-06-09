@@ -14,12 +14,10 @@ public sealed class LauncherConfig
 
     public static LauncherConfig CreateDefault() => new()
     {
-        Roots =
-        [
-            @"C:\Dev\Active", @"C:\Dev\Archive", @"C:\Dev\Scratch",
-            @"C:\Dev\Stable", @"C:\Dev\third-party",
-        ],
-        DefaultRoot = @"C:\Dev\Active",
+        // A fresh install ships no personal source roots. The first-run prompt
+        // (reusing AppState.OnboardingDismissed) guides a new user to add their own.
+        Roots = [],
+        DefaultRoot = null,
         Ignore = [],
         Projects = new Dictionary<string, ProjectUsage>(StringComparer.OrdinalIgnoreCase),
     };
