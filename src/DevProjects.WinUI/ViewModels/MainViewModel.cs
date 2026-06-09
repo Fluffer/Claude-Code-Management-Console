@@ -122,6 +122,23 @@ public sealed partial class MainViewModel : ObservableObject
     public Task LaunchFromPaletteAsync(ProjectItemViewModel project, bool isNew) =>
         isNew ? LaunchNewAsync(project) : LaunchContinueAsync(project);
 
+    /// <summary>
+    /// Routes a parsed dev-projects:// deep link to a launch. Matches the named
+    /// project by full path first, then by name (both case-insensitive), against the
+    /// unfiltered scanned set so the active sidebar/search filter never hides a target.
+    /// <c>new=true</c> starts a fresh session; otherwise it continues (the same
+    /// new-vs-continue choice the command palette makes). Unknown name → toast.
+    /// </summary>
+    public void HandleDeepLink(DeepLinkParser.DeepLink link)
+    {
+        if (!string.Equals(link.Action, "launch", StringComparison.OrdinalIgnoreCase)) return;
+        var row = AllProjects.FirstOrDefault(p =>
+            string.Equals(p.Path, link.Project, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(p.Name, link.Project, StringComparison.OrdinalIgnoreCase));
+        if (row is null) { ToastRequested?.Invoke($"Deep link: no project “{link.Project}”"); return; }
+        _ = LaunchFromPaletteAsync(row, isNew: link.NewSession);
+    }
+
     public MainViewModel(
         DispatcherQueue dispatcherQueue,
         IUserDialogs dialogs,
