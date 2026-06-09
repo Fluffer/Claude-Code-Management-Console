@@ -107,14 +107,11 @@ public sealed partial class GroupManagerDialog : ContentDialog
     private void NameBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_loading || _current is null) return;
+        // LaunchGroup.Name is observable, so the bound list label refreshes on its
+        // own. Do NOT replace the item in _groups or touch the selection here:
+        // doing that per keystroke stole focus from this TextBox (breaking name
+        // editing) and could push the ListView into a native re-layout spin.
         _current.Name = NameBox.Text;
-        // The list label is bound, so refresh that row in place (keeping selection).
-        var index = _groups.IndexOf(_current);
-        if (index >= 0)
-        {
-            _groups[index] = _current;
-            GroupList.SelectedIndex = index;
-        }
     }
 
     /// <summary>A project row with a two-way checkbox state, used only inside this dialog.</summary>

@@ -108,14 +108,10 @@ public sealed partial class SavedFilterDialog : ContentDialog
     private void NameBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_loading || _current is null) return;
+        // SavedFilter.Name is observable and the label binds OneWay, so it refreshes
+        // on its own. Replacing the item / resetting selection per keystroke (the old
+        // approach) stole focus from this TextBox and could spin the ListView layout.
         _current.Name = NameBox.Text;
-        // The list label is bound, so refresh that row in place (keeping selection).
-        var index = _filters.IndexOf(_current);
-        if (index >= 0)
-        {
-            _filters[index] = _current;
-            FilterList.SelectedIndex = index;
-        }
     }
 
     private void PathContainsBox_TextChanged(object sender, TextChangedEventArgs e)
