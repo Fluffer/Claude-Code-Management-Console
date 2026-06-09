@@ -50,14 +50,14 @@ public sealed partial class MainViewModel : ObservableObject
     /// running-state refresh worker. Read synchronously by <see cref="ApplyFilter"/>
     /// to evaluate a saved filter's RequireRunning condition without re-scanning.
     /// </summary>
-    private IReadOnlySet<string> _liveRunningDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private volatile IReadOnlySet<string> _liveRunningDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Running-dir set from the PREVIOUS refresh pass, diffed against the current
     /// set to detect sessions that just ended (toast trigger). Seeded once on the
     /// first real pass so a session already running at startup never false-fires.
     /// </summary>
-    private IReadOnlySet<string> _previousRunningDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    private volatile IReadOnlySet<string> _previousRunningDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// True until the first refresh pass that actually scans the running set; that
@@ -574,6 +574,9 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _state.SavedFilters = filters.Where(f => !string.IsNullOrWhiteSpace(f.Name)).ToList();
         _stateService.Save(_state);
+        // RebuildSidebar re-selects the active entry, which fires OnSelectedSidebarItemChanged
+        // → ApplyFilter() once. No explicit ApplyFilter call needed here (unlike Rescan, which
+        // suppresses the selection event and calls ApplyFilter itself).
         RebuildSidebar();
     }
 

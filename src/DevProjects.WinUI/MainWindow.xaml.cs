@@ -430,24 +430,38 @@ public sealed partial class MainWindow : Window
 
     private async void NewFilter_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SavedFilterDialog(ViewModel.SavedFilters, startWithNew: true)
+        try
         {
-            XamlRoot = Content.XamlRoot,
-            RequestedTheme = RootGrid.RequestedTheme,
-        };
-        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
-            ViewModel.SaveFilters(dialog.Filters);
+            var dialog = new SavedFilterDialog(ViewModel.SavedFilters, startWithNew: true)
+            {
+                XamlRoot = Content.XamlRoot,
+                RequestedTheme = RootGrid.RequestedTheme,
+            };
+            if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+                ViewModel.SaveFilters(dialog.Filters);
+        }
+        catch (Exception)
+        {
+            // Dialog/show failures are non-critical; never crash the message pump.
+        }
     }
 
     private async void ManageFilters_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SavedFilterDialog(ViewModel.SavedFilters)
+        try
         {
-            XamlRoot = Content.XamlRoot,
-            RequestedTheme = RootGrid.RequestedTheme,
-        };
-        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
-            ViewModel.SaveFilters(dialog.Filters);
+            var dialog = new SavedFilterDialog(ViewModel.SavedFilters)
+            {
+                XamlRoot = Content.XamlRoot,
+                RequestedTheme = RootGrid.RequestedTheme,
+            };
+            if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+                ViewModel.SaveFilters(dialog.Filters);
+        }
+        catch (Exception)
+        {
+            // Dialog/show failures are non-critical; never crash the message pump.
+        }
     }
 
     private void StopSession_Click(object sender, RoutedEventArgs e) =>
@@ -500,19 +514,26 @@ public sealed partial class MainWindow : Window
 
     private async void ViewMcp_Click(object sender, RoutedEventArgs e)
     {
-        if (ItemOf(sender) is not { } project) return;
-        var servers = McpConfigReader.Read(project.Path);
-        if (servers.Count == 0)
+        try
         {
-            await _dialogs.ShowMessageAsync("MCP servers", "This project has no .mcp.json servers.");
-            return;
+            if (ItemOf(sender) is not { } project) return;
+            var servers = McpConfigReader.Read(project.Path);
+            if (servers.Count == 0)
+            {
+                await _dialogs.ShowMessageAsync("MCP servers", "This project has no .mcp.json servers.");
+                return;
+            }
+            var dialog = new McpViewerDialog(servers)
+            {
+                XamlRoot = Content.XamlRoot,
+                RequestedTheme = RootGrid.RequestedTheme,
+            };
+            await DialogGate.ShowAsync(dialog);
         }
-        var dialog = new McpViewerDialog(servers)
+        catch (Exception)
         {
-            XamlRoot = Content.XamlRoot,
-            RequestedTheme = RootGrid.RequestedTheme,
-        };
-        await DialogGate.ShowAsync(dialog);
+            // Dialog/show failures are non-critical; never crash the message pump.
+        }
     }
 
     private void Rename_Click(object sender, RoutedEventArgs e)
