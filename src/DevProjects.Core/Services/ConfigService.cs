@@ -72,6 +72,8 @@ public sealed class ConfigService
             var temp = ConfigPath + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(config, JsonOpts));
             File.Move(temp, ConfigPath, overwrite: true);
+            // Best-effort timestamped snapshot for manual recovery; never blocks the save.
+            ConfigSnapshot.Write(ConfigPath, DateTime.UtcNow);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
