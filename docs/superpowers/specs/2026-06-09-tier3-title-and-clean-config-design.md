@@ -108,36 +108,46 @@ Result: a fresh machine starts with zero roots and no personal data.
 Add a one-time onboarding prompt so a brand-new user is actively guided to add a
 root rather than facing an empty window.
 
-- Add `public bool HasOnboarded { get; set; }` to `LauncherConfig` (default
-  `false`). Old configs that lack the `hasOnboarded` key deserialize to `false`,
-  which is harmless: an existing user already has roots, so the prompt's
-  precondition (roots empty) is false for them.
-- On startup, after the initial load, if **roots are empty AND `HasOnboarded` is
-  false**, open the existing `SettingsDialog` (the same dialog the Settings button
-  shows), then set `HasOnboarded = true` and save the config. This shows the
-  prompt exactly once.
-- Reuse `SettingsDialog` + `ViewModel.AddRoot(path)` — no new UI surface.
+> **Revised after code review:** onboarding state already exists. `AppState`
+> carries `OnboardingDismissed` (state.json), driving the existing welcome
+> `InfoBar` and `DismissOnboardingCommand`. **Reuse that flag — do NOT add a new
+> `HasOnboarded` field to `LauncherConfig`.** One flag, one concept.
+
+- On startup, once the window's visual tree has loaded, if **roots are empty AND
+  `OnboardingDismissed` is false**, open the existing `SettingsDialog` (the same
+  dialog the Settings button shows), then invoke the existing
+  `DismissOnboardingCommand` (which sets `OnboardingDismissed = true` and saves
+  state). This shows the prompt exactly once.
+- Expose `MainViewModel.NeedsFirstRunSetup` (`roots empty && !OnboardingDismissed`)
+  and hook the prompt to `RootGrid.Loaded` (one-shot, detached after first fire,
+  async-void guarded), reusing `SettingsDialog` — no new UI surface, no new flag.
 - The existing empty-state text ("No source roots configured yet. Open Settings to
   add the folders that contain your projects.") remains as the passive fallback
   for later launches.
 
-### Why a flag instead of "prompt whenever roots are empty"
+### Why reuse `OnboardingDismissed` instead of a new flag
 
 A user who deliberately removes all their roots should not be nagged with the
-onboarding dialog on every launch. `HasOnboarded` makes the prompt a true
-first-run event.
+onboarding dialog on every launch. `OnboardingDismissed` already makes onboarding a
+true first-run event; a parallel `HasOnboarded` on a second file would be redundant
+state for the same concept. An existing user already has roots (and a dismissed
+flag), so the prompt's precondition is false for them.
 
-### Tests (`MiscServiceTests` / `ConfigServiceTests` as appropriate)
+### Tests (`ConfigServiceTests`)
 
-- `LauncherConfig.CreateDefault()` → `Roots` empty, `DefaultRoot` null,
-  `HasOnboarded` false, `Projects` empty.
-- Deserializing a legacy JSON document with no `hasOnboarded` key →
-  `HasOnboarded == false` (back-compat).
-- `HasOnboarded = true` round-trips through `ConfigService.Save` → `Load`.
+- `LauncherConfig.CreateDefault()` → `Roots` empty, `DefaultRoot` null, `Ignore`
+  empty, `Projects` empty.
+- Four existing `ConfigServiceTests` that assert the old personal default
+  (`Load_CreatesDefaults_WhenFileMissing`,
+  `Load_QuarantinesCorruptFile_AndRegeneratesDefaults`,
+  `Load_BackfillsMissingProperties`,
+  `Load_ReturnsDefaultsWithoutOverwriting_WhenFileLocked`) are updated to assert the
+  empty default.
 
-The first-run prompt's wiring (open dialog when roots empty + not onboarded) lives
-in the WinUI layer and is verified manually / via existing UI-test harness, not in
-the Core unit tests.
+No new `LauncherConfig` field is added, so there is no `HasOnboarded` round-trip
+test. The first-run prompt's wiring (open dialog when roots empty + not onboarded)
+reuses `AppState.OnboardingDismissed` and lives in the WinUI layer — verified
+manually, not in the Core unit tests.
 
 ### Migration note
 

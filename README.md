@@ -61,6 +61,22 @@ with per-project flags. Built with .NET 10 and WinUI 3 (Windows App SDK).
 - **Global summon hotkey** — `Ctrl+Alt+Space` brings the app forward and opens the command
   palette from anywhere (fail-soft if the combo is already taken)
 
+### Niche & polish (Tier 3)
+
+- **Sticky terminal title** — a launched session's terminal tab is titled with the project
+  folder name and keeps it for the life of the session (`claude -n` owns the title)
+- **Clean first-run config** — a fresh install ships with no source roots; the Settings
+  dialog opens once to guide a new user to add their projects folder
+- **Saved filters** — name a set of conditions (path-contains, has-git, has-CLAUDE.md,
+  has-running-session, pinned) from the **Filters** button; each appears as a sidebar entry
+- **MCP viewer** — projects with a `.mcp.json` show an MCP pill; right-click → View MCP
+  servers… lists each server and its transport (read-only)
+- **Deep link** — `dev-projects://launch?project=<name>[&new=true]` launches/continues a
+  project (packaged build only; routes on a cold start)
+- **Session-ended toast** — a toast appears when a tracked Claude session exits
+- **Config auto-snapshot** — every config save drops a timestamped copy in a `snapshots/`
+  folder (keeps the 10 newest); restore is a manual file copy
+
 ## Layout
 
 ```
