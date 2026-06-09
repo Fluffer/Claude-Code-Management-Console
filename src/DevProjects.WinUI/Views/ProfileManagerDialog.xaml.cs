@@ -95,14 +95,11 @@ public sealed partial class ProfileManagerDialog : ContentDialog
     private void NameBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (_loading || _current is null) return;
+        // LaunchProfile.Name is observable and the label binds OneWay (classic Binding),
+        // so it refreshes on its own. Replacing the item / resetting selection per
+        // keystroke (the old approach) stole focus from this TextBox and could spin
+        // the ListView layout.
         _current.Name = NameBox.Text;
-        // The list label is OneTime-bound, so refresh that row in place (keeping selection).
-        var index = _profiles.IndexOf(_current);
-        if (index >= 0)
-        {
-            _profiles[index] = _current;
-            ProfileList.SelectedIndex = index;
-        }
     }
 
     private void ModelCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
