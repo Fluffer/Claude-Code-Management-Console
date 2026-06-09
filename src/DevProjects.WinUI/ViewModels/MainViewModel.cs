@@ -53,6 +53,19 @@ public sealed partial class MainViewModel : ObservableObject
     private IReadOnlySet<string> _liveRunningDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Running-dir set from the PREVIOUS refresh pass, diffed against the current
+    /// set to detect sessions that just ended (toast trigger). Seeded once on the
+    /// first real pass so a session already running at startup never false-fires.
+    /// </summary>
+    private IReadOnlySet<string> _previousRunningDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// True until the first refresh pass that actually scans the running set; that
+    /// pass only seeds <see cref="_previousRunningDirs"/> and never toasts.
+    /// </summary>
+    private bool _firstRunningPass = true;
+
+    /// <summary>
     /// Fallback signal only: how recent a transcript write still counts as
     /// "running" when no matching claude process is found (e.g. process scan
     /// blocked). The primary signal is a live claude process cwd match.
@@ -358,6 +371,11 @@ public sealed partial class MainViewModel : ObservableObject
         // the flag is single-use per call.
         var fromApplyFilter = _runningRefreshFromApplyFilter;
         _runningRefreshFromApplyFilter = false;
+        // Consume the first-pass seed flag here on the UI thread (the only place it is
+        // touched) and pass an immutable snapshot into the worker/UI closures, so the
+        // seed semantics stay deterministic even if two passes overlap.
+        var isFirstRunningPass = _firstRunningPass;
+        _firstRunningPass = false;
         var rows = Projects.ToList();
         if (rows.Count == 0) return;
         _ = Task.Run(() =>
@@ -366,8 +384,23 @@ public sealed partial class MainViewModel : ObservableObject
             IReadOnlySet<string> runningDirs;
             try { runningDirs = _runningDetector.GetRunningClaudeDirectories(); }
             catch (Exception) { runningDirs = new HashSet<string>(); }
+            // Normalize to a case-insensitive set so both the RequireRunning cache
+            // and the end-detection diff compare dirs case-insensitively (the catch
+            // fallback above and the detector's set may not be OrdinalIgnoreCase).
+            if (runningDirs is not HashSet<string> { Comparer: var cmp } || !ReferenceEquals(cmp, StringComparer.OrdinalIgnoreCase))
+                runningDirs = new HashSet<string>(runningDirs, StringComparer.OrdinalIgnoreCase);
             // Cache for ApplyFilter's RequireRunning evaluation.
             _liveRunningDirs = runningDirs;
+
+            // Diff against the previous pass to find sessions that just ended, then
+            // advance the snapshot. Toasting is gated on the first-pass seed below so
+            // a session already running at startup never fires a spurious "ended".
+            // On the first pass the diff is always empty (the snapshot starts empty),
+            // so skip the work but still advance the snapshot for the next pass.
+            var endedPaths = isFirstRunningPass
+                ? new List<string>()
+                : SessionEndDetector.Ended(_previousRunningDirs, runningDirs).ToList();
+            _previousRunningDirs = runningDirs;
 
             var results = rows.Select(r =>
             {
@@ -386,6 +419,20 @@ public sealed partial class MainViewModel : ObservableObject
                     row.IsStale = SessionStaleness.IsStale(row.NewestSessionUtc, DateTime.UtcNow, isRunning, thresholdDays: 7);
                 }
                 UpdateRunningSummary();
+
+                // Surface a one-time toast per ended session. The very first pass only
+                // seeds the snapshot (handled in the worker), so we suppress its toasts
+                // here — a session already running at startup must not "end" on launch.
+                if (!isFirstRunningPass)
+                {
+                    foreach (var path in endedPaths)
+                    {
+                        var name = rows.FirstOrDefault(r =>
+                            string.Equals(r.Path, path, StringComparison.OrdinalIgnoreCase))?.Name
+                            ?? Path.GetFileName(path.TrimEnd('\\', '/'));
+                        ToastRequested?.Invoke($"Claude session in “{name}” ended");
+                    }
+                }
 
                 // The live running-set just changed. Re-apply the filter only when
                 // a RequireRunning filter is active AND this pass was NOT triggered
