@@ -380,6 +380,16 @@
                                 <MenuFlyout Opening="GroupsMenu_Opening"/>
                             </DropDownButton.Flyout>
                         </DropDownButton>
+                        <DropDownButton AutomationProperties.AutomationId="FiltersButton"
+                                        ToolTipService.ToolTip="Select, create, or manage saved project filters. Selecting one narrows the list (combined with the current root and search).">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE71C;" FontSize="12"/>
+                                <TextBlock Text="Filters"/>
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout Opening="FiltersMenu_Opening"/>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
                     </StackPanel>
                     <Button Grid.Column="1"
                             Command="{x:Bind ViewModel.StopAllCommand}"

@@ -10,6 +10,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -391,6 +392,62 @@ public sealed partial class MainWindow : Window
         };
         if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
             ViewModel.SaveGroups(dialog.Groups);
+    }
+
+    // ---------- Filters menu ----------
+
+    private void FiltersMenu_Opening(object sender, object e)
+    {
+        if (sender is not MenuFlyout flyout) return;
+        flyout.Items.Clear();
+        foreach (var filter in ViewModel.SavedFilters)
+        {
+            var item = new MenuFlyoutItem
+            {
+                Text = filter.Name,
+                Tag = filter,
+            };
+            AutomationProperties.SetAutomationId(item, $"SavedFilterItem_{filter.Name}");
+            item.Click += SelectFilter_Click;
+            flyout.Items.Add(item);
+        }
+        if (ViewModel.SavedFilters.Count > 0)
+            flyout.Items.Add(new MenuFlyoutSeparator());
+        var newItem = new MenuFlyoutItem { Text = "New filter…" };
+        AutomationProperties.SetAutomationId(newItem, "NewFilterMenuItem");
+        newItem.Click += NewFilter_Click;
+        flyout.Items.Add(newItem);
+        var manage = new MenuFlyoutItem { Text = "Manage filters…" };
+        AutomationProperties.SetAutomationId(manage, "ManageFiltersMenuItem");
+        manage.Click += ManageFilters_Click;
+        flyout.Items.Add(manage);
+    }
+
+    private void SelectFilter_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: SavedFilter filter }) ViewModel.SelectFilter(filter);
+    }
+
+    private async void NewFilter_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SavedFilterDialog(ViewModel.SavedFilters, startWithNew: true)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            ViewModel.SaveFilters(dialog.Filters);
+    }
+
+    private async void ManageFilters_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SavedFilterDialog(ViewModel.SavedFilters)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            ViewModel.SaveFilters(dialog.Filters);
     }
 
     private void StopSession_Click(object sender, RoutedEventArgs e) =>

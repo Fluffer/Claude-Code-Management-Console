@@ -29,6 +29,14 @@ public sealed partial class MainViewModel : ObservableObject
     private CancellationTokenSource? _enrichmentCts;
     private bool _loadingFlags;
     private bool _suppressFilter;
+    /// <summary>
+    /// True only while a RefreshRunningStates pass was kicked off *by* ApplyFilter.
+    /// Stops that pass from re-applying the filter, which would loop
+    /// (ApplyFilter -> RefreshRunningStates -> ApplyFilter -> ...). A pass from the
+    /// 30 s timer or a stop/kill is NOT suppressed, so the live set still drives
+    /// a re-filter when a RequireRunning filter is active.
+    /// </summary>
+    private bool _runningRefreshFromApplyFilter;
     private readonly DispatcherQueueTimer _flagsSaveDebounce;
     private DispatcherQueueTimer _runningRefreshTimer = null!;
     private (string Path, string Flags)? _pendingFlagsSave;
@@ -36,6 +44,13 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly RunningClaudeDetector _runningDetector = new();
     private readonly ClaudeSessionLister _sessionLister = new();
     private readonly GitWorktreeProvider _worktreeProvider = new();
+
+    /// <summary>
+    /// Latest set of directories with a live claude process, cached by the
+    /// running-state refresh worker. Read synchronously by <see cref="ApplyFilter"/>
+    /// to evaluate a saved filter's RequireRunning condition without re-scanning.
+    /// </summary>
+    private IReadOnlySet<string> _liveRunningDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Fallback signal only: how recent a transcript write still counts as
@@ -162,6 +177,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void RebuildSidebar()
     {
         var selectedRoot = SelectedSidebarItem?.Root;
+        var selectedFilterName = SelectedSidebarItem?.Filter?.Name;
         SidebarItems.Clear();
         SidebarItems.Add(new SidebarItemViewModel(
             $"All ({_allProjects.Count})", null, true,
@@ -175,8 +191,22 @@ public sealed partial class MainViewModel : ObservableObject
                 $"{leaf} ({count})", root, exists,
                 exists ? root : $"{root} — folder not found on disk"));
         }
+        // Saved filters follow the root entries; selecting one narrows the list
+        // (ANDed with the active root + search) via ApplyFilter.
+        foreach (var filter in _state.SavedFilters)
+            SidebarItems.Add(new SidebarItemViewModel(
+                $"🔎 {filter.Name}", null, true,
+                "Saved filter — narrows the list to matching projects")
+            {
+                Filter = filter,
+            });
+
         SelectedSidebarItem =
-            SidebarItems.FirstOrDefault(i => i.Root is not null &&
+            (selectedFilterName is not null
+                ? SidebarItems.FirstOrDefault(i =>
+                    string.Equals(i.Filter?.Name, selectedFilterName, StringComparison.OrdinalIgnoreCase))
+                : null)
+            ?? SidebarItems.FirstOrDefault(i => i.Root is not null &&
                 string.Equals(i.Root, selectedRoot, StringComparison.OrdinalIgnoreCase))
             ?? SidebarItems[0];
     }
@@ -193,6 +223,24 @@ public sealed partial class MainViewModel : ObservableObject
             filtered = filtered.Where(p => p.Name.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase));
 
         var pinned = new HashSet<string>(_state.Pinned, StringComparer.OrdinalIgnoreCase);
+
+        // Saved-filter narrowing. Every fact is sourced from cheap synchronous
+        // checks (no async enrichment dependency), so there is no enrichment ->
+        // ApplyFilter re-entry to guard: has-git reads .git/HEAD, has-CLAUDE.md
+        // is a File.Exists, is-pinned is the pin set, is-running is the cached
+        // live process-dir set (refreshed by RefreshRunningStates; a change there
+        // re-applies only when a RequireRunning filter is active — see below).
+        var activeFilter = SelectedSidebarItem?.Filter;
+        if (activeFilter is not null)
+        {
+            var liveDirs = _liveRunningDirs;
+            filtered = filtered.Where(p => ProjectFilter.Matches(activeFilter, new ProjectFacts(
+                p.Path,
+                HasGit: GitInfoProvider.ReadBranchFromHead(p.Path) is not null,
+                HasClaudeMd: ProjectClaudeInfo.HasClaudeMd(p.Path),
+                IsRunning: RunningClaudeDetector.IsProjectRunning(liveDirs, p.Path),
+                IsPinned: pinned.Contains(p.Path)))).ToList();
+        }
         IOrderedEnumerable<ProjectInfo> sorted = SortMode == "Name"
             ? filtered.OrderByDescending(p => pinned.Contains(p.Path))
                       .ThenBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
@@ -211,6 +259,9 @@ public sealed partial class MainViewModel : ObservableObject
             string.Equals(p.Path, selectedPath, StringComparison.OrdinalIgnoreCase));
 
         StartEnrichment();
+        // This refresh is a consequence of applying the filter, so flag it: its
+        // worker must not re-apply the filter (that would loop).
+        _runningRefreshFromApplyFilter = true;
         RefreshRunningStates();
         RebuildRecent();
     }
@@ -300,6 +351,11 @@ public sealed partial class MainViewModel : ObservableObject
         // Tied to the enrichment CTS: a Rescan/filter (or Shutdown) cancels
         // any in-flight pass so it never writes to replaced rows.
         var ct = _enrichmentCts?.Token ?? CancellationToken.None;
+        // Snapshot + clear the "called from ApplyFilter" flag so this pass knows
+        // whether it may re-apply the filter without looping. Reset immediately:
+        // the flag is single-use per call.
+        var fromApplyFilter = _runningRefreshFromApplyFilter;
+        _runningRefreshFromApplyFilter = false;
         var rows = Projects.ToList();
         if (rows.Count == 0) return;
         _ = Task.Run(() =>
@@ -308,6 +364,8 @@ public sealed partial class MainViewModel : ObservableObject
             IReadOnlySet<string> runningDirs;
             try { runningDirs = _runningDetector.GetRunningClaudeDirectories(); }
             catch (Exception) { runningDirs = new HashSet<string>(); }
+            // Cache for ApplyFilter's RequireRunning evaluation.
+            _liveRunningDirs = runningDirs;
 
             var results = rows.Select(r =>
             {
@@ -326,6 +384,12 @@ public sealed partial class MainViewModel : ObservableObject
                     row.IsStale = SessionStaleness.IsStale(row.NewestSessionUtc, DateTime.UtcNow, isRunning, thresholdDays: 7);
                 }
                 UpdateRunningSummary();
+
+                // The live running-set just changed. Re-apply the filter only when
+                // a RequireRunning filter is active AND this pass was NOT triggered
+                // by ApplyFilter itself (the guard that prevents an infinite loop).
+                if (!fromApplyFilter && SelectedSidebarItem?.Filter?.RequireRunning == true)
+                    ApplyFilter();
             });
         });
     }
@@ -433,6 +497,26 @@ public sealed partial class MainViewModel : ObservableObject
         _state.Profiles = profiles.Where(p => !string.IsNullOrWhiteSpace(p.Name)).ToList();
         _stateService.Save(_state);
         OnPropertyChanged(nameof(Profiles));
+    }
+
+    // ---------- Saved filters ----------
+
+    public IReadOnlyList<SavedFilter> SavedFilters => _state.SavedFilters;
+
+    /// <summary>Replace the saved-filter set (from the manager dialog) and persist + rebuild the sidebar.</summary>
+    public void SaveFilters(IEnumerable<SavedFilter> filters)
+    {
+        _state.SavedFilters = filters.Where(f => !string.IsNullOrWhiteSpace(f.Name)).ToList();
+        _stateService.Save(_state);
+        RebuildSidebar();
+    }
+
+    /// <summary>Select the sidebar entry for a saved filter by name (no-op if not present).</summary>
+    public void SelectFilter(SavedFilter filter)
+    {
+        var entry = SidebarItems.FirstOrDefault(i =>
+            string.Equals(i.Filter?.Name, filter.Name, StringComparison.OrdinalIgnoreCase));
+        if (entry is not null) SelectedSidebarItem = entry;
     }
 
     // ---------- Launch groups ----------
