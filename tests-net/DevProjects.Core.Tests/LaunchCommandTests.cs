@@ -70,7 +70,7 @@ public class LaunchCommandBuilderTests
         Assert.Equal(@"C:\wt\wt.exe", spec.FilePath);
         Assert.Null(spec.WorkingDirectory);
         Assert.Equal(
-            "-w 0 new-tab --title \"My Proj\" -d \"C:\\Dev\\Active\\My Proj\" pwsh -NoExit -Command \"claude --model opus\"",
+            "-w 0 new-tab --title \"My Proj\" -d \"C:\\Dev\\Active\\My Proj\" pwsh -NoExit -Command \"claude -n 'My Proj' --model opus\"",
             spec.Arguments);
     }
 
@@ -83,7 +83,7 @@ public class LaunchCommandBuilderTests
 
         Assert.Equal("powershell", spec.FilePath);
         Assert.Equal(@"C:\Dev\Proj", spec.WorkingDirectory);
-        Assert.Equal("-NoExit -Command \"claude --continue\"", spec.Arguments);
+        Assert.Equal("-NoExit -Command \"claude -n 'Proj' --continue\"", spec.Arguments);
     }
 
     [Theory]
@@ -151,4 +151,57 @@ public class LaunchCommandBuilderTests
     public void BuildClaudeCommand_NullFlags_Throws() =>
         Assert.Throws<ArgumentNullException>(() =>
             LaunchCommandBuilder.BuildClaudeCommand(null!, continueSession: false));
+
+    [Fact]
+    public void BuildClaudeCommand_WithName_PrependsSingleQuotedName() =>
+        Assert.Equal("claude -n 'Foo Bar' --continue",
+            LaunchCommandBuilder.BuildClaudeCommand("", continueSession: true, name: "Foo Bar"));
+
+    [Fact]
+    public void BuildClaudeCommand_NameWithApostrophe_DoublesIt() =>
+        Assert.Equal("claude -n 'O''Brien'",
+            LaunchCommandBuilder.BuildClaudeCommand("", continueSession: false, name: "O'Brien"));
+
+    [Fact]
+    public void BuildClaudeCommand_NameWithShellChars_StaysQuoted_AndFlagsUnaffected()
+    {
+        var cmd = LaunchCommandBuilder.BuildClaudeCommand(
+            "--model opus", continueSession: false, name: "A & B (test)");
+        Assert.Equal("claude -n 'A & B (test)' --model opus", cmd);
+        Assert.True(LaunchCommandBuilder.AreFlagsSafe("--model opus"));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void BuildClaudeCommand_EmptyName_OmitsNameArgument(string? name) =>
+        Assert.Equal("claude --continue",
+            LaunchCommandBuilder.BuildClaudeCommand("", continueSession: true, name: name));
+
+    // Security regression guard for the -n session name: a name that tries to break out of the
+    // single-quoted string must stay fully quoted (every ' doubled). Mirrors the initialPrompt probe.
+    [Theory]
+    [InlineData("'; Invoke-Expression 'whoami'", "claude -n '''; Invoke-Expression ''whoami'''")]
+    [InlineData("`whoami`", "claude -n '`whoami`'")]
+    [InlineData("$env:SECRET", "claude -n '$env:SECRET'")]
+    public void BuildClaudeCommand_NameInjectionProbe_StaysSingleQuoted(string name, string expected) =>
+        Assert.Equal(expected, LaunchCommandBuilder.BuildClaudeCommand("", continueSession: false, name: name));
+
+    [Fact]
+    public void BuildClaudeCommand_NameAndPrompt_NameComesFirst() =>
+        Assert.Equal("claude -n 'Proj' 'do a thing' --model opus",
+            LaunchCommandBuilder.BuildClaudeCommand(
+                "--model opus", continueSession: false, initialPrompt: "do a thing", name: "Proj"));
+
+    [Fact]
+    public void Build_WithWindowsTerminal_ThreadsNameIntoClaude_AndKeepsWtTitle()
+    {
+        var spec = LaunchCommandBuilder.Build(
+            "My Proj", @"C:\Dev\Active\My Proj", "--model opus",
+            continueSession: false, shell: "pwsh", wtPath: @"C:\wt\wt.exe");
+
+        Assert.Contains("--title \"My Proj\"", spec.Arguments);
+        Assert.Contains("\"claude -n 'My Proj' --model opus\"", spec.Arguments);
+    }
 }
