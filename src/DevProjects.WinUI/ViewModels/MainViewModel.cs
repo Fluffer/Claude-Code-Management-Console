@@ -296,6 +296,7 @@ public sealed partial class MainViewModel : ObservableObject
                     var newestSession = _sessionLister.NewestSessionUtc(row.Path);
                     var git = await _gitInfoProvider.GetAsync(row.Path, ct).ConfigureAwait(false);
                     var hasClaudeMd = ProjectClaudeInfo.HasClaudeMd(row.Path);
+                    var hasMcp = McpConfigReader.Has(row.Path);
                     var defaultModel = ProjectModelInfo.ResolveDefaultModel(row.Path);
                     var settings = SettingsJsonValidator.Validate(row.Path);
                     _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
@@ -312,6 +313,7 @@ public sealed partial class MainViewModel : ObservableObject
                             row.GitDirty = git.IsDirty;
                         }
                         row.HasClaudeMd = hasClaudeMd;
+                        row.HasMcp = hasMcp;
                         row.DefaultModel = defaultModel;
                         row.HasSettingsError = !settings.IsValid;
                         row.SettingsError = settings.Error ?? "";

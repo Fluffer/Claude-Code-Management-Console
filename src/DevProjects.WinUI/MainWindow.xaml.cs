@@ -498,6 +498,23 @@ public sealed partial class MainWindow : Window
     private void OpenClaudeIgnore_Click(object sender, RoutedEventArgs e) =>
         ViewModel.OpenClaudeIgnoreCommand.Execute(ItemOf(sender));
 
+    private async void ViewMcp_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is not { } project) return;
+        var servers = McpConfigReader.Read(project.Path);
+        if (servers.Count == 0)
+        {
+            await _dialogs.ShowMessageAsync("MCP servers", "This project has no .mcp.json servers.");
+            return;
+        }
+        var dialog = new McpViewerDialog(servers)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        await DialogGate.ShowAsync(dialog);
+    }
+
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is not { } project) return;
@@ -568,6 +585,9 @@ public sealed partial class MainWindow : Window
 
             if (entry is MenuFlyoutItem { Text: "Open CLAUDE.md" } claudeMd)
                 claudeMd.Visibility = project.HasClaudeMd ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutItem { Text: "View MCP servers…" } viewMcp)
+                viewMcp.Visibility = project.HasMcp ? Visibility.Visible : Visibility.Collapsed;
 
             if (entry is MenuFlyoutItem { Text: "Stop session" } stop)
                 stop.Visibility = project.IsRunning ? Visibility.Visible : Visibility.Collapsed;

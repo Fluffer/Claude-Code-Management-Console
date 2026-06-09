@@ -177,6 +177,9 @@
                                                             Visibility="{x:Bind HasSettingsError, Mode=OneWay}"
                                                             AutomationProperties.AutomationId="OpenSettingsJsonMenuItem"
                                                             ToolTipService.ToolTip="Open the malformed .claude/settings.json in the default editor to fix it"/>
+                                            <MenuFlyoutItem Text="View MCP servers…" Click="ViewMcp_Click"
+                                                            AutomationProperties.AutomationId="ViewMcpMenuItem"
+                                                            ToolTipService.ToolTip="View the MCP servers configured in this project's .mcp.json (read-only)"/>
                                             <MenuFlyoutItem Text="Copy path" Click="CopyPath_Click"/>
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Rename…" Click="Rename_Click"
@@ -267,6 +270,13 @@
                                                 Visibility="{x:Bind HasClaudeMd, Mode=OneWay}"
                                                 ToolTipService.ToolTip="This project has a CLAUDE.md (Claude project guidance). Right-click to open it.">
                                             <TextBlock Text="CLAUDE.md" FontSize="10"
+                                                       Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </Border>
+                                        <Border CornerRadius="9" Padding="7,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource SystemFillColorSuccessBrush}"
+                                                Visibility="{x:Bind HasMcp, Mode=OneWay}"
+                                                ToolTipService.ToolTip="This project has a .mcp.json (MCP servers). Right-click to view them.">
+                                            <TextBlock Text="MCP" FontSize="10"
                                                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                         </Border>
                                         <Border CornerRadius="9" Padding="7,2" VerticalAlignment="Center"
