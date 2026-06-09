@@ -55,6 +55,7 @@ public sealed partial class MainWindow : Window
         SyncSortCombo();
         ConfigureAppWindow();
         RegisterGlobalHotkey();
+        RootGrid.Loaded += FirstRunSetup_OnLoaded;
 
         Closed += (_, _) =>
         {
@@ -620,6 +621,29 @@ public sealed partial class MainWindow : Window
         };
         await DialogGate.ShowAsync(dialog);
         ViewModel.RescanCommand.Execute(null);
+    }
+
+    // ---------- First-run setup prompt ----------
+
+    private async void FirstRunSetup_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        // One-shot: detach immediately so a later layout pass can't re-open the dialog.
+        // Detach BEFORE the try: it must run even if the guard or await below throws.
+        RootGrid.Loaded -= FirstRunSetup_OnLoaded;
+
+        // Guard: an async-void event handler must never let an exception reach the
+        // message pump. Opening the first-run dialog is a convenience, not critical path.
+        try
+        {
+            if (!ViewModel.NeedsFirstRunSetup) return;
+
+            await ShowSettingsDialogAsync();              // user adds a root (or cancels)
+            ViewModel.DismissOnboardingCommand.Execute(null); // mark onboarded + save, once
+        }
+        catch (Exception)
+        {
+            // Best-effort first-run guidance; swallow so startup can't crash.
+        }
     }
 
     private void HelpButton_Click(object sender, RoutedEventArgs e) => ShowHelp();

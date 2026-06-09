@@ -896,6 +896,13 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ---------- Onboarding ----------
 
+    /// <summary>
+    /// True on a genuinely fresh install: no source roots configured and onboarding never
+    /// dismissed. Drives the one-time first-run Settings prompt (see MainWindow).
+    /// </summary>
+    public bool NeedsFirstRunSetup =>
+        (_config.Roots is null || _config.Roots.Count == 0) && !_state.OnboardingDismissed;
+
     [RelayCommand]
     private void DismissOnboarding()
     {
