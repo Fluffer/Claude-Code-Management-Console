@@ -35,6 +35,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private readonly RunningClaudeDetector _runningDetector = new();
     private readonly ClaudeSessionLister _sessionLister = new();
+    private readonly GitWorktreeProvider _worktreeProvider = new();
 
     /// <summary>
     /// Fallback signal only: how recent a transcript write still counts as
@@ -241,15 +242,19 @@ public sealed partial class MainViewModel : ObservableObject
                 {
                     if (ct.IsCancellationRequested) return;
                     var hasSession = _sessionDetector.HasSession(row.Path);
+                    var newestSession = _sessionLister.NewestSessionUtc(row.Path);
                     var git = await _gitInfoProvider.GetAsync(row.Path, ct).ConfigureAwait(false);
                     var hasClaudeMd = ProjectClaudeInfo.HasClaudeMd(row.Path);
                     var defaultModel = ProjectModelInfo.ResolveDefaultModel(row.Path);
+                    var settings = SettingsJsonValidator.Validate(row.Path);
                     _dispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
                     {
                         // Re-check on the UI thread so a stale pass never
                         // writes to rows a newer filter already replaced.
                         if (ct.IsCancellationRequested) return;
                         row.HasSession = hasSession;
+                        row.NewestSessionUtc = newestSession;
+                        row.IsStale = SessionStaleness.IsStale(newestSession, DateTime.UtcNow, row.IsRunning, thresholdDays: 7);
                         if (git is not null)
                         {
                             row.GitBranch = git.Branch;
@@ -257,6 +262,8 @@ public sealed partial class MainViewModel : ObservableObject
                         }
                         row.HasClaudeMd = hasClaudeMd;
                         row.DefaultModel = defaultModel;
+                        row.HasSettingsError = !settings.IsValid;
+                        row.SettingsError = settings.Error ?? "";
                     });
                 }
             }
@@ -314,7 +321,10 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 if (ct.IsCancellationRequested) return;
                 foreach (var (row, isRunning) in results)
+                {
                     row.IsRunning = isRunning;
+                    row.IsStale = SessionStaleness.IsStale(row.NewestSessionUtc, DateTime.UtcNow, isRunning, thresholdDays: 7);
+                }
                 UpdateRunningSummary();
             });
         });
@@ -400,6 +410,67 @@ public sealed partial class MainViewModel : ObservableObject
         if (ReferenceEquals(SelectedProject, project)) FlagsText = project.Flags; // keep the flags box in sync
     }
 
+    // ---------- Launch profiles ----------
+
+    public IReadOnlyList<LaunchProfile> Profiles => _state.Profiles;
+
+    /// <summary>Apply a profile's composed flags to a project's saved flags (config.json).</summary>
+    public void ApplyProfile(ProjectItemViewModel project, LaunchProfile profile)
+    {
+        string composed;
+        try { composed = ProfileComposer.Compose(profile); }
+        catch (ArgumentException ex) { _ = _dialogs.ShowMessageAsync("Apply profile", ex.Message); return; }
+
+        project.Flags = composed;
+        _configService.UpdateFlags(_config, project.Path, project.Flags);
+        if (ReferenceEquals(SelectedProject, project)) FlagsText = project.Flags;
+        ToastRequested?.Invoke($"Applied profile “{profile.Name}” to {project.Name}");
+    }
+
+    /// <summary>Replace the saved profile set (from the manager dialog) and persist.</summary>
+    public void SaveProfiles(IEnumerable<LaunchProfile> profiles)
+    {
+        _state.Profiles = profiles.Where(p => !string.IsNullOrWhiteSpace(p.Name)).ToList();
+        _stateService.Save(_state);
+        OnPropertyChanged(nameof(Profiles));
+    }
+
+    // ---------- Launch groups ----------
+
+    public IReadOnlyList<LaunchGroup> Groups => _state.Groups;
+
+    /// <summary>Replace the saved group set (from the manager dialog) and persist.</summary>
+    public void SaveGroups(IEnumerable<LaunchGroup> groups)
+    {
+        _state.Groups = groups.Where(g => !string.IsNullOrWhiteSpace(g.Name) && g.ProjectPaths.Count > 0).ToList();
+        _stateService.Save(_state);
+        OnPropertyChanged(nameof(Groups));
+    }
+
+    /// <summary>Launch every project in a group (continue), in listed order, with a small stagger.</summary>
+    public async Task LaunchGroupAsync(LaunchGroup group)
+    {
+        var launched = 0;
+        // Persist any pending (debounced) flags edit first, then snapshot from config so a
+        // group member that was just edited launches with its current flags, not stale ones.
+        FlushPendingFlagsSave();
+        _allProjects = ProjectScanner.Scan(_config);
+        // AllProjects (unfiltered) intentionally: a group opens every member regardless of
+        // the current sidebar/search filter.
+        var all = AllProjects;
+        foreach (var path in group.ProjectPaths)
+        {
+            var row = all.FirstOrDefault(p => string.Equals(p.Path, path, StringComparison.OrdinalIgnoreCase));
+            if (row is null) continue; // project removed since the group was saved — skip silently
+            await LaunchContinueAsync(row);
+            launched++;
+            await Task.Delay(250); // stagger so Windows Terminal opens N tabs reliably
+        }
+        ToastRequested?.Invoke(launched == group.ProjectPaths.Count
+            ? $"Launched group “{group.Name}” ({launched})"
+            : $"Launched {launched} of {group.ProjectPaths.Count} in “{group.Name}” (some projects no longer exist)");
+    }
+
     [RelayCommand]
     private void InsertFlag(FlagPreset preset)
     {
@@ -464,6 +535,35 @@ public sealed partial class MainViewModel : ObservableObject
     {
         // sessionId is a uuid (hex + dashes) — safe under AreFlagsSafe.
         await LaunchWithFlagsAsync(project, $"--resume {sessionId}", continueSession: false);
+    }
+
+    public Task<IReadOnlyList<GitWorktree>> ListWorktreesAsync(ProjectItemViewModel project) =>
+        _worktreeProvider.ListAsync(project.Path);
+
+    /// <summary>Launch a new session in a specific worktree path, using the project's saved flags.</summary>
+    public async Task LaunchInWorktreeAsync(ProjectItemViewModel project, GitWorktree worktree)
+    {
+        FlushPendingFlagsSave();
+        if (!LaunchCommandBuilder.AreFlagsSafe(project.Flags))
+        {
+            await _dialogs.ShowMessageAsync("Dev-Projects", LaunchCommandBuilder.UnsafeFlagMessage);
+            return;
+        }
+
+        var title = $"{project.Name} [{worktree.Branch ?? "detached"}]";
+        var spec = LaunchCommandBuilder.Build(title, worktree.Path, project.Flags, continueSession: false);
+        try
+        {
+            SessionLauncher.Launch(spec);
+        }
+        catch (Exception ex)
+        {
+            await _dialogs.ShowMessageAsync("Dev-Projects", $"Launch failed: {ex.Message}");
+            return;
+        }
+        // Worktree launches target a sibling path, not the tracked project, so they are
+        // intentionally NOT recorded in RecentLaunches/usage.
+        ToastRequested?.Invoke($"Opened a new Claude session in {title}");
     }
 
     /// <summary>One-off launch in a folder that is not a tracked project (drag-drop).</summary>
@@ -570,6 +670,69 @@ public sealed partial class MainViewModel : ObservableObject
             // No app is registered for .md, or the file vanished after the badge was set.
             await _dialogs.ShowMessageAsync("Open CLAUDE.md",
                 $"Could not open CLAUDE.md: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenSettingsJsonAsync(ProjectItemViewModel? project)
+    {
+        var path = project is null ? null : SettingsJsonValidator.Validate(project.Path).SettingsPath;
+        if (path is null) return;
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+            // No app registered for .json, or the file vanished after the badge was set.
+            await _dialogs.ShowMessageAsync("Open settings.json",
+                $"Could not open settings.json: {ex.Message}");
+        }
+    }
+
+    // ---------- Project files (.env / .claudeignore) ----------
+
+    public string EnvPath(ProjectItemViewModel project) => Path.Combine(project.Path, ".env");
+
+    public bool HasEnv(ProjectItemViewModel project) => File.Exists(EnvPath(project));
+
+    public string ReadEnv(ProjectItemViewModel project)
+    {
+        var path = EnvPath(project);
+        try { return File.Exists(path) ? File.ReadAllText(path) : ""; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return ""; }
+    }
+
+    public async Task WriteEnvAsync(ProjectItemViewModel project, string text)
+    {
+        try
+        {
+            await File.WriteAllTextAsync(EnvPath(project), text);
+            ToastRequested?.Invoke($"Saved .env for {project.Name}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            await _dialogs.ShowMessageAsync(".env", $"Could not save .env: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task OpenClaudeIgnoreAsync(ProjectItemViewModel? project)
+    {
+        var path = project is null ? null : ClaudeIgnoreInfo.Path(project.Path);
+        if (path is null)
+        {
+            if (project is not null)
+                await _dialogs.ShowMessageAsync(".claudeignore", "This project has no .claudeignore.");
+            return;
+        }
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or IOException)
+        {
+            await _dialogs.ShowMessageAsync(".claudeignore", $"Could not open .claudeignore: {ex.Message}");
         }
     }
 

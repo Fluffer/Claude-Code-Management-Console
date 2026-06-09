@@ -173,12 +173,18 @@
                                             <MenuFlyoutItem Text="Open CLAUDE.md" Click="OpenClaudeMd_Click"
                                                             AutomationProperties.AutomationId="OpenClaudeMdMenuItem"
                                                             ToolTipService.ToolTip="Open the CLAUDE.md project guidance file in the default editor"/>
+                                            <MenuFlyoutItem Text="Open settings.json" Click="OpenSettingsJson_Click"
+                                                            Visibility="{x:Bind HasSettingsError, Mode=OneWay}"
+                                                            AutomationProperties.AutomationId="OpenSettingsJsonMenuItem"
+                                                            ToolTipService.ToolTip="Open the malformed .claude/settings.json in the default editor to fix it"/>
                                             <MenuFlyoutItem Text="Copy path" Click="CopyPath_Click"/>
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Rename…" Click="Rename_Click"
                                                             ToolTipService.ToolTip="Rename the project folder (config and pin follow the new name)"/>
                                             <MenuFlyoutSubItem Text="Move to root"
                                                                ToolTipService.ToolTip="Move the project folder to another source root, e.g. Archive or Stable"/>
+                                            <MenuFlyoutSubItem Text="Apply profile"
+                                                               ToolTipService.ToolTip="Apply a saved launch profile's flags to this project. Manage profiles with the Profiles… button."/>
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Pin / Unpin" Click="Pin_Click"/>
                                             <MenuFlyoutSeparator/>
@@ -189,6 +195,19 @@
                                             <MenuFlyoutItem Text="Quick prompt…" Click="QuickPrompt_Click"
                                                             AutomationProperties.AutomationId="QuickPromptMenuItem"
                                                             ToolTipService.ToolTip="Open a fresh Claude session seeded with a first message (Ctrl+Shift+Enter)"/>
+                                            <MenuFlyoutItem Text="Launch in worktree…" Click="LaunchInWorktree_Click"
+                                                            AutomationProperties.AutomationId="LaunchInWorktreeMenuItem"
+                                                            ToolTipService.ToolTip="Open a new Claude session in another git worktree of this repository"/>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutSubItem Text="Project files"
+                                                               ToolTipService.ToolTip="Edit the project's .env or open its .claudeignore">
+                                                <MenuFlyoutItem Text="Edit .env…" Click="EditEnv_Click"
+                                                                AutomationProperties.AutomationId="EditEnvMenuItem"
+                                                                ToolTipService.ToolTip="Edit the project's .env file (values are masked)"/>
+                                                <MenuFlyoutItem Text="Open .claudeignore" Click="OpenClaudeIgnore_Click"
+                                                                AutomationProperties.AutomationId="OpenClaudeIgnoreMenuItem"
+                                                                ToolTipService.ToolTip="Open the project's .claudeignore in the default editor"/>
+                                            </MenuFlyoutSubItem>
                                         </MenuFlyout>
                                     </Grid.ContextFlyout>
                                     <Grid.ColumnDefinitions>
@@ -227,6 +246,13 @@
                                             <TextBlock Text="● live" FontSize="10"
                                                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
                                         </Border>
+                                        <Border CornerRadius="9" Padding="7,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                                Visibility="{x:Bind IsStale, Mode=OneWay}"
+                                                ToolTipService.ToolTip="No session activity in over a week.">
+                                            <TextBlock Text="stale" FontSize="10"
+                                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                                        </Border>
                                         <StackPanel Orientation="Horizontal" Spacing="3" VerticalAlignment="Center"
                                                     Visibility="{x:Bind HasGitInfo, Mode=OneWay}"
                                                     ToolTipService.ToolTip="{x:Bind GitToolTip, Mode=OneWay}">
@@ -242,6 +268,17 @@
                                                 ToolTipService.ToolTip="This project has a CLAUDE.md (Claude project guidance). Right-click to open it.">
                                             <TextBlock Text="CLAUDE.md" FontSize="10"
                                                        Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                        </Border>
+                                        <Border CornerRadius="9" Padding="7,2" VerticalAlignment="Center"
+                                                Background="{ThemeResource SystemFillColorCautionBrush}"
+                                                Visibility="{x:Bind HasSettingsError, Mode=OneWay}"
+                                                ToolTipService.ToolTip="{x:Bind SettingsError, Mode=OneWay}">
+                                            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE7BA;" FontSize="10"
+                                                          Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                                <TextBlock Text="settings.json" FontSize="10"
+                                                           Foreground="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+                                            </StackPanel>
                                         </Border>
                                         <TextBlock Text="{x:Bind LastUsedText}" Opacity="0.55"
                                                    Style="{StaticResource CaptionTextBlockStyle}"
@@ -323,6 +360,24 @@
                             </StackPanel>
                             <DropDownButton.Flyout>
                                 <MenuFlyout Opening="RecentMenu_Opening"/>
+                            </DropDownButton.Flyout>
+                        </DropDownButton>
+                        <Button Click="ManageProfiles_Click"
+                                AutomationProperties.AutomationId="ProfilesButton"
+                                ToolTipService.ToolTip="Create and edit reusable launch-flag profiles, then apply them to a project from its right-click menu">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE748;" FontSize="12"/>
+                                <TextBlock Text="Profiles"/>
+                            </StackPanel>
+                        </Button>
+                        <DropDownButton AutomationProperties.AutomationId="GroupsButton"
+                                        ToolTipService.ToolTip="Launch a saved set of projects together, or manage your launch groups">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE902;" FontSize="12"/>
+                                <TextBlock Text="Groups"/>
+                            </StackPanel>
+                            <DropDownButton.Flyout>
+                                <MenuFlyout Opening="GroupsMenu_Opening"/>
                             </DropDownButton.Flyout>
                         </DropDownButton>
                     </StackPanel>

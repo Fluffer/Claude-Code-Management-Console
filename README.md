@@ -42,6 +42,25 @@ with per-project flags. Built with .NET 10 and WinUI 3 (Windows App SDK).
 - **First-run onboarding**, tooltips on every control, full F1 help guide
 - Status bar shows the detected `claude` CLI version
 
+### Power-user (Tier 2)
+
+- **Launch profiles** — save named flag bundles (model, permission-mode, allowed/disallowed
+  tools) via **Profiles…**; right-click → Apply profile writes the composed flags into a
+  project's saved flags. Generalizes the model picker; stays launcher-side (never edits your
+  real `.claude/settings.json`)
+- **Launch in a git worktree** — right-click → Launch in worktree… lists the repo's worktrees
+  (`git worktree list`) and opens Claude in the chosen one
+- **Stale-session pill** — a muted badge on projects with no session activity in over a week
+  (and not currently running)
+- **settings.json validation** — a caution pill flags a malformed `.claude/settings.json`
+  (which Claude would silently ignore); open it from the context menu to fix
+- **Project files** — right-click → Project files: edit `.env` keys (values masked by
+  default) or open `.claudeignore` in your editor
+- **Launch groups** — save a set of projects as a group and open the whole stack in one
+  click from the **Groups** dropdown
+- **Global summon hotkey** — `Ctrl+Alt+Space` brings the app forward and opens the command
+  palette from anywhere (fail-soft if the combo is already taken)
+
 ## Layout
 
 ```

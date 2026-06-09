@@ -1,0 +1,70 @@
+<ContentDialog x:Class="DevProjects.App.Views.GroupManagerDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="Launch groups"
+               PrimaryButtonText="Save"
+               CloseButtonText="Cancel"
+               DefaultButton="Primary">
+    <Grid MinWidth="600" MinHeight="380" ColumnSpacing="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Group list + add/remove -->
+        <Grid Grid.Column="0" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <ListView x:Name="GroupList" Grid.Row="0" SelectionMode="Single"
+                      AutomationProperties.AutomationId="GroupList"
+                      SelectionChanged="GroupList_SelectionChanged"
+                      BorderThickness="1"
+                      BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                      CornerRadius="{ThemeResource ControlCornerRadius}">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                <Button x:Name="AddButton" Content="Add" MinWidth="92" Click="AddButton_Click"
+                        AutomationProperties.AutomationId="AddGroupButton"
+                        ToolTipService.ToolTip="Create a new launch group"/>
+                <Button x:Name="RemoveButton" Content="Remove" MinWidth="92" Click="RemoveButton_Click"
+                        AutomationProperties.AutomationId="RemoveGroupButton"
+                        ToolTipService.ToolTip="Delete the selected group"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Editing panel -->
+        <Grid Grid.Column="1" x:Name="EditorPanel" RowSpacing="12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <TextBox x:Name="NameBox" Grid.Row="0" Header="Name"
+                     AutomationProperties.AutomationId="GroupNameBox"
+                     TextChanged="NameBox_TextChanged"
+                     ToolTipService.ToolTip="A short name for this group, shown in the Groups dropdown"/>
+            <TextBlock Grid.Row="1" Text="Check the projects to launch together (in the order you check them):"
+                       Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.7"/>
+            <ListView x:Name="ProjectList" Grid.Row="2" SelectionMode="None"
+                      AutomationProperties.AutomationId="GroupProjectList"
+                      BorderThickness="1"
+                      BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                      CornerRadius="{ThemeResource ControlCornerRadius}">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                  Content="{Binding Label}"
+                                  MinWidth="0"/>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
+    </Grid>
+</ContentDialog>

@@ -37,6 +37,24 @@ public sealed class ClaudeSessionLister
         return result.OrderByDescending(s => s.LastWriteUtc).ToList();
     }
 
+    /// <summary>Most recent transcript mtime for a project, or null when it has none. Stats only — no reads.</summary>
+    public DateTime? NewestSessionUtc(string projectPath)
+    {
+        try
+        {
+            var dir = Path.Combine(_projectsDir, ClaudeSessionDetector.EncodeProjectPath(projectPath));
+            if (!Directory.Exists(dir)) return null;
+            DateTime? newest = null;
+            foreach (var file in Directory.EnumerateFiles(dir, "*.jsonl"))
+            {
+                var t = File.GetLastWriteTimeUtc(file);
+                if (newest is null || t > newest) newest = t;
+            }
+            return newest;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
+
     private static string ReadFirstUserMessage(string file)
     {
         try

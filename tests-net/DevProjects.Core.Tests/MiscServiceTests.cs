@@ -226,6 +226,63 @@ public class StateServiceTests : IDisposable
         File.WriteAllText(StatePath, """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true}""");
         Assert.Empty(new StateService(StatePath).Load().RecentLaunches);
     }
+
+    [Fact]
+    public void Defaults_IncludeEmptyProfiles() =>
+        Assert.Empty(new AppState().Profiles);
+
+    [Fact]
+    public void OldStateJson_WithoutProfiles_LoadsEmptyList()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(StatePath,
+            """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true,"recentLaunches":[]}""");
+        Assert.Empty(new StateService(StatePath).Load().Profiles);
+    }
+
+    [Fact]
+    public void Profiles_RoundTripThroughSaveLoad()
+    {
+        Directory.CreateDirectory(_dir);
+        var svc = new StateService(StatePath);
+        var state = svc.Load();
+        state.Profiles.Add(new LaunchProfile { Name = "Opus", Model = "opus", AllowedTools = ["Read"] });
+        svc.Save(state);
+
+        var reloaded = svc.Load();
+        Assert.Single(reloaded.Profiles);
+        Assert.Equal("Opus", reloaded.Profiles[0].Name);
+        Assert.Equal("opus", reloaded.Profiles[0].Model);
+        Assert.Equal(["Read"], reloaded.Profiles[0].AllowedTools);
+    }
+
+    [Fact]
+    public void Defaults_IncludeEmptyGroups() =>
+        Assert.Empty(new AppState().Groups);
+
+    [Fact]
+    public void OldStateJson_WithoutGroups_LoadsEmptyList()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(StatePath,
+            """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true,"recentLaunches":[],"profiles":[]}""");
+        Assert.Empty(new StateService(StatePath).Load().Groups);
+    }
+
+    [Fact]
+    public void Groups_RoundTrip()
+    {
+        Directory.CreateDirectory(_dir);
+        var svc = new StateService(StatePath);
+        var state = svc.Load();
+        state.Groups.Add(new LaunchGroup { Name = "Stack", ProjectPaths = [@"C:\a", @"C:\b"] });
+        svc.Save(state);
+
+        var reloaded = svc.Load();
+        Assert.Single(reloaded.Groups);
+        Assert.Equal("Stack", reloaded.Groups[0].Name);
+        Assert.Equal([@"C:\a", @"C:\b"], reloaded.Groups[0].ProjectPaths);
+    }
 }
 
 public class GitInfoProviderTests : IDisposable

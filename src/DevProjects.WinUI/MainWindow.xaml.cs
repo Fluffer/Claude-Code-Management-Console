@@ -3,6 +3,8 @@ using System.Runtime.InteropServices;
 using DevProjects.App.Services;
 using DevProjects.App.ViewModels;
 using DevProjects.App.Views;
+using DevProjects.Core.Models;
+using DevProjects.Core.Services;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -26,6 +28,7 @@ public sealed partial class MainWindow : Window
     private readonly ContentDialogUserDialogs _dialogs;
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _toastTimer;
     private HelpWindow? _helpWindow;
+    private GlobalHotkey? _hotkey;
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hWnd);
@@ -51,8 +54,45 @@ public sealed partial class MainWindow : Window
         BuildFlagMenu();
         SyncSortCombo();
         ConfigureAppWindow();
+        RegisterGlobalHotkey();
 
-        Closed += (_, _) => ViewModel.Shutdown();
+        Closed += (_, _) =>
+        {
+            _hotkey?.Dispose();
+            ViewModel.Shutdown();
+        };
+    }
+
+    // ---------- Global summon hotkey ----------
+
+    /// <summary>
+    /// Registers the system-wide Ctrl+Alt+Space summon hotkey. Fail-soft: if the combo
+    /// is already owned by another app, <see cref="GlobalHotkey.Register"/> restores the
+    /// original WndProc and returns false; we show a one-time non-blocking toast and
+    /// continue — no crash, no retry.
+    /// </summary>
+    private void RegisterGlobalHotkey()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _hotkey = new GlobalHotkey();
+        _hotkey.Pressed += () => DispatcherQueue.TryEnqueue(async () =>
+        {
+            // async-void callback: an unhandled exception here would crash the app, so
+            // guard it. The summon is a convenience — failing to open must never take
+            // the process down.
+            try
+            {
+                // Bring the window to the foreground, then open the existing Ctrl+P palette.
+                AppWindow.Show();
+                await ShowCommandPaletteAsync();
+            }
+            catch (Exception)
+            {
+                // Best-effort summon; swallow so the message-pump callback can't crash.
+            }
+        });
+        if (!_hotkey.Register(hwnd))
+            ShowToast("Global hotkey Ctrl+Alt+Space is in use by another app — summon disabled.");
     }
 
     // ---------- Window chrome / sizing ----------
@@ -283,6 +323,9 @@ public sealed partial class MainWindow : Window
     private void OpenClaudeMd_Click(object sender, RoutedEventArgs e) =>
         ViewModel.OpenClaudeMdCommand.Execute(ItemOf(sender));
 
+    private void OpenSettingsJson_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.OpenSettingsJsonCommand.Execute(ItemOf(sender));
+
     private void CopyPath_Click(object sender, RoutedEventArgs e) =>
         ViewModel.CopyPathCommand.Execute(ItemOf(sender));
 
@@ -291,6 +334,62 @@ public sealed partial class MainWindow : Window
         if (ItemOf(sender) is not { } project) return;
         var model = (sender as FrameworkElement)?.Tag as string; // null for "Default"
         ViewModel.SetRowModel(project, model);
+    }
+
+    private void ApplyProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem item &&
+            item.DataContext is ProjectItemViewModel project &&
+            item.Tag is LaunchProfile profile)
+            ViewModel.ApplyProfile(project, profile);
+    }
+
+    private async void ManageProfiles_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ProfileManagerDialog(ViewModel.Profiles)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            ViewModel.SaveProfiles(dialog.Profiles);
+    }
+
+    private void GroupsMenu_Opening(object sender, object e)
+    {
+        if (sender is not MenuFlyout flyout) return;
+        flyout.Items.Clear();
+        foreach (var group in ViewModel.Groups)
+        {
+            var item = new MenuFlyoutItem
+            {
+                Text = $"{group.Name}  ({group.ProjectPaths.Count})",
+                Tag = group,
+            };
+            item.Click += LaunchGroup_Click;
+            flyout.Items.Add(item);
+        }
+        if (ViewModel.Groups.Count > 0)
+            flyout.Items.Add(new MenuFlyoutSeparator());
+        var manage = new MenuFlyoutItem { Text = "Manage groups…" };
+        manage.Click += ManageGroups_Click;
+        flyout.Items.Add(manage);
+    }
+
+    private async void LaunchGroup_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: LaunchGroup group }) await ViewModel.LaunchGroupAsync(group);
+    }
+
+    private async void ManageGroups_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new GroupManagerDialog(ViewModel.Groups, ViewModel.AllProjects)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            ViewModel.SaveGroups(dialog.Groups);
     }
 
     private void StopSession_Click(object sender, RoutedEventArgs e) =>
@@ -305,6 +404,41 @@ public sealed partial class MainWindow : Window
         if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary && dialog.SelectedSessionId is { } id)
             await ViewModel.ResumeSessionAsync(project, id);
     }
+
+    private async void LaunchInWorktree_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is not { } project) return;
+        var worktrees = await ViewModel.ListWorktreesAsync(project);
+        var others = worktrees.Where(w => !w.IsBare).ToList();
+        if (others.Count <= 1)
+        {
+            await _dialogs.ShowMessageAsync("Worktrees", "This project has no additional git worktrees.");
+            return;
+        }
+
+        var dialog = new WorktreePickerDialog(others)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary && dialog.SelectedWorktree is { } wt)
+            await ViewModel.LaunchInWorktreeAsync(project, wt);
+    }
+
+    private async void EditEnv_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is not { } project) return;
+        var dialog = new EnvEditorDialog(ViewModel.ReadEnv(project))
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            await ViewModel.WriteEnvAsync(project, dialog.ResultText);
+    }
+
+    private void OpenClaudeIgnore_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.OpenClaudeIgnoreCommand.Execute(ItemOf(sender));
 
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
@@ -326,13 +460,13 @@ public sealed partial class MainWindow : Window
 
     private void CommandPalette_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        if (DialogGate.AnyOpen) return;
         args.Handled = true;
         _ = ShowCommandPaletteAsync();
     }
 
     private async Task ShowCommandPaletteAsync()
     {
+        if (DialogGate.AnyOpen) return; // shared guard: both the Ctrl+P accelerator and the global hotkey route here
         var dialog = new CommandPaletteDialog(ViewModel.AllProjects)
         {
             XamlRoot = Content.XamlRoot,
@@ -379,6 +513,47 @@ public sealed partial class MainWindow : Window
 
             if (entry is MenuFlyoutItem { Text: "Stop session" } stop)
                 stop.Visibility = project.IsRunning ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutItem { Text: "Launch in worktree…" } worktree)
+                worktree.Visibility = project.HasGitInfo ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutSubItem { Text: "Project files" } projectFiles)
+            {
+                var hasIgnore = ClaudeIgnoreInfo.Has(project.Path);
+                foreach (var sub in projectFiles.Items)
+                {
+                    if (sub is MenuFlyoutItem { Text: "Open .claudeignore" } openIgnore)
+                        openIgnore.Visibility = hasIgnore ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
+
+            if (entry is MenuFlyoutSubItem { Text: "Apply profile" } applyProfile)
+            {
+                applyProfile.Items.Clear();
+                var profiles = ViewModel.Profiles;
+                if (profiles.Count == 0)
+                {
+                    applyProfile.Items.Add(new MenuFlyoutItem
+                    {
+                        Text = "(no profiles — use “Profiles…”)",
+                        IsEnabled = false,
+                    });
+                }
+                else
+                {
+                    foreach (var profile in profiles)
+                    {
+                        var item = new MenuFlyoutItem
+                        {
+                            Text = profile.Name,
+                            Tag = profile,
+                            DataContext = project,
+                        };
+                        item.Click += ApplyProfile_Click;
+                        applyProfile.Items.Add(item);
+                    }
+                }
+            }
 
             if (entry is MenuFlyoutSubItem { Text: "Move to root" } move)
             {
