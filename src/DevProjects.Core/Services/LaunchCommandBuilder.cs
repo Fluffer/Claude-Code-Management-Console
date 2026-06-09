@@ -21,12 +21,19 @@ public static class LaunchCommandBuilder
 
     public static bool AreFlagsSafe(string flags) => flags.IndexOfAny(UnsafeFlagChars) < 0;
 
-    public static string BuildClaudeCommand(string flags, bool continueSession, string? initialPrompt = null)
+    public static string BuildClaudeCommand(
+        string flags, bool continueSession, string? initialPrompt = null, string? name = null)
     {
         ArgumentNullException.ThrowIfNull(flags);
         if (!AreFlagsSafe(flags))
             throw new ArgumentException(UnsafeFlagMessage, nameof(flags));
         var command = "claude";
+        // -n sets the claude session display name AND the terminal title, which claude
+        // holds for the life of the session (WT --title alone is overwritten at launch).
+        // Single-quoted for PowerShell -Command; every ' doubled. Not run through
+        // AreFlagsSafe — single quoting makes an arbitrary folder name safe.
+        if (!string.IsNullOrWhiteSpace(name))
+            command += " -n '" + name.Replace("'", "''") + "'";
         if (continueSession) command += " --continue";
         else if (!string.IsNullOrWhiteSpace(initialPrompt))
             command += " '" + initialPrompt.Replace("'", "''") + "'";
@@ -48,7 +55,7 @@ public static class LaunchCommandBuilder
         if (wtPath is null && probeWindowsTerminal)
             wtPath = CommandLocator.FindWindowsTerminal();
 
-        var claudeCommand = BuildClaudeCommand(flags, continueSession, initialPrompt);
+        var claudeCommand = BuildClaudeCommand(flags, continueSession, initialPrompt, projectName);
 
         if (!string.IsNullOrWhiteSpace(wtPath))
         {

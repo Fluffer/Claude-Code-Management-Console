@@ -91,8 +91,34 @@ public partial class App : Application
         };
         _window.Activate();
 
+        // Protocol activation: dev-projects://launch?project=<name-or-path>[&new=true].
+        // The MainViewModel scans projects synchronously in its constructor, so by here
+        // AllProjects is populated and HandleDeepLink can resolve the target immediately.
+        // Packaged build only — an unpackaged launch reports no protocol args, so this is
+        // a no-op there (acceptable for this tier).
+        TryHandleProtocolActivation();
+
         _pipeServerCts = new CancellationTokenSource();
         _ = RunActivationPipeServerAsync(_pipeServerCts.Token);
+    }
+
+    private void TryHandleProtocolActivation()
+    {
+        try
+        {
+            var args = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
+            if (args.Kind == Microsoft.Windows.AppLifecycle.ExtendedActivationKind.Protocol &&
+                args.Data is Windows.ApplicationModel.Activation.IProtocolActivatedEventArgs p)
+            {
+                var link = DevProjects.Core.Services.DeepLinkParser.Parse(p.Uri?.ToString());
+                if (link is { } dl) _window?.ViewModel.HandleDeepLink(dl);
+            }
+        }
+        catch (Exception)
+        {
+            // Activation-arg APIs can throw in unpackaged/odd-launch contexts; a deep link
+            // is a convenience entry point and must never take startup down.
+        }
     }
 
     private static void TryActivateExistingInstance()

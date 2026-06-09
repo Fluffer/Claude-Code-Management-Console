@@ -83,6 +83,10 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasClaudeMd;
 
+    /// <summary>Whether a .mcp.json with at least one MCP server exists in this project folder.</summary>
+    [ObservableProperty]
+    private bool _hasMcp;
+
     /// <summary>Whether this project's .claude/settings.json is present but fails to parse.</summary>
     [ObservableProperty]
     private bool _hasSettingsError;

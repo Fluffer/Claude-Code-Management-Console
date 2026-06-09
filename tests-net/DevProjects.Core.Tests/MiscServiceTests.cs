@@ -283,6 +283,34 @@ public class StateServiceTests : IDisposable
         Assert.Equal("Stack", reloaded.Groups[0].Name);
         Assert.Equal([@"C:\a", @"C:\b"], reloaded.Groups[0].ProjectPaths);
     }
+
+    [Fact]
+    public void Defaults_IncludeEmptySavedFilters() =>
+        Assert.Empty(new AppState().SavedFilters);
+
+    [Fact]
+    public void OldStateJson_WithoutSavedFilters_LoadsEmptyList()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(StatePath,
+            """{"theme":"Dark","sortMode":"Name","pinned":[],"onboardingDismissed":true,"recentLaunches":[]}""");
+        Assert.Empty(new StateService(StatePath).Load().SavedFilters);
+    }
+
+    [Fact]
+    public void SavedFilters_RoundTrip()
+    {
+        Directory.CreateDirectory(_dir);
+        var svc = new StateService(StatePath);
+        var state = svc.Load();
+        state.SavedFilters.Add(new SavedFilter { Name = "Active git", PathContains = "Active", RequireGit = true });
+        svc.Save(state);
+
+        var reloaded = svc.Load();
+        Assert.Single(reloaded.SavedFilters);
+        Assert.Equal("Active git", reloaded.SavedFilters[0].Name);
+        Assert.True(reloaded.SavedFilters[0].RequireGit);
+    }
 }
 
 public class GitInfoProviderTests : IDisposable

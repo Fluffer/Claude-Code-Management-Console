@@ -10,6 +10,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
@@ -55,6 +56,7 @@ public sealed partial class MainWindow : Window
         SyncSortCombo();
         ConfigureAppWindow();
         RegisterGlobalHotkey();
+        RootGrid.Loaded += FirstRunSetup_OnLoaded;
 
         Closed += (_, _) =>
         {
@@ -392,6 +394,76 @@ public sealed partial class MainWindow : Window
             ViewModel.SaveGroups(dialog.Groups);
     }
 
+    // ---------- Filters menu ----------
+
+    private void FiltersMenu_Opening(object sender, object e)
+    {
+        if (sender is not MenuFlyout flyout) return;
+        flyout.Items.Clear();
+        foreach (var filter in ViewModel.SavedFilters)
+        {
+            var item = new MenuFlyoutItem
+            {
+                Text = filter.Name,
+                Tag = filter,
+            };
+            AutomationProperties.SetAutomationId(item, $"SavedFilterItem_{filter.Name}");
+            item.Click += SelectFilter_Click;
+            flyout.Items.Add(item);
+        }
+        if (ViewModel.SavedFilters.Count > 0)
+            flyout.Items.Add(new MenuFlyoutSeparator());
+        var newItem = new MenuFlyoutItem { Text = "New filter…" };
+        AutomationProperties.SetAutomationId(newItem, "NewFilterMenuItem");
+        newItem.Click += NewFilter_Click;
+        flyout.Items.Add(newItem);
+        var manage = new MenuFlyoutItem { Text = "Manage filters…" };
+        AutomationProperties.SetAutomationId(manage, "ManageFiltersMenuItem");
+        manage.Click += ManageFilters_Click;
+        flyout.Items.Add(manage);
+    }
+
+    private void SelectFilter_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuFlyoutItem { Tag: SavedFilter filter }) ViewModel.SelectFilter(filter);
+    }
+
+    private async void NewFilter_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new SavedFilterDialog(ViewModel.SavedFilters, startWithNew: true)
+            {
+                XamlRoot = Content.XamlRoot,
+                RequestedTheme = RootGrid.RequestedTheme,
+            };
+            if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+                ViewModel.SaveFilters(dialog.Filters);
+        }
+        catch (Exception)
+        {
+            // Dialog/show failures are non-critical; never crash the message pump.
+        }
+    }
+
+    private async void ManageFilters_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dialog = new SavedFilterDialog(ViewModel.SavedFilters)
+            {
+                XamlRoot = Content.XamlRoot,
+                RequestedTheme = RootGrid.RequestedTheme,
+            };
+            if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+                ViewModel.SaveFilters(dialog.Filters);
+        }
+        catch (Exception)
+        {
+            // Dialog/show failures are non-critical; never crash the message pump.
+        }
+    }
+
     private void StopSession_Click(object sender, RoutedEventArgs e) =>
         ViewModel.StopSessionCommand.Execute(ItemOf(sender));
 
@@ -439,6 +511,30 @@ public sealed partial class MainWindow : Window
 
     private void OpenClaudeIgnore_Click(object sender, RoutedEventArgs e) =>
         ViewModel.OpenClaudeIgnoreCommand.Execute(ItemOf(sender));
+
+    private async void ViewMcp_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (ItemOf(sender) is not { } project) return;
+            var servers = McpConfigReader.Read(project.Path);
+            if (servers.Count == 0)
+            {
+                await _dialogs.ShowMessageAsync("MCP servers", "This project has no .mcp.json servers.");
+                return;
+            }
+            var dialog = new McpViewerDialog(servers)
+            {
+                XamlRoot = Content.XamlRoot,
+                RequestedTheme = RootGrid.RequestedTheme,
+            };
+            await DialogGate.ShowAsync(dialog);
+        }
+        catch (Exception)
+        {
+            // Dialog/show failures are non-critical; never crash the message pump.
+        }
+    }
 
     private void Rename_Click(object sender, RoutedEventArgs e)
     {
@@ -510,6 +606,9 @@ public sealed partial class MainWindow : Window
 
             if (entry is MenuFlyoutItem { Text: "Open CLAUDE.md" } claudeMd)
                 claudeMd.Visibility = project.HasClaudeMd ? Visibility.Visible : Visibility.Collapsed;
+
+            if (entry is MenuFlyoutItem { Text: "View MCP servers…" } viewMcp)
+                viewMcp.Visibility = project.HasMcp ? Visibility.Visible : Visibility.Collapsed;
 
             if (entry is MenuFlyoutItem { Text: "Stop session" } stop)
                 stop.Visibility = project.IsRunning ? Visibility.Visible : Visibility.Collapsed;
@@ -620,6 +719,29 @@ public sealed partial class MainWindow : Window
         };
         await DialogGate.ShowAsync(dialog);
         ViewModel.RescanCommand.Execute(null);
+    }
+
+    // ---------- First-run setup prompt ----------
+
+    private async void FirstRunSetup_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        // One-shot: detach immediately so a later layout pass can't re-open the dialog.
+        // Detach BEFORE the try: it must run even if the guard or await below throws.
+        RootGrid.Loaded -= FirstRunSetup_OnLoaded;
+
+        // Guard: an async-void event handler must never let an exception reach the
+        // message pump. Opening the first-run dialog is a convenience, not critical path.
+        try
+        {
+            if (!ViewModel.NeedsFirstRunSetup) return;
+
+            await ShowSettingsDialogAsync();              // user adds a root (or cancels)
+            ViewModel.DismissOnboardingCommand.Execute(null); // mark onboarded + save, once
+        }
+        catch (Exception)
+        {
+            // Best-effort first-run guidance; swallow so startup can't crash.
+        }
     }
 
     private void HelpButton_Click(object sender, RoutedEventArgs e) => ShowHelp();

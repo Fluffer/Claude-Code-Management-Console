@@ -32,4 +32,7 @@ public sealed class AppState
 
     /// <summary>Saved multi-project launch groups (Tier 2). Launched in listed order.</summary>
     public List<LaunchGroup> Groups { get; set; } = [];
+
+    /// <summary>Saved project filters (Tier 3), surfaced as sidebar entries.</summary>
+    public List<SavedFilter> SavedFilters { get; set; } = [];
 }
