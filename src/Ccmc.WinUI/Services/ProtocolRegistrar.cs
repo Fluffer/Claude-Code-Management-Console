@@ -19,9 +19,11 @@ public static class ProtocolRegistrar
             var command = $"\"{exe}\" \"%1\"";
             using var root = Registry.CurrentUser.CreateSubKey(
                 @"Software\Classes\" + Ccmc.Core.Services.DeepLinkParser.Scheme);
+            if (root is null) return;
             root.SetValue(null, "URL:Claude Code Management Console");
             root.SetValue("URL Protocol", "");
             using var cmd = root.CreateSubKey(@"shell\open\command");
+            if (cmd is null) return;
             // Skip the write when current — avoids churning the registry every launch.
             if (cmd.GetValue(null) as string != command)
                 cmd.SetValue(null, command);
