@@ -66,8 +66,9 @@ SettingsDialog gains one toggle: "Close to tray" bound to `AppState.CloseToTray`
 
 ## Jump list refresh triggers
 
-Rebuilt (debounced, fire-and-forget) on: startup, after a session launch (recents
-changed), and after pin/unpin. A rebuild failure is silently skipped — the previous
+Rebuilt (fire-and-forget, off the UI thread) on: startup, after a session launch
+(recents changed), and after pin/unpin. These are single user-triggered events, so
+no debouncing is needed. A rebuild failure is silently skipped — the previous
 jump list simply persists.
 
 ## Copy deep link
