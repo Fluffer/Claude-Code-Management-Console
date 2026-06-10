@@ -76,6 +76,10 @@ public partial class App : Application
         var state = new Ccmc.Core.Services.StateService().Load();
         Theming.Appearance.OverrideResources(state.Accent, state.Font, Theming.Palettes.Resolve(state.Theme));
 
+        // Make ccmc:// live for the unpackaged publish; packaged installs are
+        // covered by the appxmanifest and this write is harmlessly redundant.
+        Services.ProtocolRegistrar.EnsureRegistered();
+
         _window = new MainWindow();
         Window = _window;
         DispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
