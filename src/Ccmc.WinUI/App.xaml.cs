@@ -65,8 +65,9 @@ public partial class App : Application
         _mutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
         if (!createdNew)
         {
-            // Another instance owns the mutex: ask it to come to the front, then exit.
-            TryActivateExistingInstance();
+            // Another instance owns the mutex: hand it our deep link (if any),
+            // ask it to come to the front, then exit.
+            TryActivateExistingInstance(GetLaunchUriFromArgs());
             Exit();
             return;
         }
@@ -102,6 +103,14 @@ public partial class App : Application
         // a no-op there (acceptable for this tier).
         TryHandleProtocolActivation();
 
+        // Unpackaged protocol/jump-list launch: the URI arrives via argv, not
+        // WinRT activation args. Both paths converge on HandleDeepLink.
+        if (GetLaunchUriFromArgs() is { } argUri &&
+            Ccmc.Core.Services.DeepLinkParser.Parse(argUri) is { } argLink)
+        {
+            _window?.ViewModel.HandleDeepLink(argLink);
+        }
+
         _pipeServerCts = new CancellationTokenSource();
         _ = RunActivationPipeServerAsync(_pipeServerCts.Token);
     }
@@ -125,14 +134,27 @@ public partial class App : Application
         }
     }
 
-    private static void TryActivateExistingInstance()
+    /// <summary>The ccmc:// URI passed on the command line (unpackaged protocol launch), or null.</summary>
+    private static string? GetLaunchUriFromArgs()
+    {
+        var args = Environment.GetCommandLineArgs();
+        for (var i = 1; i < args.Length; i++)
+            if (args[i].StartsWith(Ccmc.Core.Services.DeepLinkParser.Scheme + "://",
+                                   StringComparison.OrdinalIgnoreCase))
+                return args[i];
+        return null;
+    }
+
+    private static void TryActivateExistingInstance(string? linkUri)
     {
         try
         {
             using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
             client.Connect(timeout: 1500);
             using var writer = new StreamWriter(client);
-            writer.Write("ACTIVATE");
+            writer.Write(linkUri is null
+                ? Ccmc.Core.Services.ActivationMessage.Activate
+                : Ccmc.Core.Services.ActivationMessage.FormatLink(linkUri));
             writer.Flush();
         }
         catch (Exception ex) when (ex is IOException or TimeoutException or UnauthorizedAccessException)
@@ -155,13 +177,16 @@ public partial class App : Application
                 await server.WaitForConnectionAsync(ct).ConfigureAwait(false);
                 using var reader = new StreamReader(server);
                 var message = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
-                if (message == "ACTIVATE")
+                var link = Ccmc.Core.Services.ActivationMessage.ParseLink(message);
+                if (link is not null || message == Ccmc.Core.Services.ActivationMessage.Activate)
                 {
                     _window?.DispatcherQueue.TryEnqueue(() =>
                     {
                         if (_window is null) return;
+                        if (link is { } dl) _window.ViewModel.HandleDeepLink(dl);
                         if (_window.AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } p)
                             p.Restore();
+                        _window.AppWindow.Show(); // also restores a tray-hidden window
                         _window.Activate();
                     });
                 }
