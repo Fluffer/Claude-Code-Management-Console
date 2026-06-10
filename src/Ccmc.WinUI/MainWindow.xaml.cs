@@ -69,6 +69,18 @@ public sealed partial class MainWindow : Window
         };
         RegisterGlobalHotkey();
         RegisterTrayIcon();
+
+        // Jump list mirrors the tray entries. Entries are composed on the calling
+        // (UI) thread, then handed to a pool thread for the COM work; failures
+        // inside Rebuild are swallowed.
+        void RebuildJumpList()
+        {
+            var entries = ViewModel.ShellEntries(recentCap: 8);
+            _ = Task.Run(() => JumpListService.Rebuild(entries));
+        }
+        ViewModel.ShellEntriesChanged += RebuildJumpList;
+        RebuildJumpList();
+
         RootGrid.Loaded += FirstRunSetup_OnLoaded;
 
         Closed += (_, _) =>
