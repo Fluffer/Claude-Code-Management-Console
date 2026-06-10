@@ -139,6 +139,13 @@ public sealed partial class MainViewModel : ObservableObject
         _ = LaunchFromPaletteAsync(row, isNew: link.NewSession);
     }
 
+    /// <summary>Settings toggle: X hides to tray instead of exiting. Persisted immediately.</summary>
+    public bool CloseToTray
+    {
+        get => _state.CloseToTray;
+        set { _state.CloseToTray = value; _stateService.Save(_state); }
+    }
+
     public MainViewModel(
         DispatcherQueue dispatcherQueue,
         IUserDialogs dialogs,

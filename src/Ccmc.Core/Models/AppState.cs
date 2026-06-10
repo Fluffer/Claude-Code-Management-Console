@@ -35,4 +35,7 @@ public sealed class AppState
 
     /// <summary>Saved project filters (Tier 3), surfaced as sidebar entries.</summary>
     public List<SavedFilter> SavedFilters { get; set; } = [];
+
+    /// <summary>When true, the window close button hides to the tray instead of exiting.</summary>
+    public bool CloseToTray { get; set; }
 }

@@ -10,6 +10,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="180"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="6">
@@ -69,5 +70,11 @@
                       AutomationProperties.AutomationId="DefaultRootCombo"
                       SelectionChanged="DefaultCombo_SelectionChanged"/>
         </StackPanel>
+
+        <ToggleSwitch x:Name="CloseToTrayToggle" Grid.Row="4"
+                      Header="Close to tray"
+                      AutomationProperties.AutomationId="CloseToTrayToggle"
+                      Toggled="CloseToTrayToggle_Toggled"
+                      ToolTipService.ToolTip="When on, the X button hides the window to the tray icon instead of exiting. Exit via the tray menu."/>
     </Grid>
 </ContentDialog>
