@@ -1,8 +1,8 @@
 @echo off
-rem Dev-Projects launcher shim. Existing shortcuts keep working: starts the
-rem .NET 9 app if published, otherwise falls back to the legacy PS launcher.
-if exist "%~dp0publish\Dev-Projects.exe" (
-  start "" "%~dp0publish\Dev-Projects.exe"
+rem Claude Code Management Console launcher shim. Existing shortcuts keep working:
+rem starts the .NET app if published, otherwise falls back to the legacy PS launcher.
+if exist "%~dp0publish\ccmc.exe" (
+  start "" "%~dp0publish\ccmc.exe"
 ) else (
   where pwsh >nul 2>nul
   if %errorlevel%==0 (

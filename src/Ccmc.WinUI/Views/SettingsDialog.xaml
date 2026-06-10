@@ -1,0 +1,73 @@
+<ContentDialog x:Class="Ccmc.App.Views.SettingsDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="Settings"
+               CloseButtonText="Close"
+               DefaultButton="Close">
+    <Grid MinWidth="460" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*" MinHeight="180"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Spacing="6">
+            <TextBlock Text="Appearance"
+                       ToolTipService.ToolTip="Theme, accent color and font. Changes apply immediately."/>
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <ComboBox x:Name="ThemeCombo" Grid.Column="0" HorizontalAlignment="Stretch"
+                          Header="Theme"
+                          AutomationProperties.AutomationId="ThemeCombo"
+                          SelectionChanged="ThemeCombo_SelectionChanged"
+                          ToolTipService.ToolTip="'System' follows Windows light/dark; palettes use a fixed dark color scheme"/>
+                <ComboBox x:Name="AccentCombo" Grid.Column="1" HorizontalAlignment="Stretch"
+                          Header="Accent"
+                          AutomationProperties.AutomationId="AccentCombo"
+                          SelectionChanged="AccentCombo_SelectionChanged"
+                          ToolTipService.ToolTip="'Default' follows the Windows accent color (or the palette's signature color)"/>
+                <ComboBox x:Name="FontCombo" Grid.Column="2" HorizontalAlignment="Stretch"
+                          Header="Font"
+                          AutomationProperties.AutomationId="FontCombo"
+                          SelectionChanged="FontCombo_SelectionChanged"
+                          ToolTipService.ToolTip="UI font for the whole app"/>
+            </Grid>
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" Text="Source roots"
+                   ToolTipService.ToolTip="Folders scanned for projects. Each direct subfolder shows up in the project list."/>
+
+        <Grid Grid.Row="2" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ListView x:Name="RootsList" Grid.Column="0" SelectionMode="Single"
+                      AutomationProperties.AutomationId="RootsList"
+                      BorderThickness="1"
+                      BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                      CornerRadius="{ThemeResource ControlCornerRadius}"/>
+            <StackPanel Grid.Column="1" Spacing="8">
+                <Button x:Name="AddButton" Content="Add…" MinWidth="92" Click="AddButton_Click"
+                        AutomationProperties.AutomationId="AddRootButton"
+                        ToolTipService.ToolTip="Pick a folder that contains your projects — each subfolder becomes a project entry"/>
+                <Button x:Name="RemoveButton" Content="Remove" MinWidth="92" Click="RemoveButton_Click"
+                        AutomationProperties.AutomationId="RemoveRootButton"
+                        ToolTipService.ToolTip="Stop scanning the selected root. Your folders and files are NOT deleted."/>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Grid.Row="3" Spacing="6">
+            <TextBlock Text="Default root for new projects"
+                       ToolTipService.ToolTip="Preselected in the New Project dialog when 'All' is active in the sidebar"/>
+            <ComboBox x:Name="DefaultCombo" HorizontalAlignment="Stretch"
+                      AutomationProperties.AutomationId="DefaultRootCombo"
+                      SelectionChanged="DefaultCombo_SelectionChanged"/>
+        </StackPanel>
+    </Grid>
+</ContentDialog>

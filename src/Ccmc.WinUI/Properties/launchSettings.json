@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Ccmc.WinUI (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Ccmc.WinUI (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

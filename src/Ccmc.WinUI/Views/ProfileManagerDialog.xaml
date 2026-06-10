@@ -1,0 +1,72 @@
+<ContentDialog x:Class="Ccmc.App.Views.ProfileManagerDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="Launch profiles"
+               PrimaryButtonText="Save"
+               CloseButtonText="Cancel"
+               DefaultButton="Primary">
+    <Grid MinWidth="560" MinHeight="360" ColumnSpacing="16">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Profile list + add/remove -->
+        <Grid Grid.Column="0" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <ListView x:Name="ProfileList" Grid.Row="0" SelectionMode="Single"
+                      AutomationProperties.AutomationId="ProfileList"
+                      SelectionChanged="ProfileList_SelectionChanged"
+                      BorderThickness="1"
+                      BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                      CornerRadius="{ThemeResource ControlCornerRadius}">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+                <Button x:Name="AddButton" Content="Add" MinWidth="92" Click="AddButton_Click"
+                        AutomationProperties.AutomationId="AddProfileButton"
+                        ToolTipService.ToolTip="Create a new launch profile"/>
+                <Button x:Name="RemoveButton" Content="Remove" MinWidth="92" Click="RemoveButton_Click"
+                        AutomationProperties.AutomationId="RemoveProfileButton"
+                        ToolTipService.ToolTip="Delete the selected profile"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Editing panel -->
+        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel x:Name="EditorPanel" Spacing="12">
+                <TextBox x:Name="NameBox" Header="Name"
+                         AutomationProperties.AutomationId="ProfileNameBox"
+                         TextChanged="NameBox_TextChanged"
+                         ToolTipService.ToolTip="A short name for this profile, shown in the Apply profile menu"/>
+                <ComboBox x:Name="ModelCombo" Header="Model" HorizontalAlignment="Stretch"
+                          AutomationProperties.AutomationId="ProfileModelCombo"
+                          SelectionChanged="ModelCombo_SelectionChanged"
+                          ToolTipService.ToolTip="Writes --model into the composed flags"/>
+                <ComboBox x:Name="PermissionCombo" Header="Permission mode" HorizontalAlignment="Stretch"
+                          AutomationProperties.AutomationId="ProfilePermissionCombo"
+                          SelectionChanged="PermissionCombo_SelectionChanged"
+                          ToolTipService.ToolTip="Writes --permission-mode into the composed flags"/>
+                <TextBox x:Name="AllowedBox" Header="Allowed tools"
+                         AutomationProperties.AutomationId="ProfileAllowedBox"
+                         TextChanged="AllowedBox_TextChanged"
+                         PlaceholderText="Read Edit Bash"
+                         ToolTipService.ToolTip="Plain tool names only — e.g. Read Edit Bash. Scoped specs like Bash(git:*) are not supported."/>
+                <TextBlock Text="Plain tool names only — e.g. Read Edit Bash"
+                           Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                <TextBox x:Name="DisallowedBox" Header="Disallowed tools"
+                         AutomationProperties.AutomationId="ProfileDisallowedBox"
+                         TextChanged="DisallowedBox_TextChanged"
+                         PlaceholderText="Bash WebFetch"
+                         ToolTipService.ToolTip="Plain tool names only — e.g. Bash WebFetch"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</ContentDialog>
