@@ -936,6 +936,16 @@ public sealed partial class MainViewModel : ObservableObject
         ToastRequested?.Invoke("Path copied to clipboard");
     }
 
+    [RelayCommand]
+    private void CopyDeepLink(ProjectItemViewModel? project)
+    {
+        if (project is null) return;
+        var package = new DataPackage();
+        package.SetText(DeepLinkBuilder.Build(project.Name));
+        Clipboard.SetContent(package);
+        ToastRequested?.Invoke("Deep link copied to clipboard");
+    }
+
     // ---------- Rename / move ----------
 
     /// <summary>Roots a project can be moved to (existing on disk). Shown in the context-menu submenu.</summary>

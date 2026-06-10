@@ -390,6 +390,9 @@ public sealed partial class MainWindow : Window
     private void CopyPath_Click(object sender, RoutedEventArgs e) =>
         ViewModel.CopyPathCommand.Execute(ItemOf(sender));
 
+    private void CopyDeepLink_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.CopyDeepLinkCommand.Execute(ItemOf(sender));
+
     private void SetModel_Click(object sender, RoutedEventArgs e)
     {
         if (ItemOf(sender) is not { } project) return;

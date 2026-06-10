@@ -181,6 +181,8 @@
                                                             AutomationProperties.AutomationId="ViewMcpMenuItem"
                                                             ToolTipService.ToolTip="View the MCP servers configured in this project's .mcp.json (read-only)"/>
                                             <MenuFlyoutItem Text="Copy path" Click="CopyPath_Click"/>
+                                            <MenuFlyoutItem Text="Copy deep link" Click="CopyDeepLink_Click"
+                                                            ToolTipService.ToolTip="Copies a ccmc:// link that launches this project from anywhere"/>
                                             <MenuFlyoutSeparator/>
                                             <MenuFlyoutItem Text="Rename…" Click="Rename_Click"
                                                             ToolTipService.ToolTip="Rename the project folder (config and pin follow the new name)"/>
