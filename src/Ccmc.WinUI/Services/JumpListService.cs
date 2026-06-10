@@ -25,13 +25,22 @@ public static class JumpListService
             var list = (ICustomDestinationList)new DestinationList();
             var riid = typeof(IObjectArray).GUID;
             list.BeginList(out _, ref riid, out _);
-
-            var pinned = entries.Where(e => e.IsPinned).ToList();
-            var recent = entries.Where(e => !e.IsPinned).Take(JumpListRecentCap).ToList();
-            AppendCategory(list, "Pinned", pinned, exe);
-            AppendCategory(list, "Recent", recent, exe);
-
-            list.CommitList();
+            var committed = false;
+            try
+            {
+                var pinned = entries.Where(e => e.IsPinned).ToList();
+                var recent = entries.Where(e => !e.IsPinned).Take(JumpListRecentCap).ToList();
+                AppendCategory(list, "Pinned", pinned, exe);
+                AppendCategory(list, "Recent", recent, exe);
+                list.CommitList();
+                committed = true;
+            }
+            finally
+            {
+                // A half-built list left uncommitted keeps the shell transaction
+                // open until the RCW is collected; abort it deterministically.
+                if (!committed) { try { list.AbortList(); } catch { } }
+            }
         }
         catch (Exception)
         {

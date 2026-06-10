@@ -137,7 +137,14 @@ public sealed partial class MainWindow : Window
         };
         _tray.ToggleRequested += () => DispatcherQueue.TryEnqueue(ToggleWindowVisibility);
         _tray.OpenRequested += () => DispatcherQueue.TryEnqueue(ShowAndActivate);
-        _tray.ExitRequested += () => DispatcherQueue.TryEnqueue(() => { _reallyExit = true; Close(); });
+        _tray.ExitRequested += () => DispatcherQueue.TryEnqueue(() =>
+        {
+            // A ContentDialog mid-flight (settings, group editor…) may have unsaved
+            // state; closing the window under it would skip its save path.
+            if (DialogGate.AnyOpen) return;
+            _reallyExit = true;
+            Close();
+        });
         _tray.LaunchRequested += path => DispatcherQueue.TryEnqueue(() => ViewModel.LaunchByPath(path));
         if (!_tray.Register(hwnd)) _tray = null;
     }
