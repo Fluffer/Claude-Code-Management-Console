@@ -32,7 +32,13 @@ public static class AppPaths
             if (Directory.Exists(dir)) return; // already migrated (or fresh install that ran once)
             var legacy = Path.Combine(root, LegacyFolderName);
             if (!Directory.Exists(legacy)) return; // nothing to carry over
-            CopyDirectory(legacy, dir);
+            // Stage into a temp sibling, then rename: an interrupted copy must
+            // never leave a half-populated ccmc folder, which the guard above
+            // would treat as "already migrated" and silently strand the data.
+            var staging = dir + ".migrating";
+            if (Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+            CopyDirectory(legacy, staging);
+            Directory.Move(staging, dir);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
