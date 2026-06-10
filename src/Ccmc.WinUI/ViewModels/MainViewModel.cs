@@ -146,6 +146,21 @@ public sealed partial class MainViewModel : ObservableObject
         set { _state.CloseToTray = value; _stateService.Save(_state); }
     }
 
+    /// <summary>Current tray/jump-list entries (pinned first, then capped recents).</summary>
+    public IReadOnlyList<ShellMenuEntry> ShellEntries(int recentCap) =>
+        ShellMenuComposer.Compose(_state.Pinned, _state.RecentLaunches, recentCap);
+
+    /// <summary>Raised whenever pins or recents change, so shell surfaces (jump list) can rebuild.</summary>
+    public event Action? ShellEntriesChanged;
+
+    /// <summary>Launches the project at <paramref name="path"/> (tray/jump-list entry). No-op if it vanished.</summary>
+    public void LaunchByPath(string path)
+    {
+        var row = AllProjects.FirstOrDefault(p => string.Equals(p.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (row is null) { ToastRequested?.Invoke($"Project no longer found: {path}"); return; }
+        _ = LaunchFromPaletteAsync(row, isNew: false);
+    }
+
     public MainViewModel(
         DispatcherQueue dispatcherQueue,
         IUserDialogs dialogs,
@@ -747,6 +762,7 @@ public sealed partial class MainViewModel : ObservableObject
         _state.RecentLaunches = MruList.Add(_state.RecentLaunches, path, cap: 15);
         _stateService.Save(_state);
         RebuildRecent();
+        ShellEntriesChanged?.Invoke();
     }
 
     private void RebuildRecent()
@@ -775,6 +791,7 @@ public sealed partial class MainViewModel : ObservableObject
         ApplyFilter();
         SelectedProject = Projects.FirstOrDefault(p =>
             string.Equals(p.Path, keep, StringComparison.OrdinalIgnoreCase));
+        ShellEntriesChanged?.Invoke();
     }
 
     // ---------- Stop session(s) ----------
