@@ -1,4 +1,4 @@
-# Dev-Projects
+# Claude Code Management Console
 
 A Windows launcher hub for [Claude Code](https://claude.com/claude-code). It scans your
 source-root folders (e.g. `C:\Dev\Active`), lists every project, and opens Claude
@@ -71,7 +71,7 @@ with per-project flags. Built with .NET 10 and WinUI 3 (Windows App SDK).
   has-running-session, pinned) from the **Filters** button; each appears as a sidebar entry
 - **MCP viewer** — projects with a `.mcp.json` show an MCP pill; right-click → View MCP
   servers… lists each server and its transport (read-only)
-- **Deep link** — `dev-projects://launch?project=<name>[&new=true]` launches/continues a
+- **Deep link** — `ccmc://launch?project=<name>[&new=true]` launches/continues a
   project (packaged build only; routes on a cold start)
 - **Session-ended toast** — a toast appears when a tracked Claude session exits
 - **Config auto-snapshot** — every config save drops a timestamped copy in a `snapshots/`
@@ -80,8 +80,8 @@ with per-project flags. Built with .NET 10 and WinUI 3 (Windows App SDK).
 ## Layout
 
 ```
-src/DevProjects.Core        # logic: config, scanning, launch building, git/session probes
-src/DevProjects.WinUI       # WinUI 3 app: MVVM (CommunityToolkit), Mica, ContentDialogs
+src/Ccmc.Core        # logic: config, scanning, launch building, git/session probes
+src/Ccmc.WinUI       # WinUI 3 app: MVVM (CommunityToolkit), Mica, ContentDialogs
 tests-net/…Core.Tests       # xUnit suite (ported from the original Pester suite)
 legacy/                     # the original PowerShell + XamlReader implementation (v1)
 docs/                       # design spec & implementation plans
@@ -90,26 +90,27 @@ docs/                       # design spec & implementation plans
 ## Build & run
 
 ```powershell
-dotnet build DevProjects.sln -p:Platform=x64
-dotnet test tests-net/DevProjects.Core.Tests
-winapp run "src/DevProjects.WinUI/bin/x64/Debug/net10.0-windows10.0.26100.0/win-x64"
+dotnet build Ccmc.sln -p:Platform=x64
+dotnet test tests-net/Ccmc.Core.Tests
+winapp run "src/Ccmc.WinUI/bin/x64/Debug/net10.0-windows10.0.26100.0/win-x64"
 ```
 
 Publish an unpackaged self-contained build for the launcher shim:
 
 ```powershell
-dotnet publish "src/DevProjects.WinUI" -c Release -r win-x64 -p:Platform=x64 -p:UnpackagedPublish=true -o publish
+dotnet publish "src/Ccmc.WinUI" -c Release -r win-x64 -p:Platform=x64 -p:UnpackagedPublish=true -o publish
 ```
 
-`launcher.cmd` starts `publish\Dev-Projects.exe` when present (and falls back to the
+`launcher.cmd` starts `publish\ccmc.exe` when present (and falls back to the
 legacy PowerShell launcher otherwise), so existing shortcuts keep working.
 
 ## Data & compatibility
 
-- `%APPDATA%\Dev-Projects\config.json` — roots, default root, per-project lastUsed/flags.
-  **Schema-compatible with the v1 PowerShell launcher** (both can read each other's file;
-  a corrupt file is quarantined to `config.json.bad` and regenerated).
-- `%APPDATA%\Dev-Projects\state.json` — v2+-only UI state (theme, sort, pins, onboarding).
+- `%APPDATA%\ccmc\config.json` — roots, default root, per-project lastUsed/flags.
+  **Schema-compatible with the v1 PowerShell launcher.** On first run the app copies
+  any existing `%APPDATA%\Dev-Projects` data over (the legacy folder is left intact);
+  a corrupt file is quarantined to `config.json.bad` and regenerated.
+- `%APPDATA%\ccmc\state.json` — v2+-only UI state (theme, sort, pins, onboarding).
 - Single instance: launching a second copy activates the existing window.
 
 ## Notes
