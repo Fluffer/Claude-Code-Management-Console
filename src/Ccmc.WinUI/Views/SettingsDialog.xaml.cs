@@ -24,6 +24,7 @@ public sealed partial class SettingsDialog : ContentDialog
         AccentCombo.SelectedItem = _viewModel.AccentOptions.FirstOrDefault(a => a == _viewModel.Accent) ?? "Default";
         FontCombo.ItemsSource = _viewModel.FontOptions;
         FontCombo.SelectedItem = _viewModel.FontOptions.FirstOrDefault(f => f == _viewModel.Font) ?? "Segoe UI Variable";
+        CloseToTrayToggle.IsOn = _viewModel.CloseToTray;
     }
 
     private void RefreshLists()
@@ -94,5 +95,10 @@ public sealed partial class SettingsDialog : ContentDialog
     private void FontCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (FontCombo.SelectedItem is string font) _viewModel.Font = font;
+    }
+
+    private void CloseToTrayToggle_Toggled(object sender, RoutedEventArgs e)
+    {
+        _viewModel.CloseToTray = CloseToTrayToggle.IsOn;
     }
 }

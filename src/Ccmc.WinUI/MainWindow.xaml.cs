@@ -30,6 +30,8 @@ public sealed partial class MainWindow : Window
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _toastTimer;
     private HelpWindow? _helpWindow;
     private GlobalHotkey? _hotkey;
+    private TrayIconService? _tray;
+    private bool _reallyExit;
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hWnd);
@@ -55,11 +57,35 @@ public sealed partial class MainWindow : Window
         BuildFlagMenu();
         SyncSortCombo();
         ConfigureAppWindow();
+        AppWindow.Closing += (_, e) =>
+        {
+            // Settings toggle: X hides to the tray; the process (pipe server,
+            // session detection, hotkey) stays alive. Tray "Exit" bypasses this.
+            if (ViewModel.CloseToTray && !_reallyExit)
+            {
+                e.Cancel = true;
+                AppWindow.Hide();
+            }
+        };
         RegisterGlobalHotkey();
+        RegisterTrayIcon();
+
+        // Jump list mirrors the tray entries. Entries are composed on the calling
+        // (UI) thread, then handed to a pool thread for the COM work; failures
+        // inside Rebuild are swallowed.
+        void RebuildJumpList()
+        {
+            var entries = ViewModel.ShellEntries(recentCap: 8);
+            _ = Task.Run(() => JumpListService.Rebuild(entries));
+        }
+        ViewModel.ShellEntriesChanged += RebuildJumpList;
+        RebuildJumpList();
+
         RootGrid.Loaded += FirstRunSetup_OnLoaded;
 
         Closed += (_, _) =>
         {
+            _tray?.Dispose();
             _hotkey?.Dispose();
             ViewModel.Shutdown();
         };
@@ -95,6 +121,46 @@ public sealed partial class MainWindow : Window
         });
         if (!_hotkey.Register(hwnd))
             ShowToast("Global hotkey Ctrl+Alt+Space is in use by another app — summon disabled.");
+    }
+
+    /// <summary>
+    /// Adds the always-visible tray icon. Fail-soft like the global hotkey: if the
+    /// shell refuses the icon, the app runs without it (close-to-tray still hides;
+    /// the window comes back via relaunch-activate or the global hotkey).
+    /// </summary>
+    private void RegisterTrayIcon()
+    {
+        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        _tray = new TrayIconService
+        {
+            EntriesProvider = () => ViewModel.ShellEntries(recentCap: 5),
+        };
+        _tray.ToggleRequested += () => DispatcherQueue.TryEnqueue(ToggleWindowVisibility);
+        _tray.OpenRequested += () => DispatcherQueue.TryEnqueue(ShowAndActivate);
+        _tray.ExitRequested += () => DispatcherQueue.TryEnqueue(() =>
+        {
+            // A ContentDialog mid-flight (settings, group editor…) may have unsaved
+            // state; closing the window under it would skip its save path.
+            if (DialogGate.AnyOpen) return;
+            _reallyExit = true;
+            Close();
+        });
+        _tray.LaunchRequested += path => DispatcherQueue.TryEnqueue(() => ViewModel.LaunchByPath(path));
+        if (!_tray.Register(hwnd)) _tray = null;
+    }
+
+    private void ShowAndActivate()
+    {
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } p)
+            p.Restore();
+        AppWindow.Show();
+        Activate();
+    }
+
+    private void ToggleWindowVisibility()
+    {
+        if (AppWindow.IsVisible) AppWindow.Hide();
+        else ShowAndActivate();
     }
 
     // ---------- Window chrome / sizing ----------
@@ -330,6 +396,9 @@ public sealed partial class MainWindow : Window
 
     private void CopyPath_Click(object sender, RoutedEventArgs e) =>
         ViewModel.CopyPathCommand.Execute(ItemOf(sender));
+
+    private void CopyDeepLink_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.CopyDeepLinkCommand.Execute(ItemOf(sender));
 
     private void SetModel_Click(object sender, RoutedEventArgs e)
     {
