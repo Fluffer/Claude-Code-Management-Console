@@ -1,0 +1,28 @@
+<ContentDialog x:Class="Ccmc.App.Views.DeleteProjectDialog"
+               xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+               Title="Delete project"
+               PrimaryButtonText="Delete"
+               CloseButtonText="Cancel"
+               DefaultButton="Close">
+    <ContentDialog.PrimaryButtonStyle>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+            <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}"/>
+        </Style>
+    </ContentDialog.PrimaryButtonStyle>
+    <StackPanel MinWidth="420" Spacing="8">
+        <TextBlock x:Name="HeaderText" TextWrapping="Wrap"/>
+        <TextBlock x:Name="PathText" Opacity="0.65" TextWrapping="Wrap"
+                   Style="{StaticResource CaptionTextBlockStyle}"/>
+        <InfoBar x:Name="DirtyBar" Severity="Warning" IsOpen="False" IsClosable="False"
+                 Title="Uncommitted changes"
+                 Message="This repository may have uncommitted changes that will be lost."/>
+        <InfoBar x:Name="RunningBar" Severity="Error" IsOpen="False" IsClosable="False"
+                 Title="Session running"
+                 Message="A Claude session is running in this project. Stop it first (right-click → Stop session)."/>
+        <CheckBox x:Name="PermanentCheck" Content="Permanently delete (skip Recycle Bin)"
+                  AutomationProperties.AutomationId="PermanentDeleteCheck"
+                  ToolTipService.ToolTip="When unchecked, the folder goes to the Windows Recycle Bin and can be restored."/>
+    </StackPanel>
+</ContentDialog>

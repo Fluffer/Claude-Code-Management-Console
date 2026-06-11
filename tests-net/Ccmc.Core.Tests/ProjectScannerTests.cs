@@ -115,4 +115,31 @@ public sealed class ProjectScannerTests : IDisposable
 
         Assert.Equal("", project.Description);
     }
+
+    [Fact]
+    public void Scan_SkipsHiddenPaths_CaseInsensitively()
+    {
+        var hide = Directory.CreateDirectory(Path.Combine(_root, "Secret"));
+        Directory.CreateDirectory(Path.Combine(_root, "Keep"));
+        var config = MakeConfig();
+        config.Hidden = [hide.FullName.ToUpperInvariant()];
+
+        var projects = ProjectScanner.Scan(config);
+
+        Assert.Equal(["Keep"], projects.Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public void Scan_HiddenDoesNotMatchByNameAlone()
+    {
+        // Hidden is path-based: a project with the same NAME under this root
+        // must still appear when the hidden entry points elsewhere.
+        Directory.CreateDirectory(Path.Combine(_root, "Tools"));
+        var config = MakeConfig();
+        config.Hidden = [@"C:\Somewhere\Else\Tools"];
+
+        var projects = ProjectScanner.Scan(config);
+
+        Assert.Equal(["Tools"], projects.Select(p => p.Name).ToArray());
+    }
 }

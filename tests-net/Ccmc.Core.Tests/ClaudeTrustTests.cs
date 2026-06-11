@@ -111,4 +111,56 @@ public class ClaudeTrustTests : IDisposable
         Assert.False(ClaudeTrust.EnsureTrusted("   ", ClaudeJson));
         Assert.Equal("""{"projects":{}}""", File.ReadAllText(ClaudeJson));
     }
+
+    [Fact]
+    public void RemoveTrust_RemovesEntry_PreservingOtherProjectsAndTopLevelKeys()
+    {
+        File.WriteAllText(ClaudeJson,
+            """{"oauthAccount":{"email":"x@y.z"},"projects":{"C:\\Dev\\Proj":{"hasTrustDialogAccepted":true},"C:\\Other":{"hasTrustDialogAccepted":true}}}""");
+
+        Assert.True(ClaudeTrust.RemoveTrust(@"C:\Dev\Proj", ClaudeJson));
+
+        var root = ReadBack();
+        var projects = root["projects"]!.AsObject();
+        Assert.Single(projects);
+        Assert.NotNull(projects[@"C:\Other"]);
+        Assert.Equal("x@y.z", (string)root["oauthAccount"]!["email"]!);
+    }
+
+    [Fact]
+    public void RemoveTrust_MatchesKeyCaseInsensitively()
+    {
+        File.WriteAllText(ClaudeJson,
+            """{"projects":{"c:\\dev\\proj":{"hasTrustDialogAccepted":true}}}""");
+
+        Assert.True(ClaudeTrust.RemoveTrust(@"C:\Dev\Proj\", ClaudeJson));
+
+        Assert.Empty(ReadBack()["projects"]!.AsObject());
+    }
+
+    [Fact]
+    public void RemoveTrust_NoOp_WhenEntryAbsent_FileLeftUntouched()
+    {
+        var original = """{"projects":{"C:\\Other":{"hasTrustDialogAccepted":true}}}""";
+        File.WriteAllText(ClaudeJson, original);
+
+        Assert.False(ClaudeTrust.RemoveTrust(@"C:\Dev\Proj", ClaudeJson));
+
+        Assert.Equal(original, File.ReadAllText(ClaudeJson));
+    }
+
+    [Fact]
+    public void RemoveTrust_NoOp_WhenClaudeJsonMissing()
+    {
+        Assert.False(ClaudeTrust.RemoveTrust(@"C:\Dev\Proj", ClaudeJson));
+        Assert.False(File.Exists(ClaudeJson));
+    }
+
+    [Fact]
+    public void RemoveTrust_NoOp_OnCorruptJson_FileLeftUntouched()
+    {
+        File.WriteAllText(ClaudeJson, "{ not json");
+        Assert.False(ClaudeTrust.RemoveTrust(@"C:\Dev\Proj", ClaudeJson));
+        Assert.Equal("{ not json", File.ReadAllText(ClaudeJson));
+    }
 }

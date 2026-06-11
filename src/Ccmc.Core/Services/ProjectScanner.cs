@@ -18,6 +18,8 @@ public static class ProjectScanner
                 if ((dir.Attributes & FileAttributes.Hidden) != 0) continue;
                 if (config.Ignore is not null &&
                     config.Ignore.Contains(dir.Name, StringComparer.OrdinalIgnoreCase)) continue;
+                if (config.Hidden is not null &&
+                    config.Hidden.Contains(dir.FullName, StringComparer.OrdinalIgnoreCase)) continue;
 
                 DateTime? lastUsed = null;
                 var flags = "";

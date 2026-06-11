@@ -1067,6 +1067,70 @@ public sealed partial class MainViewModel : ObservableObject
         Rescan();
     }
 
+    // ---------- Hide / delete projects ----------
+
+    private void RemovePin(string path) =>
+        _state.Pinned.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Hides a project from the list (path-based, non-destructive). Restore via Settings.</summary>
+    public void HideProject(ProjectItemViewModel? project)
+    {
+        if (project is null) return;
+        _config.Hidden ??= [];
+        if (!_config.Hidden.Contains(project.Path, StringComparer.OrdinalIgnoreCase))
+            _config.Hidden.Add(project.Path);
+        RemovePin(project.Path);
+        _stateService.Save(_state);
+        _configService.Save(_config);
+        Rescan();
+        ShellEntriesChanged?.Invoke();
+        ToastRequested?.Invoke($"Hid {project.Name} — restore it in Settings");
+    }
+
+    /// <summary>Paths hidden via HideProject, shown in Settings for restoring.</summary>
+    public IReadOnlyList<string> HiddenProjects => (_config.Hidden ?? []).ToList();
+
+    public void RestoreHidden(string path)
+    {
+        _config.Hidden?.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+        _configService.Save(_config);
+        Rescan();
+    }
+
+    /// <summary>
+    /// Deletes the project folder (Recycle Bin or permanent), then cleans up the
+    /// pin, config usage entry and ~/.claude.json trust entry. Session transcripts
+    /// under ~/.claude/projects are intentionally left alone.
+    /// </summary>
+    public async Task DeleteProjectAsync(ProjectItemViewModel project, bool permanent)
+    {
+        try
+        {
+            await Task.Run(() => ProjectDeleter.Delete(project.Path, permanent));
+            RemovePin(project.Path);
+            _stateService.Save(_state);
+            _config.Projects?.Remove(project.Path);
+            _config.Hidden?.RemoveAll(p => string.Equals(p, project.Path, StringComparison.OrdinalIgnoreCase));
+            _configService.Save(_config);
+            ClaudeTrust.RemoveTrust(project.Path);
+            ToastRequested?.Invoke(permanent
+                ? $"Deleted {project.Name}"
+                : $"Moved {project.Name} to the Recycle Bin");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
+            or OperationCanceledException)
+        {
+            await _dialogs.ShowMessageAsync("Delete project",
+                $"Could not delete {project.Name}: {ex.Message}");
+        }
+        finally
+        {
+            // A failed delete may still be partial — always rescan.
+            Rescan();
+            ShellEntriesChanged?.Invoke();
+        }
+    }
+
     public void SetDefaultRoot(string root)
     {
         _config.DefaultRoot = root;

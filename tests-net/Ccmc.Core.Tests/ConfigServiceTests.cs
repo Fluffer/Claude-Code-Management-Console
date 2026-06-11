@@ -177,4 +177,37 @@ public sealed class ConfigServiceTests : IDisposable
         Assert.NotNull(config.Projects);
         Assert.Empty(config.Projects);
     }
+
+    [Fact]
+    public void Load_NormalizesHiddenList_DroppingBlankEntries()
+    {
+        var dir = Directory.CreateTempSubdirectory("devprojects-cfg-hidden-").FullName;
+        try
+        {
+            var path = Path.Combine(dir, "config.json");
+            File.WriteAllText(path, """{"roots":[],"hidden":["C:\\Dev\\X",""," "]}""");
+
+            var config = new ConfigService(path).Load();
+
+            Assert.Equal([@"C:\Dev\X"], config.Hidden);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void Load_BackfillsHidden_WhenMissingFromOlderConfig()
+    {
+        var dir = Directory.CreateTempSubdirectory("devprojects-cfg-hidden2-").FullName;
+        try
+        {
+            var path = Path.Combine(dir, "config.json");
+            File.WriteAllText(path, """{"roots":[]}""");
+
+            var config = new ConfigService(path).Load();
+
+            Assert.NotNull(config.Hidden);
+            Assert.Empty(config.Hidden!);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
 }
