@@ -11,6 +11,8 @@
             <RowDefinition Height="*" MinHeight="180"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Spacing="6">
@@ -76,5 +78,25 @@
                       AutomationProperties.AutomationId="CloseToTrayToggle"
                       Toggled="CloseToTrayToggle_Toggled"
                       ToolTipService.ToolTip="When on, the X button hides the window to the tray icon instead of exiting. Exit via the tray menu."/>
+
+        <TextBlock x:Name="HiddenHeader" Grid.Row="5" Text="Hidden projects"
+                   ToolTipService.ToolTip="Projects removed from the list via 'Hide from console'. Their folders are untouched."/>
+
+        <Grid x:Name="HiddenGrid" Grid.Row="6" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ListView x:Name="HiddenList" Grid.Column="0" SelectionMode="Single"
+                      AutomationProperties.AutomationId="HiddenProjectsList"
+                      MaxHeight="120"
+                      BorderThickness="1"
+                      BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                      CornerRadius="{ThemeResource ControlCornerRadius}"/>
+            <Button x:Name="RestoreButton" Grid.Column="1" Content="Restore" MinWidth="92"
+                    VerticalAlignment="Top" Click="RestoreButton_Click"
+                    AutomationProperties.AutomationId="RestoreHiddenButton"
+                    ToolTipService.ToolTip="Show the selected project in the list again"/>
+        </Grid>
     </Grid>
 </ContentDialog>

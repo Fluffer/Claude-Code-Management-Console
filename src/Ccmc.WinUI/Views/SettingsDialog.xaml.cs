@@ -35,6 +35,11 @@ public sealed partial class SettingsDialog : ContentDialog
         DefaultCombo.ItemsSource = roots;
         DefaultCombo.SelectedItem = roots.FirstOrDefault(r =>
             string.Equals(r, _viewModel.Config.DefaultRoot, StringComparison.OrdinalIgnoreCase));
+        var hidden = _viewModel.HiddenProjects;
+        HiddenList.ItemsSource = hidden;
+        var hasHidden = hidden.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        HiddenHeader.Visibility = hasHidden;
+        HiddenGrid.Visibility = hasHidden;
         _loading = false;
     }
 
@@ -72,6 +77,13 @@ public sealed partial class SettingsDialog : ContentDialog
     {
         if (RootsList.SelectedItem is not string root) return;
         _viewModel.RemoveRoot(root);
+        RefreshLists();
+    }
+
+    private void RestoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (HiddenList.SelectedItem is not string path) return;
+        _viewModel.RestoreHidden(path);
         RefreshLists();
     }
 
