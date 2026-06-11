@@ -272,7 +272,10 @@ public sealed partial class MainViewModel : ObservableObject
         if (root is not null)
             filtered = filtered.Where(p => string.Equals(p.Root, root, StringComparison.OrdinalIgnoreCase));
         if (!string.IsNullOrWhiteSpace(SearchText))
-            filtered = filtered.Where(p => p.Name.Contains(SearchText.Trim(), StringComparison.OrdinalIgnoreCase));
+        {
+            var term = SearchText.Trim();
+            filtered = filtered.Where(p => ProjectSearch.Matches(p, term));
+        }
 
         var pinned = new HashSet<string>(_state.Pinned, StringComparer.OrdinalIgnoreCase);
 

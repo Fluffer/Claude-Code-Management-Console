@@ -94,4 +94,25 @@ public sealed class ProjectScannerTests : IDisposable
         Assert.Null(project.LastUsedUtc);
         Assert.Equal("", project.Flags);
     }
+
+    [Fact]
+    public void Scan_FillsDescriptionFromReadme()
+    {
+        var proj = Directory.CreateDirectory(Path.Combine(_root, "Alpha"));
+        File.WriteAllText(Path.Combine(proj.FullName, "README.md"), "# Alpha\nDoes alpha things.");
+
+        var alpha = Assert.Single(ProjectScanner.Scan(MakeConfig()));
+
+        Assert.Equal("Does alpha things.", alpha.Description);
+    }
+
+    [Fact]
+    public void Scan_EmptyDescriptionWhenNoReadmeOrClaudeMd()
+    {
+        Directory.CreateDirectory(Path.Combine(_root, "Bare"));
+
+        var project = Assert.Single(ProjectScanner.Scan(MakeConfig()));
+
+        Assert.Equal("", project.Description);
+    }
 }

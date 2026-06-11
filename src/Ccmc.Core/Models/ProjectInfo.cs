@@ -6,4 +6,5 @@ public sealed record ProjectInfo(
     string Root,
     string Path,
     DateTime? LastUsedUtc,
-    string Flags);
+    string Flags,
+    string Description = "");
