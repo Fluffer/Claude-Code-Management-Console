@@ -67,4 +67,47 @@ public static class ClaudeTrust
             return false;
         }
     }
+
+    /// <summary>
+    /// Removes a project's entry from ~\.claude.json after the project is deleted.
+    /// Same contract as EnsureTrusted: surgical merge, atomic write, no-op on a
+    /// missing/unparseable file or absent entry, fail-soft (never throws).
+    /// </summary>
+    /// <param name="claudeJsonPath">Override for the ~\.claude.json path (tests).</param>
+    /// <returns>True when an entry was removed; false otherwise.</returns>
+    public static bool RemoveTrust(string projectPath, string? claudeJsonPath = null)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath)) return false;
+        var path = projectPath.TrimEnd('\\', '/');
+        if (path.Length == 0) return false;
+
+        claudeJsonPath ??= Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude.json");
+
+        try
+        {
+            if (!File.Exists(claudeJsonPath)) return false;
+
+            if (JsonNode.Parse(File.ReadAllText(claudeJsonPath)) is not JsonObject root)
+                return false;
+
+            if (root["projects"] is not JsonObject projects) return false;
+
+            var key = projects.Select(p => p.Key)
+                .FirstOrDefault(k => string.Equals(k, path, StringComparison.OrdinalIgnoreCase));
+            if (key is null) return false; // nothing to remove — don't touch the file
+
+            projects.Remove(key);
+
+            // Atomic write: a crash mid-write must never truncate the real file.
+            var temp = claudeJsonPath + ".tmp";
+            File.WriteAllText(temp, root.ToJsonString(WriteOpts));
+            File.Move(temp, claudeJsonPath, overwrite: true);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
 }
