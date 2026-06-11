@@ -659,6 +659,25 @@ public sealed partial class MainWindow : Window
         await DialogGate.ShowAsync(dialog);
     }
 
+    private void Hide_Click(object sender, RoutedEventArgs e) =>
+        ViewModel.HideProject(ItemOf(sender));
+
+    private void Delete_Click(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is { } project) _ = ShowDeleteDialogAsync(project);
+    }
+
+    private async Task ShowDeleteDialogAsync(ProjectItemViewModel project)
+    {
+        var dialog = new DeleteProjectDialog(project.Name, project.Path, project.GitDirty == true, project.IsRunning)
+        {
+            XamlRoot = Content.XamlRoot,
+            RequestedTheme = RootGrid.RequestedTheme,
+        };
+        if (await DialogGate.ShowAsync(dialog) == ContentDialogResult.Primary)
+            await ViewModel.DeleteProjectAsync(project, dialog.Permanent);
+    }
+
     /// <summary>Right-click/context: select the row, sync VS Code visibility, rebuild the Move-to-root submenu.</summary>
     private void RowFlyout_Opening(object sender, object e)
     {

@@ -214,6 +214,18 @@
                                                                 AutomationProperties.AutomationId="OpenClaudeIgnoreMenuItem"
                                                                 ToolTipService.ToolTip="Open the project's .claudeignore in the default editor"/>
                                             </MenuFlyoutSubItem>
+                                            <MenuFlyoutSeparator/>
+                                            <MenuFlyoutItem Text="Hide from console" Click="Hide_Click"
+                                                            AutomationProperties.AutomationId="HideProjectMenuItem"
+                                                            ToolTipService.ToolTip="Remove this project from the list without touching its files. Restore it from Settings."/>
+                                            <MenuFlyoutItem Text="Delete from disk…" Click="Delete_Click"
+                                                            AutomationProperties.AutomationId="DeleteProjectMenuItem"
+                                                            ToolTipService.ToolTip="Delete the project folder and all its contents from disk.">
+                                                <MenuFlyoutItem.Icon>
+                                                    <FontIcon Glyph="&#xE74D;"
+                                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                                </MenuFlyoutItem.Icon>
+                                            </MenuFlyoutItem>
                                         </MenuFlyout>
                                     </Grid.ContextFlyout>
                                     <Grid.ColumnDefinitions>
