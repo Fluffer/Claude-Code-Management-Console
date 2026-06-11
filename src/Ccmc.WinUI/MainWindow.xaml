@@ -112,7 +112,7 @@
                              AutomationProperties.AutomationId="SearchBox"
                              PlaceholderText="Search projects   (Ctrl+F)"
                              Text="{x:Bind ViewModel.SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTipService.ToolTip="Type to filter projects by name. Ctrl+F focuses this box; Esc clears it."/>
+                             ToolTipService.ToolTip="Type to filter projects by name or description. Ctrl+F focuses this box; Esc clears it."/>
                     <ComboBox x:Name="SortCombo" Grid.Column="1" MinWidth="170"
                               AutomationProperties.AutomationId="SortCombo"
                               SelectionChanged="SortCombo_SelectionChanged"
