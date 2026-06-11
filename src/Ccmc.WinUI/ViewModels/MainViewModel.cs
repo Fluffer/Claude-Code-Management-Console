@@ -680,6 +680,9 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
         var spec = LaunchCommandBuilder.Build(project.Name, project.Path, launchFlags, continueSession, initialPrompt: initialPrompt);
+        // Tracked projects were added to the console deliberately — pre-accept Claude Code's
+        // folder-trust dialog so the session starts without the prompt. Best-effort.
+        ClaudeTrust.EnsureTrusted(project.Path);
         try
         {
             SessionLauncher.Launch(spec);
@@ -730,6 +733,8 @@ public sealed partial class MainViewModel : ObservableObject
 
         var title = $"{project.Name} [{worktree.Branch ?? "detached"}]";
         var spec = LaunchCommandBuilder.Build(title, worktree.Path, project.Flags, continueSession: false);
+        // Worktrees belong to a tracked (hence trusted) project — pre-trust them too.
+        ClaudeTrust.EnsureTrusted(worktree.Path);
         try
         {
             SessionLauncher.Launch(spec);
