@@ -10,6 +10,9 @@ public sealed class LauncherConfig
     public List<string>? Roots { get; set; }
     public string? DefaultRoot { get; set; }
     public List<string>? Ignore { get; set; }
+    /// <summary>Full project paths hidden from the console via "Hide from console" (path-based,
+    /// unlike the name-based Ignore list inherited from the PowerShell launcher).</summary>
+    public List<string>? Hidden { get; set; }
     public Dictionary<string, ProjectUsage>? Projects { get; set; }
 
     public static LauncherConfig CreateDefault() => new()
@@ -19,6 +22,7 @@ public sealed class LauncherConfig
         Roots = [],
         DefaultRoot = null,
         Ignore = [],
+        Hidden = [],
         Projects = new Dictionary<string, ProjectUsage>(StringComparer.OrdinalIgnoreCase),
     };
 }

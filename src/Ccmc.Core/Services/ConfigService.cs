@@ -140,11 +140,13 @@ public sealed class ConfigService
         config.Roots ??= defaults.Roots;
         config.DefaultRoot ??= defaults.DefaultRoot;
         config.Ignore ??= [];
+        config.Hidden ??= [];
         // Re-wrap to guarantee case-insensitive path keys regardless of how JSON deserialized it.
         config.Projects = config.Projects is null
             ? new Dictionary<string, ProjectUsage>(StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, ProjectUsage>(config.Projects, StringComparer.OrdinalIgnoreCase);
         config.Roots = config.Roots!.Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
         config.Ignore = config.Ignore!.Where(i => !string.IsNullOrWhiteSpace(i)).ToList();
+        config.Hidden = config.Hidden!.Where(h => !string.IsNullOrWhiteSpace(h)).ToList();
     }
 }
