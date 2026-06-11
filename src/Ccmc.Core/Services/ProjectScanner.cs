@@ -35,7 +35,8 @@ public static class ProjectScanner
                     flags = usage.Flags ?? "";
                 }
 
-                projects.Add(new ProjectInfo(dir.Name, root, dir.FullName, lastUsed, flags));
+                projects.Add(new ProjectInfo(dir.Name, root, dir.FullName, lastUsed, flags,
+                    ProjectDescription.Get(dir.FullName)));
             }
         }
         return projects;
