@@ -669,7 +669,7 @@ public sealed partial class MainWindow : Window
 
     private async Task ShowDeleteDialogAsync(ProjectItemViewModel project)
     {
-        var dialog = new DeleteProjectDialog(project.Name, project.Path, project.GitDirty == true, project.IsRunning)
+        var dialog = new DeleteProjectDialog(project.Name, project.Path, project.GitDirty != false, project.IsRunning)
         {
             XamlRoot = Content.XamlRoot,
             RequestedTheme = RootGrid.RequestedTheme,

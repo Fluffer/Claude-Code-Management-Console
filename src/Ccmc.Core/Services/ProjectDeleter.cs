@@ -46,10 +46,10 @@ public static class ProjectDeleter
             fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI,
         };
         var result = SHFileOperationW(ref op);
-        if (op.fAnyOperationsAborted)
-            throw new OperationCanceledException("The delete operation was cancelled.");
         if (result != 0)
             throw new IOException($"Could not move the folder to the Recycle Bin (shell error 0x{result:X}).");
+        if (op.fAnyOperationsAborted)
+            throw new OperationCanceledException("The delete operation was cancelled.");
     }
 
     private const uint FO_DELETE = 3;

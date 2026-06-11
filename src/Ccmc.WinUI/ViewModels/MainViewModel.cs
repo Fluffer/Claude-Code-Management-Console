@@ -1069,6 +1069,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ---------- Hide / delete projects ----------
 
+    private void RemovePin(string path) =>
+        _state.Pinned.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Hides a project from the list (path-based, non-destructive). Restore via Settings.</summary>
     public void HideProject(ProjectItemViewModel? project)
     {
@@ -1076,7 +1079,7 @@ public sealed partial class MainViewModel : ObservableObject
         _config.Hidden ??= [];
         if (!_config.Hidden.Contains(project.Path, StringComparer.OrdinalIgnoreCase))
             _config.Hidden.Add(project.Path);
-        _state.Pinned.RemoveAll(p => string.Equals(p, project.Path, StringComparison.OrdinalIgnoreCase));
+        RemovePin(project.Path);
         _stateService.Save(_state);
         _configService.Save(_config);
         Rescan();
@@ -1104,9 +1107,10 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             await Task.Run(() => ProjectDeleter.Delete(project.Path, permanent));
-            _state.Pinned.RemoveAll(p => string.Equals(p, project.Path, StringComparison.OrdinalIgnoreCase));
+            RemovePin(project.Path);
             _stateService.Save(_state);
             _config.Projects?.Remove(project.Path);
+            _config.Hidden?.RemoveAll(p => string.Equals(p, project.Path, StringComparison.OrdinalIgnoreCase));
             _configService.Save(_config);
             ClaudeTrust.RemoveTrust(project.Path);
             ToastRequested?.Invoke(permanent
@@ -1114,7 +1118,7 @@ public sealed partial class MainViewModel : ObservableObject
                 : $"Moved {project.Name} to the Recycle Bin");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException
-            or OperationCanceledException or DirectoryNotFoundException)
+            or OperationCanceledException)
         {
             await _dialogs.ShowMessageAsync("Delete project",
                 $"Could not delete {project.Name}: {ex.Message}");

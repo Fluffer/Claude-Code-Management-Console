@@ -17,7 +17,7 @@
                    Style="{StaticResource CaptionTextBlockStyle}"/>
         <InfoBar x:Name="DirtyBar" Severity="Warning" IsOpen="False" IsClosable="False"
                  Title="Uncommitted changes"
-                 Message="This repository has uncommitted changes that will be lost."/>
+                 Message="This repository may have uncommitted changes that will be lost."/>
         <InfoBar x:Name="RunningBar" Severity="Error" IsOpen="False" IsClosable="False"
                  Title="Session running"
                  Message="A Claude session is running in this project. Stop it first (right-click → Stop session)."/>
