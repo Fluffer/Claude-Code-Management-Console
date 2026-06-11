@@ -16,6 +16,11 @@ public sealed partial class ProjectItemViewModel : ObservableObject
     public DateTime? LastUsedUtc => Info.LastUsedUtc;
     public string LastUsedText => RelativeTimeFormatter.Format(Info.LastUsedUtc);
 
+    /// <summary>One-line description extracted from README.md/CLAUDE.md; empty when none.</summary>
+    public string Description => Info.Description;
+
+    public bool HasDescription => Info.Description.Length > 0;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CurrentModel))]
     [NotifyPropertyChangedFor(nameof(CurrentModelLabel))]
