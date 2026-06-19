@@ -1,0 +1,31 @@
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import type { AppState } from '../../core/models'
+import { parseState, serializeState } from '../../core/config/configSerialization'
+import { writeFileAtomic, readFileUtf8 } from '../os/atomicFile'
+
+/**
+ * Loads state.json from `statePath`.
+ * - Absent file → returns default AppState.
+ * - Corrupt/invalid → returns default AppState silently (state is not precious).
+ * - IO error → returns default without touching the file.
+ *
+ * Matches C# StateService.Load semantics: corrupt state is replaced with
+ * defaults without quarantine (unlike config, there is no .bad rename).
+ */
+export async function loadState(statePath: string): Promise<AppState> {
+  const contents = await readFileUtf8(statePath)
+  if (contents === null) return parseState('{}')
+  return parseState(contents)
+}
+
+/**
+ * Saves `state` to `statePath` atomically (UTF-8 without BOM).
+ * Creates parent directories as needed.
+ */
+export async function saveState(statePath: string, state: AppState): Promise<void> {
+  const dir = path.dirname(statePath)
+  await fs.mkdir(dir, { recursive: true })
+  const serialized = serializeState(state)
+  await writeFileAtomic(statePath, serialized)
+}
