@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["vitest/globals"]
   },
-  "include": ["src/core/**/*", "tests/**/*"]
+  "include": ["src/core/**/*", "src/shared/**/*", "tests/**/*"]
 }
