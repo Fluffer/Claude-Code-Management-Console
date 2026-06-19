@@ -24,6 +24,10 @@ export const IPC = Object.freeze({
   STATE_READ: 'state:read',
   STATE_WRITE: 'state:write',
   PROJECTS_SCAN: 'projects:scan',
+  PROJECTS_CREATE: 'projects:create',
+  PROJECTS_RENAME: 'projects:rename',
+  PROJECTS_DELETE: 'projects:delete',
+  PROJECTS_CLAUDE_INFO: 'projects:claudeInfo',
   SESSIONS_LIST_HISTORY: 'sessions:listHistory',
   SESSIONS_LIST_RUNNING: 'sessions:listRunning',
   SESSIONS_KILL: 'sessions:kill',
@@ -49,6 +53,13 @@ export interface IpcMap {
   'state:read': { req: void; res: AppState }
   'state:write': { req: AppState; res: void }
   'projects:scan': { req: { root: string }; res: ProjectInfo[] }
+  'projects:create': { req: { root: string; name: string }; res: { path: string } }
+  'projects:rename': { req: { path: string; newName: string }; res: { path: string } }
+  'projects:delete': { req: { path: string; permanent: boolean }; res: { ok: boolean } }
+  'projects:claudeInfo': {
+    req: { path: string }
+    res: { hasClaudeMd: boolean; claudeMdFilename: string | null; hasMcp: boolean }
+  }
   'sessions:listHistory': { req: { projectPath?: string }; res: SessionSummary[] }
   'sessions:listRunning': { req: void; res: RunningSession[] }
   'sessions:kill': { req: { pid: number }; res: { ok: boolean } }

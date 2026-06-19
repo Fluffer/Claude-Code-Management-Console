@@ -14,6 +14,10 @@ import { listSessions } from '../services/claudeSessionStore'
 import { getBranchInfo, getIsDirty, getWorktrees } from '../services/gitRunner'
 import { readEnv, writeEnv } from '../services/envFileStore'
 import { readMcp } from '../services/mcpStore'
+import { createProjectFolder } from '../services/projectFolderCreator'
+import { renameProject } from '../services/projectMover'
+import { deleteProject } from '../services/projectDeleter'
+import { claudeMdPath, hasClaudeMdInProject } from '../services/projectClaudeStore'
 
 // ---------------------------------------------------------------------------
 // Deps
@@ -130,6 +134,67 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const config = await loadConfig(configPath)
       const rootConfig = { ...config, roots: [root] }
       return scanProjects(rootConfig)
+    },
+
+    // -----------------------------------------------------------------------
+    // projects:create
+    // -----------------------------------------------------------------------
+    'projects:create': async (req) => {
+      const obj = requireObject(req, 'req')
+      const root = requireString(obj['root'], 'root')
+      const name = requireString(obj['name'], 'name')
+      const newPath = await createProjectFolder(root, name)
+      return { path: newPath }
+    },
+
+    // -----------------------------------------------------------------------
+    // projects:rename
+    // -----------------------------------------------------------------------
+    'projects:rename': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['path'], 'path')
+      const newName = requireString(obj['newName'], 'newName')
+      const newPath = await renameProject(projectPath, newName)
+      return { path: newPath }
+    },
+
+    // -----------------------------------------------------------------------
+    // projects:delete
+    // -----------------------------------------------------------------------
+    'projects:delete': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['path'], 'path')
+      const permanent = obj['permanent']
+      if (typeof permanent !== 'boolean') {
+        throw new TypeError(`IPC validation: 'permanent' must be a boolean, got ${typeof permanent}`)
+      }
+      if (!permanent) {
+        throw new Error(
+          'Soft delete not yet implemented: Recycle Bin support requires a native addon. ' +
+          'Check the "Permanently delete" checkbox to permanently remove the folder.',
+        )
+      }
+      await deleteProject(projectPath)
+      return { ok: true }
+    },
+
+    // -----------------------------------------------------------------------
+    // projects:claudeInfo
+    // -----------------------------------------------------------------------
+    'projects:claudeInfo': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['path'], 'path')
+      const [hasClaude, mdPath, mcpServers] = await Promise.all([
+        hasClaudeMdInProject(projectPath),
+        claudeMdPath(projectPath),
+        readMcp(projectPath),
+      ])
+      const filename = mdPath !== null ? mdPath.split(/[\\/]/).pop() ?? null : null
+      return {
+        hasClaudeMd: hasClaude,
+        claudeMdFilename: filename,
+        hasMcp: mcpServers.length > 0,
+      }
     },
 
     // -----------------------------------------------------------------------

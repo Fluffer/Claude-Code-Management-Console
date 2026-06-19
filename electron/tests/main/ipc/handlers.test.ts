@@ -561,3 +561,213 @@ describe('dialog:pickFolder', () => {
     expect(result).toEqual({ path: null })
   })
 })
+
+// ---------------------------------------------------------------------------
+// projects:create
+// ---------------------------------------------------------------------------
+
+describe('projects:create', () => {
+  it('creates a folder and returns its path', async () => {
+    const root = path.join(tmpDir, 'roots')
+    await fs.mkdir(root)
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['projects:create']({ root, name: 'new-proj' })
+    expect(result.path).toBe(path.join(root, 'new-proj'))
+
+    const stat = await fs.stat(result.path)
+    expect(stat.isDirectory()).toBe(true)
+  })
+
+  it('throws when root is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:create']({ name: 'x' })).rejects.toThrow()
+  })
+
+  it('throws when name is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:create']({ root: tmpDir })).rejects.toThrow()
+  })
+
+  it('throws when name contains invalid characters', async () => {
+    const root = path.join(tmpDir, 'roots2')
+    await fs.mkdir(root)
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    await expect(handlers['projects:create']({ root, name: 'bad:name' })).rejects.toThrow()
+  })
+
+  it('throws on malformed payload (null)', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:create'](null)).rejects.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// projects:rename
+// ---------------------------------------------------------------------------
+
+describe('projects:rename', () => {
+  it('renames the folder and returns new path', async () => {
+    const projectDir = path.join(tmpDir, 'old-name')
+    await fs.mkdir(projectDir)
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['projects:rename']({ path: projectDir, newName: 'new-name' })
+    expect(result.path).toBe(path.join(tmpDir, 'new-name'))
+
+    const stat = await fs.stat(result.path)
+    expect(stat.isDirectory()).toBe(true)
+  })
+
+  it('throws when path is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:rename']({ newName: 'x' })).rejects.toThrow()
+  })
+
+  it('throws when newName is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:rename']({ path: tmpDir })).rejects.toThrow()
+  })
+
+  it('throws on malformed payload (null)', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:rename'](null)).rejects.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// projects:delete
+// ---------------------------------------------------------------------------
+
+describe('projects:delete', () => {
+  it('permanently deletes the folder when permanent=true', async () => {
+    const projectDir = path.join(tmpDir, 'to-delete')
+    await fs.mkdir(projectDir)
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['projects:delete']({ path: projectDir, permanent: true })
+    expect(result.ok).toBe(true)
+
+    const exists = await fs.stat(projectDir).then(() => true).catch(() => false)
+    expect(exists).toBe(false)
+  })
+
+  it('throws when permanent=false (soft delete not yet implemented)', async () => {
+    const projectDir = path.join(tmpDir, 'to-soft-delete')
+    await fs.mkdir(projectDir)
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    await expect(
+      handlers['projects:delete']({ path: projectDir, permanent: false }),
+    ).rejects.toThrow(/soft delete not yet implemented/i)
+  })
+
+  it('throws when path is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:delete']({ permanent: true })).rejects.toThrow()
+  })
+
+  it('throws on malformed payload (null)', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:delete'](null)).rejects.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// projects:claudeInfo
+// ---------------------------------------------------------------------------
+
+describe('projects:claudeInfo', () => {
+  it('returns hasClaudeMd=true when CLAUDE.md exists', async () => {
+    const projectDir = path.join(tmpDir, 'project-with-claude')
+    await fs.mkdir(projectDir)
+    await fs.writeFile(path.join(projectDir, 'CLAUDE.md'), '# Claude')
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['projects:claudeInfo']({ path: projectDir })
+    expect(result.hasClaudeMd).toBe(true)
+    expect(result.claudeMdFilename).toBe('CLAUDE.md')
+    expect(result.hasMcp).toBe(false)
+  })
+
+  it('returns hasClaudeMd=false when CLAUDE.md absent', async () => {
+    const projectDir = path.join(tmpDir, 'project-no-claude')
+    await fs.mkdir(projectDir)
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['projects:claudeInfo']({ path: projectDir })
+    expect(result.hasClaudeMd).toBe(false)
+    expect(result.claudeMdFilename).toBeNull()
+    expect(result.hasMcp).toBe(false)
+  })
+
+  it('returns hasMcp=true when .mcp.json has servers', async () => {
+    const projectDir = path.join(tmpDir, 'project-with-mcp')
+    await fs.mkdir(projectDir)
+    await fs.writeFile(
+      path.join(projectDir, '.mcp.json'),
+      JSON.stringify({ mcpServers: { myServer: { command: 'npx', args: [] } } }),
+    )
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['projects:claudeInfo']({ path: projectDir })
+    expect(result.hasMcp).toBe(true)
+  })
+
+  it('throws when path is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:claudeInfo']({})).rejects.toThrow()
+  })
+
+  it('throws on malformed payload (null)', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['projects:claudeInfo'](null)).rejects.toThrow()
+  })
+})
