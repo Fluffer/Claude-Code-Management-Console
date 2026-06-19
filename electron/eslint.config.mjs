@@ -32,5 +32,45 @@ export default [
     settings: {
       react: { version: 'detect' }
     }
+  },
+  {
+    files: ['src/core/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['electron', 'electron/*'],
+              message: 'src/core must be pure TypeScript — no Electron imports.'
+            },
+            {
+              group: ['fs', 'node:fs', 'fs/promises', 'node:fs/promises'],
+              message: 'src/core must be pure TypeScript — no fs imports.'
+            },
+            {
+              group: ['child_process', 'node:child_process'],
+              message: 'src/core must be pure TypeScript — no child_process imports.'
+            },
+            {
+              group: ['os', 'node:os'],
+              message: 'src/core must be pure TypeScript — no os imports.'
+            },
+            {
+              group: ['worker_threads', 'node:worker_threads'],
+              message: 'src/core must be pure TypeScript — no worker_threads imports.'
+            },
+            {
+              group: ['net', 'node:net'],
+              message: 'src/core must be pure TypeScript — no net imports.'
+            },
+            {
+              group: ['dgram', 'node:dgram'],
+              message: 'src/core must be pure TypeScript — no dgram imports.'
+            }
+          ]
+        }
+      ]
+    }
   }
 ]

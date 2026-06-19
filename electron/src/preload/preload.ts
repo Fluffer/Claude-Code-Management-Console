@@ -10,6 +10,6 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (fallback for development without contextIsolation — should not occur)
+  // @ts-expect-error (fallback for development without contextIsolation — should not occur)
   window.electron = electronAPI
 }
