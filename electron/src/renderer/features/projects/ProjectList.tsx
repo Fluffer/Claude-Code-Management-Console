@@ -5,6 +5,7 @@ import { ProjectRow } from './ProjectRow'
 import { ContextMenu } from './ContextMenu'
 import type { ProjectInfo, RunningSession } from '../../../core/models'
 import type { ProjectAction } from './projectActions'
+import type { ProjectEnrichment } from './ProjectRow'
 
 interface ProjectListProps {
   projects: ProjectInfo[]
@@ -13,6 +14,7 @@ interface ProjectListProps {
   searchText: string
   runningSessions: RunningSession[]
   pinnedPaths: string[]
+  enrichments?: Record<string, ProjectEnrichment>
   onAction: (action: ProjectAction) => void
   onRetry: () => void
 }
@@ -34,6 +36,7 @@ export function ProjectList({
   searchText,
   runningSessions,
   pinnedPaths,
+  enrichments = {},
   onAction,
   onRetry,
 }: ProjectListProps): React.ReactElement {
@@ -101,7 +104,7 @@ export function ProjectList({
             project={project}
             isRunning={runningSet.has(project.path.toLowerCase())}
             isPinned={pinnedSet.has(project.path.toLowerCase())}
-            enrichment={null}
+            enrichment={enrichments[project.path] ?? null}
             onAction={onAction}
           />
           {contextMenuProject?.path === project.path && contextMenuPos && (
