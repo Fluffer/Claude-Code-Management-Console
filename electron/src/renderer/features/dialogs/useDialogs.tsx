@@ -1,8 +1,8 @@
 /**
  * useDialogs — dialog host context for the main window.
  *
- * Provides a single mount point for all dialogs so that batch 4N can add
- * more dialogs without touching App.tsx. The host renders the currently-
+ * Provides a single mount point for all dialogs so that callers can open any dialog
+ * via openDialog(request) without touching App.tsx. The host renders the currently-
  * active dialog (at most one at a time) and provides an `openDialog` dispatch
  * function that callers (App's onAction switch) call to show a dialog.
  *
@@ -10,10 +10,6 @@
  * variants. Each variant carries the data the dialog needs. The host renders
  * the matching component with `open={true}` and the shared `onClose`/`onRefresh`
  * callbacks.
- *
- * Extensibility for batch 4N: add a new variant to DialogRequest, add a case
- * in the host's render switch, and add a case in `openDialog`. Zero App.tsx
- * changes required.
  */
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react'
 import { NewProjectDialog } from './NewProjectDialog'
@@ -21,6 +17,14 @@ import { RenameProjectDialog } from './RenameProjectDialog'
 import { DeleteProjectDialog } from './DeleteProjectDialog'
 import { QuickPromptDialog } from './QuickPromptDialog'
 import { ResumeSessionDialog } from './ResumeSessionDialog'
+import { EnvEditorDialog } from './EnvEditorDialog'
+import { McpViewerDialog } from './McpViewerDialog'
+import { GroupManagerDialog } from './GroupManagerDialog'
+import { ProfileManagerDialog } from './ProfileManagerDialog'
+import { SavedFilterDialog } from './SavedFilterDialog'
+import { SettingsDialog } from './SettingsDialog'
+import { WorktreePickerDialog } from './WorktreePickerDialog'
+import { HelpDialog } from './HelpDialog'
 import type { ProjectInfo } from '../../../core/models'
 
 // ---------------------------------------------------------------------------
@@ -33,6 +37,14 @@ export type DialogRequest =
   | { kind: 'delete'; project: ProjectInfo; gitDirty: boolean | null; isRunning: boolean }
   | { kind: 'quick-prompt'; project: ProjectInfo }
   | { kind: 'resume-session'; project: ProjectInfo }
+  | { kind: 'edit-env'; project: ProjectInfo }
+  | { kind: 'view-mcp'; project: ProjectInfo }
+  | { kind: 'manage-groups'; projects: ProjectInfo[] }
+  | { kind: 'manage-profiles' }
+  | { kind: 'manage-filters' }
+  | { kind: 'settings' }
+  | { kind: 'pick-worktree'; project: ProjectInfo }
+  | { kind: 'help' }
 
 // ---------------------------------------------------------------------------
 // Context
@@ -120,6 +132,71 @@ export function DialogsProvider({
         <ResumeSessionDialog
           open={true}
           project={active.project}
+          onClose={handleClose}
+        />
+      )}
+
+      {active?.kind === 'edit-env' && (
+        <EnvEditorDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'view-mcp' && (
+        <McpViewerDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
+        />
+      )}
+
+      {active?.kind === 'manage-groups' && (
+        <GroupManagerDialog
+          open={true}
+          projects={active.projects}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'manage-profiles' && (
+        <ProfileManagerDialog
+          open={true}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'manage-filters' && (
+        <SavedFilterDialog
+          open={true}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'settings' && (
+        <SettingsDialog
+          open={true}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'pick-worktree' && (
+        <WorktreePickerDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
+        />
+      )}
+
+      {active?.kind === 'help' && (
+        <HelpDialog
+          open={true}
           onClose={handleClose}
         />
       )}

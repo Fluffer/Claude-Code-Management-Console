@@ -53,17 +53,21 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
     void window.ccmc.invoke('config:read').then(setConfig)
   }, [])
 
-  // Ctrl+K / Cmd+K opens command palette
+  // Ctrl+K / Cmd+K opens command palette; F1 opens help
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
         setPaletteOpen((o) => !o)
       }
+      if (e.key === 'F1') {
+        e.preventDefault()
+        openDialog({ kind: 'help' })
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [openDialog])
 
   // Notify DialogsProvider of latest refresh function
   useEffect(() => {
@@ -145,12 +149,26 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
         }
 
         case 'stop-session':
+          // TODO: confirm + kill session (sessions:kill IPC) — future batch
+          break
+
         case 'launch-worktree':
-          // batch 4N
+          openDialog({ kind: 'pick-worktree', project: action.project })
+          break
+
+        case 'edit-env':
+          openDialog({ kind: 'edit-env', project: action.project })
+          break
+
+        case 'view-mcp':
+          openDialog({ kind: 'view-mcp', project: action.project })
+          break
+
+        case 'apply-profile':
+          openDialog({ kind: 'manage-profiles' })
           break
 
         default:
-          // Other dialog actions — batches 4N register handlers
           break
       }
     },
@@ -175,7 +193,7 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
             selected={effectiveSidebar}
             onSelect={setSelectedSidebar}
             onSettingsClick={() => {
-              /* settings dialog — batch 4N */
+              openDialog({ kind: 'settings' })
             }}
           />
         </aside>
