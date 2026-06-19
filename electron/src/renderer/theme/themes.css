@@ -1,0 +1,169 @@
+/*
+ * Fluent-ish CSS custom property theme definitions.
+ *
+ * C# brush name → CSS var mapping (sourced from WinUI ThemeResource defaults):
+ *
+ *  SystemAccentColor                    → --accent
+ *  SystemAccentColorLight1/2/3          → --accent-light1, --accent-light2, --accent-light3
+ *  SystemAccentColorDark1/2/3           → --accent-dark1, --accent-dark2, --accent-dark3
+ *  AccentFillColorDefaultBrush          → --accent-fill
+ *  AccentFillColorSecondaryBrush        → --accent-fill-secondary
+ *  AccentFillColorTertiaryBrush         → --accent-fill-tertiary
+ *  TextOnAccentFillColorPrimaryBrush    → --text-on-accent
+ *  ApplicationPageBackgroundThemeBrush  → --surface
+ *  LayerFillColorDefaultBrush           → --layer
+ *  SubtleFillColorSecondaryBrush        → --subtle-fill
+ *  DividerStrokeColorDefaultBrush       → --divider
+ *  SurfaceStrokeColorFlyoutBrush        → --flyout-border
+ *  TextFillColorPrimaryBrush            → --text-primary
+ *  TextFillColorSecondaryBrush          → --text-secondary
+ *  TextFillColorTertiaryBrush           → --text-tertiary
+ *  TextFillColorDisabledBrush           → --text-disabled
+ *  SystemFillColorSuccessBrush          → --fill-success
+ *  SystemFillColorCautionBrush          → --fill-caution
+ *  SystemFillColorCriticalBrush         → --fill-critical
+ *  SystemFillColorAttentionBrush        → --fill-attention
+ *  SmokeFillColorDefaultBrush           → --smoke
+ *  AcrylicBackgroundFillColorDefaultBrush → --acrylic-bg
+ *  ControlFillColorDefaultBrush         → --control-fill
+ *  ControlFillColorSecondaryBrush       → --control-fill-secondary
+ *  ControlFillColorDisabledBrush        → --control-fill-disabled
+ *  ControlStrokeColorDefaultBrush       → --control-border
+ *  ControlStrokeColorSecondaryBrush     → --control-border-secondary
+ *  ContentControlThemeFontFamily        → font-family on :root (Segoe UI Variable)
+ *
+ * Accent defaults: Blue #0078D4 (Accents.cs — Windows system default).
+ */
+
+/* --------------------------------------------------------------------------
+ * Light theme
+ * -------------------------------------------------------------------------- */
+:root,
+[data-theme="light"] {
+  --accent:               #0078d4;
+  --accent-light1:        #1a86d9;
+  --accent-light2:        #3394de;
+  --accent-light3:        #4da3e4;
+  --accent-dark1:         #0067b4;
+  --accent-dark2:         #005694;
+  --accent-dark3:         #004574;
+
+  --accent-fill:          #0078d4;
+  --accent-fill-secondary:rgba(0, 120, 212, 0.90);
+  --accent-fill-tertiary: rgba(0, 120, 212, 0.80);
+  --text-on-accent:       #ffffff;
+
+  --surface:              #f3f3f3;
+  --layer:                rgba(255, 255, 255, 0.70);
+  --subtle-fill:          rgba(0, 0, 0, 0.04);
+  --divider:              rgba(0, 0, 0, 0.08);
+  --flyout-border:        rgba(0, 0, 0, 0.08);
+  --smoke:                rgba(0, 0, 0, 0.30);
+  --acrylic-bg:           rgba(243, 243, 243, 0.85);
+
+  --text-primary:         rgba(0, 0, 0, 0.89);
+  --text-secondary:       rgba(0, 0, 0, 0.60);
+  --text-tertiary:        rgba(0, 0, 0, 0.45);
+  --text-disabled:        rgba(0, 0, 0, 0.36);
+
+  --control-fill:         rgba(255, 255, 255, 0.70);
+  --control-fill-secondary:rgba(249, 249, 249, 0.50);
+  --control-fill-disabled: rgba(249, 249, 249, 0.30);
+  --control-border:       rgba(0, 0, 0, 0.06);
+  --control-border-secondary:rgba(0, 0, 0, 0.15);
+
+  --fill-success:         #0f7b0f;
+  --fill-caution:         #9d5d00;
+  --fill-critical:        #c42b1c;
+  --fill-attention:       #0078d4;
+
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+ * Dark theme
+ * -------------------------------------------------------------------------- */
+[data-theme="dark"] {
+  --accent:               #60cdff;
+  --accent-light1:        #78d4ff;
+  --accent-light2:        #90dcff;
+  --accent-light3:        #a8e4ff;
+  --accent-dark1:         #4db8e8;
+  --accent-dark2:         #3aa3d1;
+  --accent-dark3:         #278eba;
+
+  --accent-fill:          #60cdff;
+  --accent-fill-secondary:rgba(96, 205, 255, 0.90);
+  --accent-fill-tertiary: rgba(96, 205, 255, 0.80);
+  --text-on-accent:       #000000;
+
+  --surface:              #202020;
+  --layer:                rgba(255, 255, 255, 0.06);
+  --subtle-fill:          rgba(255, 255, 255, 0.06);
+  --divider:              rgba(255, 255, 255, 0.08);
+  --flyout-border:        rgba(255, 255, 255, 0.08);
+  --smoke:                rgba(0, 0, 0, 0.50);
+  --acrylic-bg:           rgba(32, 32, 32, 0.85);
+
+  --text-primary:         rgba(255, 255, 255, 0.89);
+  --text-secondary:       rgba(255, 255, 255, 0.60);
+  --text-tertiary:        rgba(255, 255, 255, 0.45);
+  --text-disabled:        rgba(255, 255, 255, 0.36);
+
+  --control-fill:         rgba(255, 255, 255, 0.06);
+  --control-fill-secondary:rgba(255, 255, 255, 0.08);
+  --control-fill-disabled: rgba(255, 255, 255, 0.04);
+  --control-border:       rgba(255, 255, 255, 0.08);
+  --control-border-secondary:rgba(255, 255, 255, 0.15);
+
+  --fill-success:         #6ccb5f;
+  --fill-caution:         #fce100;
+  --fill-critical:        #ff99a4;
+  --fill-attention:       #60cdff;
+
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* --------------------------------------------------------------------------
+ * High Contrast theme (Windows 11 high contrast white/black inspired)
+ * -------------------------------------------------------------------------- */
+[data-theme="high-contrast"] {
+  --accent:               #1aebff;
+  --accent-light1:        #4af0ff;
+  --accent-light2:        #79f5ff;
+  --accent-light3:        #a9faff;
+  --accent-dark1:         #00c8d7;
+  --accent-dark2:         #00a5b0;
+  --accent-dark3:         #008289;
+
+  --accent-fill:          #1aebff;
+  --accent-fill-secondary:#1aebff;
+  --accent-fill-tertiary: #1aebff;
+  --text-on-accent:       #000000;
+
+  --surface:              #000000;
+  --layer:                #000000;
+  --subtle-fill:          transparent;
+  --divider:              #ffffff;
+  --flyout-border:        #ffffff;
+  --smoke:                rgba(0, 0, 0, 0.80);
+  --acrylic-bg:           #000000;
+
+  --text-primary:         #ffffff;
+  --text-secondary:       #ffffff;
+  --text-tertiary:        #c0c0c0;
+  --text-disabled:        #6d6d6d;
+
+  --control-fill:         #000000;
+  --control-fill-secondary:#000000;
+  --control-fill-disabled: #000000;
+  --control-border:       #ffffff;
+  --control-border-secondary:#ffffff;
+
+  --fill-success:         #00ff00;
+  --fill-caution:         #ffff00;
+  --fill-critical:        #ff0000;
+  --fill-attention:       #1aebff;
+
+  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+}
