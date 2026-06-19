@@ -12,7 +12,7 @@
  * the UI refreshes when the file system changes (e.g., git commit).
  */
 import { useState, useEffect, useRef } from 'react'
-import type { ProjectInfo, GitInfo } from '../../core/models'
+import type { ProjectInfo } from '../../core/models'
 import type { ProjectEnrichment } from '../features/projects/ProjectRow'
 
 const CONCURRENCY_LIMIT = 8
@@ -76,17 +76,20 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
       const tasks = projects.map((project) => async (): Promise<void> => {
         if (cancelled) return
         try {
-          const gitInfo: GitInfo = await window.ccmc.invoke('git:info', { path: project.path })
+          const [gitInfo, claudeInfo] = await Promise.all([
+            window.ccmc.invoke('git:info', { path: project.path }),
+            window.ccmc.invoke('projects:claudeInfo', { path: project.path }),
+          ])
           if (cancelled || !mountedRef.current) return
 
           const enrichment: ProjectEnrichment = {
             gitBranch: gitInfo.branch ?? null,
             gitDirty: gitInfo.isDirty ?? null,
-            hasClaudeMd: false, // CLAUDE.md presence — no dedicated IPC channel available; defaulting false
-            hasMcp: false,      // MCP presence — no dedicated IPC channel available; defaulting false
+            hasClaudeMd: claudeInfo.hasClaudeMd,
+            hasMcp: claudeInfo.hasMcp,
             hasSettingsError: false,
             settingsError: '',
-            hasSession: true,   // conservative default until sessions:listHistory is checked
+            hasSession: true,
             isStale: project.lastUsedUtc
               ? Date.now() - new Date(project.lastUsedUtc).getTime() > 7 * 24 * 60 * 60 * 1000
               : false,
@@ -94,7 +97,7 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
 
           setEnrichments((prev) => ({ ...prev, [project.path]: enrichment }))
         } catch {
-          // git:info failed (not a git repo, git not found, etc.) — leave enrichment absent
+          // git:info or projects:claudeInfo failed — leave enrichment absent
         }
       })
 

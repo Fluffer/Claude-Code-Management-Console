@@ -13,6 +13,8 @@ const GIT_INFO_ALPHA: GitInfo = { branch: 'main', isDirty: false }
 const GIT_INFO_BETA: GitInfo = { branch: 'feat/x', isDirty: true }
 
 describe('useProjectEnrichment', () => {
+  const CLAUDE_INFO_DEFAULT = { hasClaudeMd: false, claudeMdFilename: null, hasMcp: false }
+
   beforeEach(() => {
     installMockCcmc()
     const invoke = getMockInvoke()
@@ -22,6 +24,7 @@ describe('useProjectEnrichment', () => {
         if (r.path === '/r1/alpha') return GIT_INFO_ALPHA
         if (r.path === '/r1/beta') return GIT_INFO_BETA
       }
+      if (channel === 'projects:claudeInfo') return CLAUDE_INFO_DEFAULT
       throw new Error(`[test] Unhandled channel: ${channel}`)
     })
   })
@@ -75,11 +78,12 @@ describe('useProjectEnrichment', () => {
   it('handles git:info failure gracefully (null enrichment for that project)', async () => {
     const invoke = getMockInvoke()
     invoke.mockImplementation(async (channel: string, req: unknown) => {
+      const r = req as { path: string }
       if (channel === 'git:info') {
-        const r = req as { path: string }
         if (r.path === '/r1/alpha') throw new Error('git not found')
         if (r.path === '/r1/beta') return GIT_INFO_BETA
       }
+      if (channel === 'projects:claudeInfo') return CLAUDE_INFO_DEFAULT
       throw new Error(`Unhandled: ${channel}`)
     })
     const { result } = renderHook(() =>
@@ -88,6 +92,32 @@ describe('useProjectEnrichment', () => {
     await waitFor(() => expect(result.current.enrichments['/r1/beta']).toBeDefined())
     // alpha enrichment is null or has fallback values on error
     expect(result.current.enrichments['/r1/alpha']).toBeUndefined()
+  })
+
+  it('calls projects:claudeInfo for each project and populates hasClaudeMd/hasMcp', async () => {
+    const invoke = getMockInvoke()
+    invoke.mockImplementation(async (channel: string, req: unknown) => {
+      const r = req as { path: string }
+      if (channel === 'git:info') {
+        if (r.path === '/r1/alpha') return GIT_INFO_ALPHA
+        if (r.path === '/r1/beta') return GIT_INFO_BETA
+      }
+      if (channel === 'projects:claudeInfo') {
+        if (r.path === '/r1/alpha') return { hasClaudeMd: true, claudeMdFilename: 'CLAUDE.md', hasMcp: false }
+        if (r.path === '/r1/beta') return { hasClaudeMd: false, claudeMdFilename: null, hasMcp: true }
+      }
+      throw new Error(`[test] Unhandled channel: ${channel}`)
+    })
+
+    const { result } = renderHook(() => useProjectEnrichment(PROJECTS))
+    await waitFor(() => {
+      expect(result.current.enrichments['/r1/alpha']).toBeDefined()
+      expect(result.current.enrichments['/r1/beta']).toBeDefined()
+    })
+    expect(result.current.enrichments['/r1/alpha']?.hasClaudeMd).toBe(true)
+    expect(result.current.enrichments['/r1/alpha']?.hasMcp).toBe(false)
+    expect(result.current.enrichments['/r1/beta']?.hasClaudeMd).toBe(false)
+    expect(result.current.enrichments['/r1/beta']?.hasMcp).toBe(true)
   })
 
   it('limits concurrency: for 10 projects only ~8 git:info calls fire simultaneously', async () => {
@@ -110,6 +140,9 @@ describe('useProjectEnrichment', () => {
         await new Promise((r) => setTimeout(r, 20))
         concurrent--
         return { branch: 'main', isDirty: false } as GitInfo
+      }
+      if (channel === 'projects:claudeInfo') {
+        return { hasClaudeMd: false, claudeMdFilename: null, hasMcp: false }
       }
       throw new Error('unhandled')
     })

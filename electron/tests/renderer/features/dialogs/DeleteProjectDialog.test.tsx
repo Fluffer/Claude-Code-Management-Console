@@ -36,8 +36,7 @@ describe('DeleteProjectDialog', () => {
     mockMatchMedia()
     installMockCcmc()
     getMockInvoke().mockImplementation(async (channel: string) => {
-      if (channel === 'config:read') return CONFIG
-      if (channel === 'config:write') return undefined
+      if (channel === 'projects:delete') return { ok: true }
       throw new Error(`[test] Unhandled channel: ${channel}`)
     })
   })
@@ -157,7 +156,7 @@ describe('DeleteProjectDialog', () => {
     expect(screen.getByLabelText(/permanently delete/i)).toBeInTheDocument()
   })
 
-  it('Delete calls config:write to hide project (recycle bin mode) and refreshes', async () => {
+  it('Delete calls projects:delete with {path, permanent} and refreshes', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const onRefresh = vi.fn()
@@ -171,11 +170,45 @@ describe('DeleteProjectDialog', () => {
         onRefresh={onRefresh}
       />,
     )
+    // Check the "Permanently delete" checkbox to trigger permanent=true
+    await user.click(screen.getByLabelText(/permanently delete/i))
     await user.click(screen.getByRole('button', { name: /^delete$/i }))
     await waitFor(() => {
-      expect(getMockInvoke()).toHaveBeenCalled()
+      expect(getMockInvoke()).toHaveBeenCalledWith('projects:delete', {
+        path: PROJECT.path,
+        permanent: true,
+      })
     })
     await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+
+  it('Delete with permanent=false throws and shows error (soft delete not implemented)', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    getMockInvoke().mockImplementation(async (channel: string) => {
+      if (channel === 'projects:delete') throw new Error('Soft delete not yet implemented')
+      throw new Error(`[test] Unhandled channel: ${channel}`)
+    })
+    render(
+      <DeleteProjectDialog
+        open={true}
+        project={PROJECT}
+        gitDirty={false}
+        isRunning={false}
+        onClose={onClose}
+        onRefresh={vi.fn()}
+      />,
+    )
+    // Do NOT check permanent — leaves permanent=false
+    await user.click(screen.getByRole('button', { name: /^delete$/i }))
+    await waitFor(() => {
+      expect(getMockInvoke()).toHaveBeenCalledWith('projects:delete', {
+        path: PROJECT.path,
+        permanent: false,
+      })
+    })
+    // Dialog stays open on error
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('Cancel closes without side effects', async () => {

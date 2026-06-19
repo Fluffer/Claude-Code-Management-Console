@@ -6,17 +6,8 @@
  *   - Create in: select from existing roots OR browse for folder (dialog:pickFolder)
  *   - Launch Claude after creating checkbox (default: checked)
  *
- * On submit: calls projects:scan to refresh list, then calls onRefresh().
- * IPC used: dialog:pickFolder (browse), projects:scan (refresh after create).
- * NOTE: There is no direct "create folder" IPC channel. The dialog creates the
- * project by navigating to the new path and triggering a scan; the actual folder
- * creation is done by the main process when it receives the new root path during
- * scan. This matches the closest available pattern — folder creation itself is
- * deferred to when scan discovers the intended path doesn't exist and creates it.
- *
- * Interpreted: No `project:create` IPC exists. We signal intent by calling
- * `projects:scan` on the parent root after the user acknowledges creation.
- * The real folder creation must be wired in main (see notes in implementation report).
+ * On submit: calls projects:create to create the folder, then calls onRefresh().
+ * IPC used: dialog:pickFolder (browse), projects:create (folder creation).
  */
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../../components/ui/Modal'
@@ -97,9 +88,7 @@ export function NewProjectDialog({
 
     setSubmitting(true)
     try {
-      // Trigger a scan on the root — main process will discover/create the new path.
-      // The actual folder creation IPC (if available) would be called here.
-      await window.ccmc.invoke('projects:scan', { root: selectedRoot })
+      await window.ccmc.invoke('projects:create', { root: selectedRoot, name: trimmedName })
       onRefresh()
       onClose()
     } catch (err) {

@@ -35,11 +35,12 @@ describe('RenameProjectDialog', () => {
   beforeEach(() => {
     mockMatchMedia()
     installMockCcmc()
-    // Use mockImplementation to handle void-returning channels (setChannelResponse
-    // can't stub channels returning void/undefined because the mock checks stub !== undefined)
-    getMockInvoke().mockImplementation(async (channel: string) => {
-      if (channel === 'config:read') return CONFIG
-      if (channel === 'config:write') return undefined
+    getMockInvoke().mockImplementation(async (channel: string, req: unknown) => {
+      if (channel === 'projects:rename') {
+        const r = req as { path: string; newName: string }
+        const parent = r.path.replace(/[/\\][^/\\]+$/, '')
+        return { path: `${parent}/${r.newName}` }
+      }
       throw new Error(`[test] Unhandled channel: ${channel}`)
     })
   })
@@ -97,7 +98,7 @@ describe('RenameProjectDialog', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 
-  it('valid new name calls config:write with renamed path and closes', async () => {
+  it('valid new name calls projects:rename with {path, newName} and closes', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const onRefresh = vi.fn()
@@ -109,16 +110,20 @@ describe('RenameProjectDialog', () => {
         onRefresh={onRefresh}
       />,
     )
-    // Clear and type new name
     const input = screen.getByDisplayValue('my-project')
     await user.clear(input)
     await user.type(input, 'new-name')
-    // Wait for button to be enabled
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /rename/i })).not.toBeDisabled(),
       { timeout: 3000 },
     )
     await user.click(screen.getByRole('button', { name: /rename/i }))
+    await waitFor(() => {
+      expect(getMockInvoke()).toHaveBeenCalledWith('projects:rename', {
+        path: PROJECT.path,
+        newName: 'new-name',
+      })
+    }, { timeout: 3000 })
     await waitFor(() => expect(onClose).toHaveBeenCalled(), { timeout: 3000 })
   })
 

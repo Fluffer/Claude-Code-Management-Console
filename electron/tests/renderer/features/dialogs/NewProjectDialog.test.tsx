@@ -29,6 +29,7 @@ describe('NewProjectDialog', () => {
       hidden: null,
       projects: null,
     })
+    setChannelResponse('projects:create', { path: '/r1/my-new-project' })
     setChannelResponse('projects:scan', [])
     setChannelResponse('dialog:pickFolder', { path: null })
   })
@@ -89,12 +90,10 @@ describe('NewProjectDialog', () => {
     expect(invoke).toHaveBeenCalledWith('dialog:pickFolder', expect.anything())
   })
 
-  it('valid name + root calls projects:scan on submit', async () => {
+  it('valid name + root calls projects:create on submit', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     const onRefresh = vi.fn()
-    // No IPC for folder creation — we use projects:scan after
-    setChannelResponse('projects:scan', [])
     render(
       <NewProjectDialog
         open={true}
@@ -109,8 +108,9 @@ describe('NewProjectDialog', () => {
     await user.click(createBtn)
     await waitFor(() => {
       const invoke = getMockInvoke()
-      expect(invoke).toHaveBeenCalledWith('projects:scan', expect.anything())
+      expect(invoke).toHaveBeenCalledWith('projects:create', { root: '/r1', name: 'my-new-project' })
     })
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
   })
 
   it('Cancel closes without side effects', async () => {
@@ -126,7 +126,7 @@ describe('NewProjectDialog', () => {
     )
     await user.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onClose).toHaveBeenCalled()
-    expect(getMockInvoke()).not.toHaveBeenCalledWith('projects:scan', expect.anything())
+    expect(getMockInvoke()).not.toHaveBeenCalledWith('projects:create', expect.anything())
   })
 
   it('Escape closes the dialog', async () => {

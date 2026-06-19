@@ -7,16 +7,7 @@
  *   - Validation via projectNameValidator
  *   - Warning: history tied to path, Continue will start fresh
  *
- * IPC: No direct `project:rename` channel exists in the IpcMap.
- * Interpreted: We use `config:write` to update hidden/projects metadata after
- * rename, but the filesystem rename itself is not exposed. This dialog records
- * intent and calls onRefresh so the UI stays in sync. The actual FS rename
- * must be handled by the main process through a future `project:rename` channel
- * (noted in implementation report). For now, we call config:write with the
- * state payload that excludes the old path, then trigger a rescan.
- *
- * NOTE: In the interim, calling `projects:scan` after the action is the
- * closest available pattern to signal a state change.
+ * IPC: projects:rename — delegates to projectMover.renameProject on the main process.
  */
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../../components/ui/Modal'
@@ -85,25 +76,7 @@ export function RenameProjectDialog({
 
     setSubmitting(true)
     try {
-      // No project:rename channel — signal intent via config:write pattern.
-      // Read current config, update any reference to old path, write back.
-      // This is the closest available IPC to the C# viewModel.RenameProject().
-      const config = await window.ccmc.invoke('config:read')
-      // Update projects map key if present
-      const oldPath = project.path
-      const newPath = `${parent}/${trimmed}`
-      const oldProjects = config.projects ?? {}
-      const newProjects: Record<string, typeof oldProjects[string]> = {}
-      for (const [k, v] of Object.entries(oldProjects)) {
-        newProjects[k === oldPath ? newPath : k] = v
-      }
-      // Update hidden list if present
-      const hidden = (config.hidden ?? []).map((h) => (h === oldPath ? newPath : h))
-      await window.ccmc.invoke('config:write', {
-        ...config,
-        projects: newProjects,
-        hidden,
-      })
+      await window.ccmc.invoke('projects:rename', { path: project.path, newName: trimmed })
       onRefresh()
       onClose()
     } catch (err) {

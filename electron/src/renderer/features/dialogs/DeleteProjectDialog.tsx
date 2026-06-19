@@ -11,12 +11,11 @@
  *   - Delete button: disabled when isRunning=true (C#: IsPrimaryButtonEnabled = !isRunning)
  *   - PermanentCheck: "Permanently delete (skip Recycle Bin)" checkbox
  *
- * IPC: No `project:delete` IPC channel. Interpreted as:
- *   - Recycle bin mode (permanent=false): update config.hidden to hide project
- *   - Permanent mode (permanent=true): same (actual FS delete needs a future channel)
- *   Then call onRefresh() so the list updates.
- * This matches the closest available contract. The FS delete is deferred to a
- * future `project:delete` IPC (noted in implementation report).
+ * IPC: projects:delete — delegates to projectDeleter.deleteProject on the main process.
+ * Note: permanent=false will be rejected by the main process (soft delete not yet
+ * implemented). Users must check "Permanently delete" to confirm the action.
+ *
+ * The separate "hide" ProjectAction (config hidden[]) is distinct from this delete.
  */
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../../components/ui/Modal'
@@ -44,26 +43,26 @@ export function DeleteProjectDialog({
 }: DeleteProjectDialogProps): React.ReactElement {
   const [permanent, setPermanent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       setPermanent(false)
       setSubmitting(false)
+      setDeleteError(null)
     }
   }, [open])
 
   async function handleDelete(): Promise<void> {
     if (isRunning || submitting) return
     setSubmitting(true)
+    setDeleteError(null)
     try {
-      // No project:delete IPC — use config:write to hide the project (closest available).
-      // This mirrors the "hide" path; permanent FS deletion requires a future IPC channel.
-      const config = await window.ccmc.invoke('config:read')
-      const hidden = [...(config.hidden ?? []), project.path]
-      await window.ccmc.invoke('config:write', { ...config, hidden })
+      await window.ccmc.invoke('projects:delete', { path: project.path, permanent })
       onRefresh()
       onClose()
-    } catch {
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : String(err))
       setSubmitting(false)
     }
   }
@@ -127,6 +126,12 @@ export function DeleteProjectDialog({
           label="Permanently delete (skip Recycle Bin)"
           disabled={isRunning}
         />
+
+        {deleteError && (
+          <p role="alert" className="text-xs text-red-500 mt-0.5">
+            {deleteError}
+          </p>
+        )}
       </div>
     </Modal>
   )
