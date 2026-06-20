@@ -140,6 +140,48 @@ describe('ContextMenu', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('run-command item present and dispatches run-command when hasCommands:true', async () => {
+    const user = userEvent.setup()
+    const onAction = vi.fn()
+    const project = makeProject()
+    render(
+      <ContextMenu
+        project={project}
+        isOpen={true}
+        isRunning={false}
+        enrichment={{ ...fullEnrichment(), hasCommands: true }}
+        onClose={vi.fn()}
+        onAction={onAction}
+      />,
+    )
+    expect(screen.getByText('Run command…')).toBeInTheDocument()
+    await user.click(screen.getByText('Run command…'))
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'run-command', project }),
+    )
+  })
+
+  it('view-skills item present and dispatches view-skills when hasSkills:true', async () => {
+    const user = userEvent.setup()
+    const onAction = vi.fn()
+    const project = makeProject()
+    render(
+      <ContextMenu
+        project={project}
+        isOpen={true}
+        isRunning={false}
+        enrichment={{ ...fullEnrichment(), hasSkills: true }}
+        onClose={vi.fn()}
+        onAction={onAction}
+      />,
+    )
+    expect(screen.getByText('View skills…')).toBeInTheDocument()
+    await user.click(screen.getByText('View skills…'))
+    expect(onAction).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'view-skills', project }),
+    )
+  })
+
   it('all context menu actions render as menu items', () => {
     renderMenu()
     const items = screen.getAllByRole('menuitem')
