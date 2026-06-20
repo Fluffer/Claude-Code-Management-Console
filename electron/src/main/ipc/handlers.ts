@@ -15,6 +15,8 @@ import { getBranchInfo, getIsDirty, getWorktrees, addWorktree, cloneRepo, commit
 import { validateCloneName } from '../../core/git/cloneName'
 import { readEnv, writeEnv } from '../services/envFileStore'
 import { readMcp } from '../services/mcpStore'
+import { listCommands } from '../services/commandStore'
+import { listSkills } from '../services/skillStore'
 import { createProjectFolder } from '../services/projectFolderCreator'
 import { renameProject, moveProjectToRoot } from '../services/projectMover'
 import { deleteProject } from '../services/projectDeleter'
@@ -241,17 +243,21 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'projects:claudeInfo': async (req) => {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
-      const [hasClaude, mdPath, mcpServers, defaultModel] = await Promise.all([
+      const [hasClaude, mdPath, mcpServers, defaultModel, commands, skills] = await Promise.all([
         hasClaudeMdInProject(projectPath),
         claudeMdPath(projectPath),
         readMcp(projectPath),
         resolveProjectModel(projectPath, path.join(claudeDir, 'settings.json')),
+        listCommands(projectPath),
+        listSkills(projectPath),
       ])
       const filename = mdPath !== null ? mdPath.split(/[\\/]/).pop() ?? null : null
       return {
         hasClaudeMd: hasClaude,
         claudeMdFilename: filename,
         hasMcp: mcpServers.length > 0,
+        hasCommands: commands.length > 0,
+        hasSkills: skills.length > 0,
         defaultModel,
       }
     },
@@ -411,6 +417,24 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
       return readMcp(projectPath)
+    },
+
+    // -----------------------------------------------------------------------
+    // commands:list
+    // -----------------------------------------------------------------------
+    'commands:list': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['path'], 'path')
+      return listCommands(projectPath)
+    },
+
+    // -----------------------------------------------------------------------
+    // skills:list
+    // -----------------------------------------------------------------------
+    'skills:list': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['path'], 'path')
+      return listSkills(projectPath)
     },
 
     // -----------------------------------------------------------------------
