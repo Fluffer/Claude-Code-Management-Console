@@ -89,6 +89,8 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
             gitDirty: gitInfo.isDirty ?? null,
             hasClaudeMd: claudeInfo.hasClaudeMd,
             hasMcp: claudeInfo.hasMcp,
+            hasCommands: claudeInfo.hasCommands,
+            hasSkills: claudeInfo.hasSkills,
             hasSettingsError: false,
             settingsError: '',
             hasSession: true,

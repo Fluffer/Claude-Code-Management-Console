@@ -25,6 +25,8 @@ function fullEnrichment(): ProjectEnrichment {
     gitDirty: false,
     hasClaudeMd: true,
     hasMcp: true,
+    hasCommands: false,
+    hasSkills: false,
     hasSettingsError: true,
     settingsError: 'boom',
     hasSession: true,
