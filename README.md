@@ -95,7 +95,8 @@ dotnet test tests-net/Ccmc.Core.Tests
 winapp run "src/Ccmc.WinUI/bin/x64/Debug/net10.0-windows10.0.26100.0/win-x64"
 ```
 
-Publish an unpackaged self-contained build for the launcher shim:
+Publish an unpackaged self-contained build for the launcher shim — run
+`publish.cmd` (refuses while ccmc.exe is running), or the underlying command:
 
 ```powershell
 dotnet publish "src/Ccmc.WinUI" -c Release -r win-x64 -p:Platform=x64 -p:UnpackagedPublish=true -o publish

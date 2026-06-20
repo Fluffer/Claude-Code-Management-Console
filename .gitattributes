@@ -1,0 +1,3 @@
+# cmd.exe misparses LF-only batch files — keep them CRLF on every clone.
+*.cmd text eol=crlf
+*.bat text eol=crlf
