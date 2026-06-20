@@ -42,14 +42,24 @@ export function CommandPickerDialog({
       })
   }, [open, project.path])
 
-  function runCommand(name: string): void {
-    void window.ccmc.invoke('launch:run', {
-      projectName: project.name,
-      projectPath: project.path,
-      continueSession: false,
-      initialPrompt: `/${name}`,
-    })
-    onClose()
+  async function runCommand(name: string): Promise<void> {
+    setError(null)
+    try {
+      const result = await window.ccmc.invoke('launch:run', {
+        projectName: project.name,
+        projectPath: project.path,
+        continueSession: false,
+        initialPrompt: `/${name}`,
+        flags: project.flags,
+      })
+      if (!result.ok) {
+        setError(result.error ?? 'Launch failed')
+        return
+      }
+      onClose()
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
   }
 
   function openFolder(): void {
@@ -80,7 +90,7 @@ export function CommandPickerDialog({
               <button
                 key={cmd.name}
                 type="button"
-                onClick={() => runCommand(cmd.name)}
+                onClick={() => void runCommand(cmd.name)}
                 className="flex flex-col items-start gap-0.5 text-left px-2 py-1.5 rounded hover:bg-[var(--subtle-fill)] focus:outline-none focus:bg-[var(--subtle-fill)]"
               >
                 <span className="font-mono text-sm text-[var(--text-primary)]">/{cmd.name}</span>

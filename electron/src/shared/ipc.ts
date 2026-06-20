@@ -25,7 +25,11 @@ export interface LaunchRequest {
   continueSession: boolean
   /** Extra claude flags (e.g. '--resume <id>'). Must not contain shell operators. */
   flags?: string
-  /** Initial prompt text. Only used when continueSession=false and flags is empty/absent. */
+  /**
+   * Initial prompt text. Appended as the trailing positional argument when
+   * continueSession=false; any `flags` follow it on the same command line.
+   * Ignored when continueSession=true.
+   */
   initialPrompt?: string | null
   /**
    * Record this launch in usage (config lastUsed) + recentLaunches MRU.
