@@ -25,6 +25,7 @@ import { SavedFilterDialog } from './SavedFilterDialog'
 import { SettingsDialog } from './SettingsDialog'
 import { WorktreePickerDialog } from './WorktreePickerDialog'
 import { HelpDialog } from './HelpDialog'
+import { MoveToRootDialog } from './MoveToRootDialog'
 import type { ProjectInfo } from '../../../core/models'
 
 // ---------------------------------------------------------------------------
@@ -45,6 +46,7 @@ export type DialogRequest =
   | { kind: 'settings' }
   | { kind: 'pick-worktree'; project: ProjectInfo }
   | { kind: 'help' }
+  | { kind: 'move-to-root'; project: ProjectInfo }
 
 // ---------------------------------------------------------------------------
 // Context
@@ -198,6 +200,15 @@ export function DialogsProvider({
         <HelpDialog
           open={true}
           onClose={handleClose}
+        />
+      )}
+
+      {active?.kind === 'move-to-root' && (
+        <MoveToRootDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
         />
       )}
     </DialogsContext.Provider>

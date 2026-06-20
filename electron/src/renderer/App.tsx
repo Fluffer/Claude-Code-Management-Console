@@ -11,12 +11,19 @@
  *   └─────────────────────────────────────────────┘
  *
  * ActionContext dispatcher (onAction):
- *   pin-toggle → useAppState.togglePin (direct state op)
- *   launch-continue / launch-new → launch:run IPC
- *   rename / delete / quick-prompt / resume-session → DialogsProvider.openDialog
+ *   Every ProjectAction kind is handled — no silent fall-throughs.
+ *   launch-continue / launch-new → launch:run IPC (main resolves shell+WT)
+ *   copy-path / copy-deep-link   → navigator.clipboard (renderer-only)
+ *   hide                         → config:read + config:write
+ *   open-folder / open-claude-md / open-settings-json / open-claudeignore → shell:openPath
+ *   open-vscode                  → shell:openInVscode
+ *   move-to-root                 → MoveToRootDialog
+ *   stop-session                 → sessions:kill (with confirm)
+ *   stop-all (CommandBar)        → kill all running sessions
  */
 import React, { useState, useCallback, useEffect } from 'react'
 import { ThemeProvider } from './theme/ThemeProvider'
+import { ToastProvider, useToast } from './components/ui/Toast'
 import { useProjects } from './hooks/useProjects'
 import { useRunningSessions } from './hooks/useRunningSessions'
 import { useAppState } from './hooks/useAppState'
@@ -29,19 +36,17 @@ import { CommandBar } from './features/commandbar/CommandBar'
 import { CommandPalette } from './features/palette/CommandPalette'
 import { DialogsProvider, useDialogs } from './features/dialogs/useDialogs'
 import { TextInput } from './components/ui/TextInput'
+import { deepLinkBuilder } from '../core/links/deepLinkBuilder'
 import type { ProjectAction } from './features/projects/projectActions'
 import type { LauncherConfig, ProjectInfo } from '../core/models'
 
-interface MainWindowProps {
-  onRefresh: () => void
-}
-
-function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
+function MainWindow(): React.ReactElement {
   const { projects, loading: projectsLoading, error: projectsError, refresh } = useProjects()
   const { sessions: runningSessions } = useRunningSessions()
   const { state, loading: stateLoading, togglePin } = useAppState()
   const { enrichments } = useProjectEnrichment(projects)
   const { openDialog } = useDialogs()
+  const { showToast } = useToast()
 
   const [config, setConfig] = useState<LauncherConfig | null>(null)
   const [searchText, setSearchText] = useState('')
@@ -68,12 +73,6 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [openDialog])
-
-  // Notify DialogsProvider of latest refresh function
-  useEffect(() => {
-    onRefresh()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   // Build sidebar from config roots so empty roots still appear
   const sidebarItems = buildSidebarItems(
@@ -103,26 +102,53 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
   const onAction = useCallback(
     (action: ProjectAction) => {
       switch (action.kind) {
+        // ------------------------------------------------------------------
+        // Pin toggle (direct state op)
+        // ------------------------------------------------------------------
         case 'pin-toggle':
           togglePin(action.project.path)
           break
 
+        // ------------------------------------------------------------------
+        // Launch actions — main process resolves shell + WT via buildLaunchSpec
+        // ------------------------------------------------------------------
         case 'launch-continue':
-          void window.ccmc.invoke('launch:run', {
-            filePath: 'claude',
-            arguments: '--continue',
-            workingDirectory: action.project.path,
-          })
+          void window.ccmc
+            .invoke('launch:run', {
+              projectName: action.project.name,
+              projectPath: action.project.path,
+              continueSession: true,
+            })
+            .then((result) => {
+              if (!result.ok) {
+                showToast(result.error ?? 'Failed to launch session', 'error')
+              }
+            })
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
           break
 
         case 'launch-new':
-          void window.ccmc.invoke('launch:run', {
-            filePath: 'claude',
-            arguments: '',
-            workingDirectory: action.project.path,
-          })
+          void window.ccmc
+            .invoke('launch:run', {
+              projectName: action.project.name,
+              projectPath: action.project.path,
+              continueSession: false,
+            })
+            .then((result) => {
+              if (!result.ok) {
+                showToast(result.error ?? 'Failed to launch session', 'error')
+              }
+            })
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
           break
 
+        // ------------------------------------------------------------------
+        // Dialog actions
+        // ------------------------------------------------------------------
         case 'launch-quick-prompt':
           openDialog({ kind: 'quick-prompt', project: action.project })
           break
@@ -148,10 +174,6 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
           break
         }
 
-        case 'stop-session':
-          // TODO: confirm + kill session (sessions:kill IPC) — future batch
-          break
-
         case 'launch-worktree':
           openDialog({ kind: 'pick-worktree', project: action.project })
           break
@@ -168,15 +190,207 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
           openDialog({ kind: 'manage-profiles' })
           break
 
-        default:
+        case 'move-to-root':
+          openDialog({ kind: 'move-to-root', project: action.project })
           break
+
+        // ------------------------------------------------------------------
+        // stop-session — confirm + kill the running session for this project
+        // ------------------------------------------------------------------
+        case 'stop-session': {
+          const running = runningSessions.find(
+            (s) => s.workingDirectory.toLowerCase() === action.project.path.toLowerCase(),
+          )
+          if (!running) {
+            showToast('No running session found for this project', 'info')
+            break
+          }
+          if (
+            window.confirm(
+              `Stop the running session for "${action.project.name}"?\nThis will kill PID ${running.pid}.`,
+            )
+          ) {
+            void window.ccmc
+              .invoke('sessions:kill', { pid: running.pid })
+              .then((result) => {
+                if (!result.ok) showToast('Failed to stop session', 'error')
+              })
+              .catch((err: unknown) => {
+                showToast(err instanceof Error ? err.message : String(err), 'error')
+              })
+          }
+          break
+        }
+
+        // ------------------------------------------------------------------
+        // hide — add to config.hidden[]
+        // ------------------------------------------------------------------
+        case 'hide':
+          void window.ccmc
+            .invoke('config:read')
+            .then((cfg) => {
+              const hidden = cfg.hidden ?? []
+              const projectPath = action.project.path
+              if (!hidden.some((h) => h.toLowerCase() === projectPath.toLowerCase())) {
+                return window.ccmc.invoke('config:write', {
+                  ...cfg,
+                  hidden: [...hidden, projectPath],
+                })
+              }
+            })
+            .then(() => refresh())
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+
+        // ------------------------------------------------------------------
+        // copy-path — renderer clipboard, no IPC needed
+        // ------------------------------------------------------------------
+        case 'copy-path':
+          void navigator.clipboard
+            .writeText(action.project.path)
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+
+        // ------------------------------------------------------------------
+        // copy-deep-link — build via core deepLinkBuilder, then clipboard
+        // ------------------------------------------------------------------
+        case 'copy-deep-link': {
+          const link = deepLinkBuilder.build(action.project.name)
+          void navigator.clipboard.writeText(link).catch((err: unknown) => {
+            showToast(err instanceof Error ? err.message : String(err), 'error')
+          })
+          break
+        }
+
+        // ------------------------------------------------------------------
+        // open-folder — open project directory in Explorer/Finder
+        // ------------------------------------------------------------------
+        case 'open-folder':
+          void window.ccmc
+            .invoke('shell:openPath', { path: action.project.path })
+            .then((result) => {
+              if (!result.ok) showToast(result.error ?? 'Failed to open folder', 'error')
+            })
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+
+        // ------------------------------------------------------------------
+        // open-vscode — spawn `code <path>`
+        // ------------------------------------------------------------------
+        case 'open-vscode':
+          void window.ccmc
+            .invoke('shell:openInVscode', { path: action.project.path })
+            .then((result) => {
+              if (!result.ok) showToast(result.error ?? 'Failed to open VS Code', 'error')
+            })
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+
+        // ------------------------------------------------------------------
+        // open-claude-md — open CLAUDE.md (or claude.md) in default app
+        // ------------------------------------------------------------------
+        case 'open-claude-md':
+          void window.ccmc
+            .invoke('projects:claudeInfo', { path: action.project.path })
+            .then((info) => {
+              if (!info.claudeMdFilename) {
+                showToast('No CLAUDE.md file found in this project', 'info')
+                return
+              }
+              const filePath = action.project.path + '\\' + info.claudeMdFilename
+              return window.ccmc
+                .invoke('shell:openPath', { path: filePath })
+                .then((result) => {
+                  if (!result.ok) showToast(result.error ?? 'Failed to open CLAUDE.md', 'error')
+                })
+            })
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+
+        // ------------------------------------------------------------------
+        // open-settings-json — open <project>/.claude/settings.json
+        // ------------------------------------------------------------------
+        case 'open-settings-json': {
+          const settingsPath = action.project.path + '\\.claude\\settings.json'
+          void window.ccmc
+            .invoke('shell:openPath', { path: settingsPath })
+            .then((result) => {
+              if (!result.ok)
+                showToast(
+                  result.error
+                    ? `settings.json: ${result.error}`
+                    : 'Failed to open settings.json',
+                  'error',
+                )
+            })
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+        }
+
+        // ------------------------------------------------------------------
+        // open-claudeignore — open <project>/.claudeignore
+        // ------------------------------------------------------------------
+        case 'open-claudeignore': {
+          const ignorePath = action.project.path + '\\.claudeignore'
+          void window.ccmc
+            .invoke('shell:openPath', { path: ignorePath })
+            .then((result) => {
+              if (!result.ok)
+                showToast(
+                  result.error
+                    ? `.claudeignore: ${result.error}`
+                    : 'Failed to open .claudeignore',
+                  'error',
+                )
+            })
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+        }
+
+        default: {
+          // Exhaustiveness guard — TypeScript should make this unreachable
+          const _exhaustive: never = action
+          showToast(`Unhandled action: ${(_exhaustive as ProjectAction).kind}`, 'error')
+          break
+        }
       }
     },
-    [togglePin, openDialog, enrichments, runningSessions],
+    [togglePin, openDialog, enrichments, runningSessions, refresh, showToast],
   )
 
   function handlePaletteSelect(project: ProjectInfo, isNew: boolean): void {
     onAction(isNew ? { kind: 'launch-new', project } : { kind: 'launch-continue', project })
+  }
+
+  function handleStopAll(): void {
+    if (
+      !window.confirm(
+        `Stop all ${runningSessions.length} running session${runningSessions.length !== 1 ? 's' : ''}?`,
+      )
+    ) {
+      return
+    }
+    for (const session of runningSessions) {
+      void window.ccmc
+        .invoke('sessions:kill', { pid: session.pid })
+        .catch((err: unknown) => {
+          showToast(err instanceof Error ? err.message : String(err), 'error')
+        })
+    }
   }
 
   return (
@@ -233,9 +447,7 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
               openDialog({ kind: 'new-project', roots: config?.roots ?? [] })
             }}
             onRefresh={refresh}
-            onStopAll={() => {
-              /* confirm + kill all — batch 4N */
-            }}
+            onStopAll={handleStopAll}
           />
         </main>
       </div>
@@ -268,33 +480,13 @@ function MainWindow({ onRefresh }: MainWindowProps): React.ReactElement {
 }
 
 export default function App(): React.ReactElement {
-  // Provide a stable refresh callback to DialogsProvider; MainWindow also calls its own refresh.
-  // The ref pattern avoids double-mounting useProjects.
-  const refreshRef = React.useRef<() => void>(() => {})
-
-  function registerRefresh(fn: () => void): void {
-    refreshRef.current = fn
-  }
-
   return (
     <ThemeProvider>
-      <DialogsProvider onRefresh={() => refreshRef.current()}>
-        <MainWindowWithRefresh onRegisterRefresh={registerRefresh} />
-      </DialogsProvider>
+      <ToastProvider>
+        <DialogsProvider onRefresh={() => { /* DialogsProvider calls refresh via openDialog callers */ }}>
+          <MainWindow />
+        </DialogsProvider>
+      </ToastProvider>
     </ThemeProvider>
   )
-}
-
-function MainWindowWithRefresh({
-  onRegisterRefresh,
-}: {
-  onRegisterRefresh: (fn: () => void) => void
-}): React.ReactElement {
-  const { refresh } = useProjects()
-
-  useEffect(() => {
-    onRegisterRefresh(refresh)
-  }, [refresh, onRegisterRefresh])
-
-  return <MainWindow onRefresh={refresh} />
 }

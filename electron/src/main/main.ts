@@ -77,7 +77,7 @@ app.whenReady().then(async () => {
     sessionKiller,
     terminalLauncher,
     commandLocator,
-  }, dialog)
+  }, dialog, shell)
 
   // Push file-changed events to renderer when config/state/claude dir changes
   const watchedPaths = [configPath, statePath, claudeDir]

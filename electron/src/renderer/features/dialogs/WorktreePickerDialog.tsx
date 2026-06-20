@@ -58,11 +58,17 @@ export function WorktreePickerDialog({
     setLaunching(true)
     setError(null)
     try {
-      await window.ccmc.invoke('launch:run', {
-        filePath: 'claude',
-        arguments: '',
-        workingDirectory: selectedWorktree.path,
+      // Use the worktree path as the project path so the session opens in the worktree
+      const result = await window.ccmc.invoke('launch:run', {
+        projectName: project.name,
+        projectPath: selectedWorktree.path,
+        continueSession: false,
       })
+      if (!result.ok) {
+        setError(result.error ?? 'Launch failed')
+        setLaunching(false)
+        return
+      }
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))

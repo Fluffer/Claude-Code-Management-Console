@@ -94,8 +94,8 @@ describe('WorktreePickerDialog', () => {
     await waitFor(() => {
       const invoke = getMockInvoke()
       expect(invoke).toHaveBeenCalledWith('launch:run', expect.objectContaining({
-        filePath: 'claude',
-        workingDirectory: '/r1/my-project-feat',
+        projectPath: '/r1/my-project-feat',
+        continueSession: false,
       }))
     })
     await waitFor(() => expect(onClose).toHaveBeenCalled())

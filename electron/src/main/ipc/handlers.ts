@@ -15,9 +15,10 @@ import { getBranchInfo, getIsDirty, getWorktrees } from '../services/gitRunner'
 import { readEnv, writeEnv } from '../services/envFileStore'
 import { readMcp } from '../services/mcpStore'
 import { createProjectFolder } from '../services/projectFolderCreator'
-import { renameProject } from '../services/projectMover'
+import { renameProject, moveProjectToRoot } from '../services/projectMover'
 import { deleteProject } from '../services/projectDeleter'
 import { claudeMdPath, hasClaudeMdInProject } from '../services/projectClaudeStore'
+import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
 
 // ---------------------------------------------------------------------------
 // Deps
@@ -34,6 +35,10 @@ export interface IpcHandlerDeps {
   commandLocator: ICommandLocator
   /** Injected from register.ts (electron dialog). Not exposed here. */
   pickFolder: (req: { title?: string }) => Promise<{ path: string | null }>
+  /** Injected from register.ts — opens a file or folder with the default app. */
+  openPath: (filePath: string) => Promise<string>
+  /** Injected from register.ts — spawns `code <path>`. */
+  openInVscode: (filePath: string) => Promise<{ ok: boolean; error?: string }>
 }
 
 // ---------------------------------------------------------------------------
@@ -81,6 +86,8 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     terminalLauncher,
     commandLocator,
     pickFolder,
+    openPath,
+    openInVscode,
   } = deps
 
   return {
@@ -259,18 +266,40 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
 
     // -----------------------------------------------------------------------
     // launch:run
+    // Resolves shell + wt.exe in main, builds a full LaunchSpec via
+    // buildLaunchSpec, then spawns. Errors are returned (never swallowed).
     // -----------------------------------------------------------------------
     'launch:run': async (req) => {
       const obj = requireObject(req, 'req')
-      requireString(obj['filePath'], 'filePath')
-      requireString(obj['arguments'], 'arguments')
-      // workingDirectory may be null — valid
-      if (obj['workingDirectory'] !== null && obj['workingDirectory'] !== undefined) {
-        requireString(obj['workingDirectory'], 'workingDirectory')
+      const projectName = requireString(obj['projectName'], 'projectName')
+      const projectPath = requireString(obj['projectPath'], 'projectPath')
+      if (typeof obj['continueSession'] !== 'boolean') {
+        throw new TypeError(`IPC validation: 'continueSession' must be a boolean`)
       }
+      const continueSession = obj['continueSession'] as boolean
+      const flags = typeof obj['flags'] === 'string' ? obj['flags'] : ''
+      const initialPrompt =
+        obj['initialPrompt'] === null || obj['initialPrompt'] === undefined
+          ? null
+          : requireString(obj['initialPrompt'], 'initialPrompt')
 
-      const result = await terminalLauncher.launch(req)
-      return { ok: result.ok, pid: result.pid }
+      const [shell, wtPath] = await Promise.all([
+        commandLocator.getPreferredShell(),
+        commandLocator.findWindowsTerminal(),
+      ])
+
+      const spec = buildLaunchSpec({
+        projectName,
+        projectPath,
+        flags,
+        continueSession,
+        shell,
+        wtPath,
+        initialPrompt,
+      })
+
+      const result = await terminalLauncher.launch(spec)
+      return { ok: result.ok, pid: result.pid, error: result.ok ? undefined : 'Launch failed' }
     },
 
     // -----------------------------------------------------------------------
@@ -329,6 +358,42 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     // -----------------------------------------------------------------------
     'dialog:pickFolder': async (req) => {
       return pickFolder(req ?? {})
+    },
+
+    // -----------------------------------------------------------------------
+    // projects:move
+    // Moves a project to a different root directory.
+    // -----------------------------------------------------------------------
+    'projects:move': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['path'], 'path')
+      const targetRoot = requireString(obj['targetRoot'], 'targetRoot')
+      const newPath = await moveProjectToRoot(projectPath, targetRoot)
+      return { ok: true, newPath }
+    },
+
+    // -----------------------------------------------------------------------
+    // shell:openPath
+    // Opens a file or folder with the default OS application.
+    // Delegates to injected openPath (electron shell.openPath in register.ts).
+    // -----------------------------------------------------------------------
+    'shell:openPath': async (req) => {
+      const obj = requireObject(req, 'req')
+      const filePath = requireString(obj['path'], 'path')
+      const errMsg = await openPath(filePath)
+      // electron shell.openPath returns '' on success, or an error string
+      return errMsg ? { ok: false, error: errMsg } : { ok: true }
+    },
+
+    // -----------------------------------------------------------------------
+    // shell:openInVscode
+    // Spawns `code <path>` to open a file or folder in VS Code.
+    // Delegates to injected openInVscode (resolved via commandLocator in register.ts).
+    // -----------------------------------------------------------------------
+    'shell:openInVscode': async (req) => {
+      const obj = requireObject(req, 'req')
+      const filePath = requireString(obj['path'], 'path')
+      return openInVscode(filePath)
     },
   }
 }

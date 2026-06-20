@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { createHandlers } from '../../../src/main/ipc/handlers'
 import { createDefaultConfig } from '../../../src/core/config/configSerialization'
 import type { IpcHandlerDeps } from '../../../src/main/ipc/handlers'
-import type { RunningSession, SessionSummary, GitWorktree } from '../../../src/core/models'
+import type { RunningSession } from '../../../src/core/models'
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -32,8 +32,6 @@ function makeStatePath(): string {
 
 function makeDeps(overrides: Partial<IpcHandlerDeps> = {}): IpcHandlerDeps {
   const runningSessions: RunningSession[] = []
-  const sessionHistory: SessionSummary[] = []
-  const worktrees: GitWorktree[] = []
 
   return {
     configPath: makeConfigPath(),
@@ -55,6 +53,8 @@ function makeDeps(overrides: Partial<IpcHandlerDeps> = {}): IpcHandlerDeps {
       getPreferredShell: vi.fn().mockResolvedValue('powershell'),
     },
     pickFolder: vi.fn().mockResolvedValue({ path: null }),
+    openPath: vi.fn().mockResolvedValue(''),
+    openInVscode: vi.fn().mockResolvedValue({ ok: true }),
     ...overrides,
   }
 }
@@ -354,11 +354,11 @@ describe('git:worktrees', () => {
 })
 
 // ---------------------------------------------------------------------------
-// launch:run
+// launch:run (new high-level contract)
 // ---------------------------------------------------------------------------
 
 describe('launch:run', () => {
-  it('calls terminalLauncher.launch and returns { ok, pid }', async () => {
+  it('calls commandLocator and terminalLauncher, returns { ok, pid }', async () => {
     const deps = makeDeps({
       commandLocator: {
         findOnPath: vi.fn().mockResolvedValue(null),
@@ -371,34 +371,68 @@ describe('launch:run', () => {
     })
     const handlers = createHandlers(deps)
 
-    const spec = { filePath: 'powershell', arguments: '-NoExit -Command "claude"', workingDirectory: tmpDir }
-    const result = await handlers['launch:run'](spec)
+    const result = await handlers['launch:run']({
+      projectName: 'my-proj',
+      projectPath: tmpDir,
+      continueSession: false,
+    })
     expect(result.ok).toBe(true)
-    expect(deps.terminalLauncher.launch).toHaveBeenCalledWith(spec)
+    expect(result.pid).toBe(9999)
+    expect(deps.commandLocator.getPreferredShell).toHaveBeenCalledOnce()
+    expect(deps.commandLocator.findWindowsTerminal).toHaveBeenCalledOnce()
+    expect(deps.terminalLauncher.launch).toHaveBeenCalledOnce()
   })
 
-  it('throws when filePath is missing', async () => {
+  it('spec filePath is the resolved shell, not "claude"', async () => {
+    let captured: import('../../../src/core/models').LaunchSpec | null = null
+    const deps = makeDeps({
+      commandLocator: {
+        findOnPath: vi.fn().mockResolvedValue(null),
+        findWindowsTerminal: vi.fn().mockResolvedValue(null),
+        getPreferredShell: vi.fn().mockResolvedValue('pwsh'),
+      },
+      terminalLauncher: {
+        launch: vi.fn().mockImplementation(async (s) => { captured = s; return { ok: true, pid: 1 } }),
+      },
+    })
+    const handlers = createHandlers(deps)
+
+    await handlers['launch:run']({ projectName: 'p', projectPath: tmpDir, continueSession: false })
+    expect(captured).not.toBeNull()
+    expect(captured!.filePath).toBe('pwsh')
+    expect(captured!.filePath).not.toBe('claude')
+  })
+
+  it('throws when projectName is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['launch:run']({ projectPath: tmpDir, continueSession: false })).rejects.toThrow()
+  })
+
+  it('throws when projectPath is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['launch:run']({ projectName: 'x', continueSession: false })).rejects.toThrow()
+  })
+
+  it('throws when continueSession is not a boolean', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['launch:run']({ projectName: 'x', projectPath: tmpDir, continueSession: 'no' })).rejects.toThrow()
+  })
+
+  it('throws on empty payload', async () => {
     const deps = makeDeps()
     const handlers = createHandlers(deps)
 
     // @ts-expect-error testing runtime validation
     await expect(handlers['launch:run']({})).rejects.toThrow()
-  })
-
-  it('throws when filePath is not a string', async () => {
-    const deps = makeDeps()
-    const handlers = createHandlers(deps)
-
-    // @ts-expect-error testing runtime validation
-    await expect(handlers['launch:run']({ filePath: 42, arguments: '', workingDirectory: null })).rejects.toThrow()
-  })
-
-  it('throws when arguments is not a string', async () => {
-    const deps = makeDeps()
-    const handlers = createHandlers(deps)
-
-    // @ts-expect-error testing runtime validation
-    await expect(handlers['launch:run']({ filePath: 'pwsh', arguments: null, workingDirectory: null })).rejects.toThrow()
   })
 })
 

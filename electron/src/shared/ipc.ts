@@ -7,12 +7,25 @@ import type {
   GitInfo,
   GitWorktree,
   LauncherConfig,
-  LaunchSpec,
   McpServerInfo,
   ProjectInfo,
   RunningSession,
   SessionSummary,
 } from '../core/models'
+
+// ---------------------------------------------------------------------------
+// High-level launch request (replaces raw LaunchSpec in the IPC contract).
+// Shell/WT resolution happens in main; renderer supplies intent only.
+// ---------------------------------------------------------------------------
+export interface LaunchRequest {
+  projectName: string
+  projectPath: string
+  continueSession: boolean
+  /** Extra claude flags (e.g. '--resume <id>'). Must not contain shell operators. */
+  flags?: string
+  /** Initial prompt text. Only used when continueSession=false and flags is empty/absent. */
+  initialPrompt?: string | null
+}
 
 // ---------------------------------------------------------------------------
 // Channel-name constants
@@ -28,6 +41,7 @@ export const IPC = Object.freeze({
   PROJECTS_RENAME: 'projects:rename',
   PROJECTS_DELETE: 'projects:delete',
   PROJECTS_CLAUDE_INFO: 'projects:claudeInfo',
+  PROJECTS_MOVE: 'projects:move',
   SESSIONS_LIST_HISTORY: 'sessions:listHistory',
   SESSIONS_LIST_RUNNING: 'sessions:listRunning',
   SESSIONS_KILL: 'sessions:kill',
@@ -39,6 +53,8 @@ export const IPC = Object.freeze({
   MCP_READ: 'mcp:read',
   TERMINALS_DETECT: 'terminals:detect',
   DIALOG_PICK_FOLDER: 'dialog:pickFolder',
+  SHELL_OPEN_PATH: 'shell:openPath',
+  SHELL_OPEN_IN_VSCODE: 'shell:openInVscode',
 } as const)
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -60,17 +76,20 @@ export interface IpcMap {
     req: { path: string }
     res: { hasClaudeMd: boolean; claudeMdFilename: string | null; hasMcp: boolean }
   }
+  'projects:move': { req: { path: string; targetRoot: string }; res: { ok: boolean; newPath: string } }
   'sessions:listHistory': { req: { projectPath?: string }; res: SessionSummary[] }
   'sessions:listRunning': { req: void; res: RunningSession[] }
   'sessions:kill': { req: { pid: number }; res: { ok: boolean } }
   'git:info': { req: { path: string }; res: GitInfo }
   'git:worktrees': { req: { path: string }; res: GitWorktree[] }
-  'launch:run': { req: LaunchSpec; res: { ok: boolean; pid?: number } }
+  'launch:run': { req: LaunchRequest; res: { ok: boolean; pid?: number; error?: string } }
   'env:read': { req: { path: string }; res: string }
   'env:write': { req: { path: string; contents: string }; res: void }
   'mcp:read': { req: { path: string }; res: McpServerInfo[] }
   'terminals:detect': { req: void; res: { id: string; name: string }[] }
   'dialog:pickFolder': { req: { title?: string }; res: { path: string | null } }
+  'shell:openPath': { req: { path: string }; res: { ok: boolean; error?: string } }
+  'shell:openInVscode': { req: { path: string }; res: { ok: boolean; error?: string } }
 }
 
 // ---------------------------------------------------------------------------

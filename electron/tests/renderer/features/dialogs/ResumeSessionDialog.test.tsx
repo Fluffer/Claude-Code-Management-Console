@@ -103,7 +103,7 @@ describe('ResumeSessionDialog', () => {
     await waitFor(() => {
       expect(getMockInvoke()).toHaveBeenCalledWith(
         'launch:run',
-        expect.objectContaining({ workingDirectory: '/r1/my-project' }),
+        expect.objectContaining({ projectPath: '/r1/my-project', continueSession: false }),
       )
     })
     await waitFor(() => expect(onClose).toHaveBeenCalled())

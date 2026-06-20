@@ -40,11 +40,16 @@ export function QuickPromptDialog({
     if (!isValid || submitting) return
     setSubmitting(true)
     try {
-      await window.ccmc.invoke('launch:run', {
-        filePath: 'claude',
-        arguments: `--print ${JSON.stringify(prompt.trim())}`,
-        workingDirectory: project.path,
+      const result = await window.ccmc.invoke('launch:run', {
+        projectName: project.name,
+        projectPath: project.path,
+        continueSession: false,
+        initialPrompt: prompt.trim(),
       })
+      if (!result.ok) {
+        setSubmitting(false)
+        return
+      }
       onClose()
     } catch {
       setSubmitting(false)

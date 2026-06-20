@@ -52,11 +52,16 @@ export function ResumeSessionDialog({
     if (!selectedSessionId || submitting) return
     setSubmitting(true)
     try {
-      await window.ccmc.invoke('launch:run', {
-        filePath: 'claude',
-        arguments: `--resume ${selectedSessionId}`,
-        workingDirectory: project.path,
+      const result = await window.ccmc.invoke('launch:run', {
+        projectName: project.name,
+        projectPath: project.path,
+        continueSession: false,
+        flags: `--resume ${selectedSessionId}`,
       })
+      if (!result.ok) {
+        setSubmitting(false)
+        return
+      }
       onClose()
     } catch {
       setSubmitting(false)
