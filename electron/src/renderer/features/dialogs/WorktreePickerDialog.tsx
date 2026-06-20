@@ -63,6 +63,8 @@ export function WorktreePickerDialog({
         projectName: project.name,
         projectPath: selectedWorktree.path,
         continueSession: false,
+        // Worktree targets a sibling path, not the tracked project — don't record usage.
+        recordUsage: false,
       })
       if (!result.ok) {
         setError(result.error ?? 'Launch failed')

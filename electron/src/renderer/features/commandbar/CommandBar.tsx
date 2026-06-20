@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
 import { Button } from '../../components/ui/Button'
-import type { LaunchGroup, SavedFilter } from '../../../core/models'
+import type { LaunchGroup, ProjectInfo, SavedFilter } from '../../../core/models'
 
 interface CommandBarProps {
   anySessionRunning: boolean
   groups: LaunchGroup[]
   savedFilters: SavedFilter[]
+  /** Recently launched projects, newest first. Drives the Recent dropdown. */
+  recent: ProjectInfo[]
+  onSelectRecent: (project: ProjectInfo) => void
   onNewProject: () => void
   onRefresh: () => void
   onStopAll: () => void
@@ -95,6 +98,8 @@ export function CommandBar({
   anySessionRunning,
   groups,
   savedFilters,
+  recent,
+  onSelectRecent,
   onNewProject,
   onRefresh,
   onStopAll,
@@ -116,6 +121,26 @@ export function CommandBar({
         <Button onClick={onManageProfiles} aria-label="Launch profiles">
           ☰ Profiles
         </Button>
+
+        <Dropdown label="🕘 Recent">
+          {(close) => (
+            <>
+              {recent.length === 0 && (
+                <MenuItem label="No recent launches" onClick={close} muted />
+              )}
+              {recent.map((p) => (
+                <MenuItem
+                  key={p.path}
+                  label={p.name}
+                  onClick={() => {
+                    close()
+                    onSelectRecent(p)
+                  }}
+                />
+              ))}
+            </>
+          )}
+        </Dropdown>
 
         <Dropdown label="⛁ Groups">
           {(close) => (

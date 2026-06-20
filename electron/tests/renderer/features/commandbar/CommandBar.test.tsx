@@ -4,12 +4,14 @@ import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc } from '../../mockCcmc'
 import { CommandBar } from '../../../../src/renderer/features/commandbar/CommandBar'
-import type { LaunchGroup, SavedFilter } from '../../../../src/core/models'
+import type { LaunchGroup, ProjectInfo, SavedFilter } from '../../../../src/core/models'
 
 interface Overrides {
   anySessionRunning?: boolean
   groups?: LaunchGroup[]
   savedFilters?: SavedFilter[]
+  recent?: ProjectInfo[]
+  onSelectRecent?: (p: ProjectInfo) => void
   onNewProject?: () => void
   onRefresh?: () => void
   onStopAll?: () => void
@@ -26,6 +28,8 @@ function renderBar(o: Overrides = {}): void {
       anySessionRunning={o.anySessionRunning ?? false}
       groups={o.groups ?? []}
       savedFilters={o.savedFilters ?? []}
+      recent={o.recent ?? []}
+      onSelectRecent={o.onSelectRecent ?? vi.fn()}
       onNewProject={o.onNewProject ?? vi.fn()}
       onRefresh={o.onRefresh ?? vi.fn()}
       onStopAll={o.onStopAll ?? vi.fn()}
@@ -36,6 +40,10 @@ function renderBar(o: Overrides = {}): void {
       onManageFilters={o.onManageFilters ?? vi.fn()}
     />,
   )
+}
+
+function makeProject(name: string): ProjectInfo {
+  return { name, root: '/r1', path: `/r1/${name}`, lastUsedUtc: null, flags: '', description: '' }
 }
 
 describe('CommandBar', () => {
@@ -136,5 +144,22 @@ describe('CommandBar', () => {
     await user.click(screen.getByRole('button', { name: /filters/i }))
     await user.click(screen.getByText(/manage filters/i))
     expect(onManageFilters).toHaveBeenCalledOnce()
+  })
+
+  it('selects a recent project from the Recent dropdown', async () => {
+    const user = userEvent.setup()
+    const onSelectRecent = vi.fn()
+    const proj = makeProject('alpha')
+    renderBar({ recent: [proj], onSelectRecent })
+    await user.click(screen.getByRole('button', { name: /recent/i }))
+    await user.click(screen.getByText('alpha'))
+    expect(onSelectRecent).toHaveBeenCalledWith(proj)
+  })
+
+  it('shows empty state when no recent launches', async () => {
+    const user = userEvent.setup()
+    renderBar({ recent: [] })
+    await user.click(screen.getByRole('button', { name: /recent/i }))
+    expect(screen.getByText(/no recent launches/i)).toBeInTheDocument()
   })
 })

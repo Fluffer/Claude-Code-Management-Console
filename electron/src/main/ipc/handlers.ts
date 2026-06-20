@@ -20,6 +20,7 @@ import { deleteProject } from '../services/projectDeleter'
 import { claudeMdPath, hasClaudeMdInProject } from '../services/projectClaudeStore'
 import { resolveProjectModel } from '../services/projectModelStore'
 import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
+import { mruAdd } from '../../core/projects/mruList'
 import * as path from 'node:path'
 
 // ---------------------------------------------------------------------------
@@ -91,6 +92,25 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     openPath,
     openInVscode,
   } = deps
+
+  /**
+   * Record a successful launch: stamp config.projects[path].lastUsed (preserving
+   * flags) and push the path onto state.recentLaunches (MRU, cap 15).
+   * Mirrors MainViewModel.LaunchWithFlagsAsync → UpdateUsage + PushRecent.
+   */
+  async function recordLaunchUsage(projectPath: string): Promise<void> {
+    const config = await loadConfig(configPath)
+    const projects = { ...(config.projects ?? {}) }
+    const usage = projects[projectPath] ?? { lastUsed: null, flags: null }
+    projects[projectPath] = { ...usage, lastUsed: new Date().toISOString() }
+    await saveConfig(configPath, { ...config, projects })
+
+    const state = await loadState(statePath)
+    await saveState(statePath, {
+      ...state,
+      recentLaunches: mruAdd(state.recentLaunches, projectPath, 15),
+    })
+  }
 
   return {
     // -----------------------------------------------------------------------
@@ -303,6 +323,13 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       })
 
       const result = await terminalLauncher.launch(spec)
+
+      // Record usage on success unless explicitly opted out (worktree launches).
+      // Mirrors MainViewModel.LaunchWithFlagsAsync: UpdateUsage + PushRecent.
+      if (result.ok && obj['recordUsage'] !== false) {
+        await recordLaunchUsage(projectPath)
+      }
+
       return {
         ok: result.ok,
         pid: result.pid,

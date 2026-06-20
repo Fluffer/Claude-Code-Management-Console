@@ -434,6 +434,49 @@ describe('launch:run', () => {
     // @ts-expect-error testing runtime validation
     await expect(handlers['launch:run']({})).rejects.toThrow()
   })
+
+  it('records usage (lastUsed + recentLaunches) on a successful launch', async () => {
+    const deps = makeDeps({
+      terminalLauncher: { launch: vi.fn().mockResolvedValue({ ok: true, pid: 1 }) },
+    })
+    const handlers = createHandlers(deps)
+
+    await handlers['launch:run']({ projectName: 'p', projectPath: tmpDir, continueSession: false })
+
+    const state = await handlers['state:read']()
+    expect(state.recentLaunches).toContain(tmpDir)
+    const config = await handlers['config:read']()
+    expect(config.projects?.[tmpDir]?.lastUsed).toBeTruthy()
+  })
+
+  it('does not record usage when recordUsage=false (worktree launches)', async () => {
+    const deps = makeDeps({
+      terminalLauncher: { launch: vi.fn().mockResolvedValue({ ok: true, pid: 1 }) },
+    })
+    const handlers = createHandlers(deps)
+
+    await handlers['launch:run']({
+      projectName: 'p',
+      projectPath: tmpDir,
+      continueSession: false,
+      recordUsage: false,
+    })
+
+    const state = await handlers['state:read']()
+    expect(state.recentLaunches).not.toContain(tmpDir)
+  })
+
+  it('does not record usage when the launch fails', async () => {
+    const deps = makeDeps({
+      terminalLauncher: { launch: vi.fn().mockResolvedValue({ ok: false, error: 'nope' }) },
+    })
+    const handlers = createHandlers(deps)
+
+    await handlers['launch:run']({ projectName: 'p', projectPath: tmpDir, continueSession: false })
+
+    const state = await handlers['state:read']()
+    expect(state.recentLaunches).not.toContain(tmpDir)
+  })
 })
 
 // ---------------------------------------------------------------------------

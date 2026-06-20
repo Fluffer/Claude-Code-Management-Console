@@ -115,6 +115,12 @@ function MainWindow(): React.ReactElement {
   const anySessionRunning = runningSessions.length > 0
   const loading = projectsLoading || stateLoading
 
+  // Recent projects — resolve state.recentLaunches (newest first) to live
+  // ProjectInfo rows, dropping any that no longer exist. Mirrors RebuildRecent.
+  const recentProjects: ProjectInfo[] = (state?.recentLaunches ?? [])
+    .map((p) => projects.find((pr) => pr.path.toLowerCase() === p.toLowerCase()))
+    .filter((p): p is ProjectInfo => p != null)
+
   const onAction = useCallback(
     (action: ProjectAction) => {
       switch (action.kind) {
@@ -139,7 +145,11 @@ function MainWindow(): React.ReactElement {
             .then((result) => {
               if (!result.ok) {
                 showToast(result.error ?? 'Failed to launch session', 'error')
+                return
               }
+              // Pick up recorded lastUsed + recentLaunches (re-sort + Recent menu).
+              refresh()
+              reloadState()
             })
             .catch((err: unknown) => {
               showToast(err instanceof Error ? err.message : String(err), 'error')
@@ -157,7 +167,10 @@ function MainWindow(): React.ReactElement {
             .then((result) => {
               if (!result.ok) {
                 showToast(result.error ?? 'Failed to launch session', 'error')
+                return
               }
+              refresh()
+              reloadState()
             })
             .catch((err: unknown) => {
               showToast(err instanceof Error ? err.message : String(err), 'error')
@@ -414,7 +427,7 @@ function MainWindow(): React.ReactElement {
         }
       }
     },
-    [togglePin, openDialog, enrichments, runningSessions, refresh, showToast],
+    [togglePin, openDialog, enrichments, runningSessions, refresh, reloadState, showToast],
   )
 
   function handlePaletteSelect(project: ProjectInfo, isNew: boolean): void {
@@ -531,6 +544,8 @@ function MainWindow(): React.ReactElement {
             anySessionRunning={anySessionRunning}
             groups={state?.groups ?? []}
             savedFilters={state?.savedFilters ?? []}
+            recent={recentProjects}
+            onSelectRecent={(project) => onAction({ kind: 'launch-continue', project })}
             onNewProject={() => {
               openDialog({ kind: 'new-project', roots: config?.roots ?? [] })
             }}

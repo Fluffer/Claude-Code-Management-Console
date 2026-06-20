@@ -25,6 +25,12 @@ export interface LaunchRequest {
   flags?: string
   /** Initial prompt text. Only used when continueSession=false and flags is empty/absent. */
   initialPrompt?: string | null
+  /**
+   * Record this launch in usage (config lastUsed) + recentLaunches MRU.
+   * Defaults to true. Worktree launches target a sibling path, not the tracked
+   * project, so they pass false (mirrors MainViewModel which skips them).
+   */
+  recordUsage?: boolean
 }
 
 // ---------------------------------------------------------------------------
