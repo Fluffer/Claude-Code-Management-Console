@@ -23,8 +23,12 @@ export async function listSkills(projectPath: string): Promise<SkillInfo[]> {
   const infos = await Promise.all(
     dirs.map(async (d) => {
       const content = await readFileUtf8(path.join(dir, d.name, 'SKILL.md'))
+      // A directory without a SKILL.md is not a skill — skip it.
+      if (content === null) return null
       return toSkillInfo(d.name, content)
     }),
   )
-  return infos.sort((a, b) => a.name.localeCompare(b.name))
+  return infos
+    .filter((s): s is SkillInfo => s !== null)
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
