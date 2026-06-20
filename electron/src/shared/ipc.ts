@@ -4,6 +4,7 @@
  */
 import type {
   AppState,
+  CommandInfo,
   GitInfo,
   GitWorktree,
   LauncherConfig,
@@ -11,6 +12,7 @@ import type {
   ProjectInfo,
   RunningSession,
   SessionSummary,
+  SkillInfo,
 } from '../core/models'
 
 // ---------------------------------------------------------------------------
@@ -61,6 +63,8 @@ export const IPC = Object.freeze({
   ENV_READ: 'env:read',
   ENV_WRITE: 'env:write',
   MCP_READ: 'mcp:read',
+  COMMANDS_LIST: 'commands:list',
+  SKILLS_LIST: 'skills:list',
   TERMINALS_DETECT: 'terminals:detect',
   DIALOG_PICK_FOLDER: 'dialog:pickFolder',
   SHELL_OPEN_PATH: 'shell:openPath',
@@ -93,6 +97,8 @@ export interface IpcMap {
       hasClaudeMd: boolean
       claudeMdFilename: string | null
       hasMcp: boolean
+      hasCommands: boolean
+      hasSkills: boolean
       /** Effective default model from project/user settings.json, or null. */
       defaultModel: string | null
     }
@@ -123,6 +129,8 @@ export interface IpcMap {
   'env:read': { req: { path: string }; res: string }
   'env:write': { req: { path: string; contents: string }; res: void }
   'mcp:read': { req: { path: string }; res: McpServerInfo[] }
+  'commands:list': { req: { path: string }; res: CommandInfo[] }
+  'skills:list': { req: { path: string }; res: SkillInfo[] }
   'terminals:detect': { req: void; res: { id: string; name: string; path: string }[] }
   'dialog:pickFolder': { req: { title?: string }; res: { path: string | null } }
   'shell:openPath': { req: { path: string }; res: { ok: boolean; error?: string } }
