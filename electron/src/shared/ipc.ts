@@ -62,6 +62,7 @@ export const IPC = Object.freeze({
   DIALOG_PICK_FOLDER: 'dialog:pickFolder',
   SHELL_OPEN_PATH: 'shell:openPath',
   SHELL_OPEN_IN_VSCODE: 'shell:openInVscode',
+  APP_RENDERER_READY: 'app:rendererReady',
 } as const)
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -107,6 +108,7 @@ export interface IpcMap {
   'dialog:pickFolder': { req: { title?: string }; res: { path: string | null } }
   'shell:openPath': { req: { path: string }; res: { ok: boolean; error?: string } }
   'shell:openInVscode': { req: { path: string }; res: { ok: boolean; error?: string } }
+  'app:rendererReady': { req: void; res: void }
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +118,7 @@ export interface IpcMap {
 export interface IpcEvents {
   'event:deepLink': { url: string }
   'event:fileChanged': { path: string }
+  'event:openPalette': void
 }
 
 export type IpcEventChannel = keyof IpcEvents

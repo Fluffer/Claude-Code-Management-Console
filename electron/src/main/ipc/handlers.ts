@@ -43,6 +43,8 @@ export interface IpcHandlerDeps {
   openPath: (filePath: string) => Promise<string>
   /** Injected from register.ts — spawns `code <path>`. */
   openInVscode: (filePath: string) => Promise<{ ok: boolean; error?: string }>
+  /** Called when the renderer signals its IPC subscriptions are live. */
+  onRendererReady?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -92,6 +94,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     pickFolder,
     openPath,
     openInVscode,
+    onRendererReady,
   } = deps
 
   /**
@@ -468,6 +471,14 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const filePath = requireString(obj['path'], 'path')
       return openInVscode(filePath)
+    },
+
+    // -----------------------------------------------------------------------
+    // app:rendererReady
+    // Renderer signals that its IPC event subscriptions are live.
+    // -----------------------------------------------------------------------
+    'app:rendererReady': async () => {
+      onRendererReady?.()
     },
   }
 }

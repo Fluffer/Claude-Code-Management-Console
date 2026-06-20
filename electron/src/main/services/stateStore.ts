@@ -1,8 +1,22 @@
 import * as fs from 'node:fs/promises'
+import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import type { AppState } from '../../core/models'
 import { parseState, serializeState } from '../../core/config/configSerialization'
 import { writeFileAtomic, readFileUtf8 } from '../os/atomicFile'
+
+/**
+ * Loads state.json synchronously — used at startup to seed values that must
+ * be available before the first async tick (e.g. cachedCloseToTray in
+ * shellIntegration). Absent file or any error returns default AppState.
+ */
+export function loadStateSync(statePath: string): AppState {
+  try {
+    return parseState(readFileSync(statePath, 'utf8'))
+  } catch {
+    return parseState('{}')
+  }
+}
 
 /**
  * Loads state.json from `statePath`.

@@ -28,6 +28,7 @@ import { useProjects } from './hooks/useProjects'
 import { useRunningSessions } from './hooks/useRunningSessions'
 import { useAppState } from './hooks/useAppState'
 import { useProjectEnrichment } from './hooks/useProjectEnrichment'
+import { useDeepLink } from './hooks/useDeepLink'
 import { buildSidebarItems, type SidebarEntry } from './features/sidebar/sidebarItems'
 import { Sidebar } from './features/sidebar/Sidebar'
 import { useProjectList } from './features/projects/useProjectList'
@@ -429,6 +430,23 @@ function MainWindow(): React.ReactElement {
     },
     [togglePin, openDialog, enrichments, runningSessions, refresh, reloadState, showToast],
   )
+
+  useDeepLink({
+    projects,
+    onAction,
+    onUnresolved: (m) => showToast(m, 'error'),
+  })
+
+  useEffect(() => {
+    const unsub = window.ccmc.on('event:openPalette', () => {
+      setPaletteOpen(true)
+    })
+    return unsub
+  }, [])
+
+  useEffect(() => {
+    void window.ccmc.invoke('app:rendererReady')
+  }, [])
 
   function handlePaletteSelect(project: ProjectInfo, isNew: boolean): void {
     onAction(isNew ? { kind: 'launch-new', project } : { kind: 'launch-continue', project })
