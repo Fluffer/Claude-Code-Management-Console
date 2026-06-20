@@ -360,6 +360,9 @@ export function ProfileManagerDialog({
                   placeholder="Read Edit Bash"
                   disabled={selectedIndex === null}
                 />
+                <p className="text-xs text-[var(--text-secondary)] opacity-60">
+                  Plain tool names only — e.g. Read Edit Bash
+                </p>
               </div>
 
               <div className="flex flex-col gap-1">

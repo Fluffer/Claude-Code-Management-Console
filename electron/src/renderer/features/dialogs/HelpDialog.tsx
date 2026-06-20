@@ -45,9 +45,11 @@ function Bullet({ children }: { children: React.ReactNode }): React.ReactElement
 const SHORTCUTS = [
   { key: 'Enter', desc: "Continue the selected project's last session" },
   { key: 'Ctrl+Enter', desc: 'Start a new session in the selected project' },
+  { key: 'Ctrl+Shift+Enter', desc: 'Open quick-prompt dialog for the selected project' },
   { key: 'Ctrl+F', desc: 'Focus the search box' },
   { key: 'Esc', desc: 'Clear the search' },
   { key: 'Ctrl+N', desc: 'New project dialog' },
+  { key: 'Ctrl+K / Ctrl+P', desc: 'Open the command palette' },
   { key: 'F5', desc: 'Refresh the project list' },
   { key: 'F1', desc: 'This help dialog' },
 ]
@@ -161,6 +163,7 @@ export function HelpDialog({ open, onClose }: HelpDialogProps): React.ReactEleme
           <Bullet>Settings are stored in %APPDATA%\ccmc (config.json and state.json).</Bullet>
           <Bullet>Removing a source root never deletes anything on disk — it only stops scanning.</Bullet>
           <Bullet>The status bar shows the claude CLI version that will be used for launches.</Bullet>
+          <Bullet>Drop a folder onto the window to add it as a source root.</Bullet>
         </Section>
 
       </div>

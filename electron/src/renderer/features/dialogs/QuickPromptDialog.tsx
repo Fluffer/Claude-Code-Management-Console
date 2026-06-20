@@ -70,6 +70,7 @@ export function QuickPromptDialog({
   return (
     <Modal open={open} title="Quick prompt" onClose={onClose} footer={footer}>
       <textarea
+        data-testid="quick-prompt-input"
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         placeholder="Type the first message to send to Claude…"

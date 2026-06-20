@@ -142,6 +142,10 @@ export function EnvEditorDialog({
   return (
     <Modal open={open} title={`.env — ${project.name}`} onClose={onClose} footer={footer}>
       <div className="flex flex-col gap-3 min-w-[420px]">
+        <p className="text-xs text-[var(--text-secondary)]">
+          Values are hidden. Use the eye button on a row to reveal it briefly.
+        </p>
+
         {loading && (
           <p className="text-xs text-[var(--text-secondary)]">Loading…</p>
         )}

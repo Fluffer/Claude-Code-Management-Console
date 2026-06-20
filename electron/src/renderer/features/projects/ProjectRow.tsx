@@ -166,8 +166,32 @@ export function ProjectRow({
   const rootName = leafName(project.root)
   const hasSession = enrichment?.hasSession ?? true // default true until enrichment completes
 
+  function handleRowKeyDown(e: React.KeyboardEvent<HTMLDivElement>): void {
+    // Only handle keys when the row itself is focused, not an inner button/input
+    if (e.target !== e.currentTarget) return
+    if (e.key === 'Enter') {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+        e.preventDefault()
+        onAction({ kind: 'launch-quick-prompt', project })
+      } else if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        onAction({ kind: 'launch-new', project })
+      } else {
+        e.preventDefault()
+        onAction({ kind: 'launch-continue', project })
+      }
+    }
+  }
+
   return (
-    <div className="flex items-center gap-2 py-1.5 px-2 hover:bg-[var(--subtle-fill)] rounded group">
+    <div
+      tabIndex={0}
+      className={[
+        'flex items-center gap-2 py-1.5 px-2 hover:bg-[var(--subtle-fill)] rounded group',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]',
+      ].join(' ')}
+      onKeyDown={handleRowKeyDown}
+    >
       {/* Pin button — FavoriteStar / FavoriteStarFill glyph analog */}
       <button
         type="button"
@@ -175,10 +199,10 @@ export function ProjectRow({
         onClick={() => onAction({ kind: 'pin-toggle', project })}
         className={[
           'w-7 h-7 flex-shrink-0 flex items-center justify-center rounded text-sm',
-          'bg-transparent border-none transition-opacity cursor-pointer',
+          'bg-transparent border-none cursor-pointer',
           isPinned
             ? 'text-[var(--accent-fill)] opacity-100'
-            : 'text-[var(--text-tertiary)] opacity-0 group-hover:opacity-55',
+            : 'text-[var(--text-tertiary)] opacity-0 group-hover:opacity-55 hover:text-amber-400',
         ].join(' ')}
       >
         {isPinned ? '★' : '☆'}

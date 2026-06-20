@@ -13,7 +13,7 @@ import { createPortal } from 'react-dom'
 import { fuzzyRank } from '../../../core/projects/fuzzyMatcher'
 import type { ProjectInfo } from '../../../core/models'
 
-const MAX_RESULTS = 20
+const MAX_RESULTS = 50
 
 function leafName(path: string): string {
   const t = path.replace(/[/\\]+$/, '')
@@ -96,6 +96,7 @@ export function CommandPalette({
       }}
     >
       <div
+        data-testid="command-palette"
         role="dialog"
         aria-modal="true"
         aria-label="Command palette"

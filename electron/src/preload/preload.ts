@@ -3,7 +3,7 @@
  * contextIsolation: true and sandbox: true are enforced in main.ts.
  * Exposes a typed `window.ccmc` API to the renderer. Raw ipcRenderer is never exposed.
  */
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { IpcMap, IpcEvents } from '../shared/ipc'
 
 const api = {
@@ -17,6 +17,15 @@ const api = {
   ): Promise<IpcMap[C]['res']> {
     const req = args[0] as IpcMap[C]['req']
     return ipcRenderer.invoke(channel, req) as Promise<IpcMap[C]['res']>
+  },
+
+  /**
+   * Returns the absolute file-system path for a dropped File object.
+   * Required under sandbox:true (Electron 32) because File.path is undefined
+   * in sandboxed renderers — webUtils.getPathForFile is the only safe API.
+   */
+  pathForFile(file: File): string {
+    return webUtils.getPathForFile(file)
   },
 
   /**

@@ -56,8 +56,11 @@ export function installMockCcmc(): void {
     },
   )
 
+  // Default pathForFile: return the file name as a stand-in path (overridable per-test)
+  const pathForFile = vi.fn((file: File): string => file.name)
+
   // @ts-expect-error -- jsdom window has no ccmc; we're adding it for tests
-  window.ccmc = { invoke, on }
+  window.ccmc = { invoke, on, pathForFile }
 }
 
 /** Override the response for a specific channel. */
@@ -83,4 +86,16 @@ export function emitEvent<E extends keyof IpcEvents>(
 export function getMockInvoke(): ReturnType<typeof vi.fn> {
   // @ts-expect-error -- accessing internal mock
   return (window.ccmc as { invoke: ReturnType<typeof vi.fn> }).invoke
+}
+
+/** Return the mock pathForFile spy for assertion in tests. */
+export function getMockPathForFile(): ReturnType<typeof vi.fn> {
+  // @ts-expect-error -- accessing internal mock
+  return (window.ccmc as { pathForFile: ReturnType<typeof vi.fn> }).pathForFile
+}
+
+/** Override pathForFile behaviour for drag-drop tests. */
+export function setPathForFile(fn: (file: File) => string): void {
+  // @ts-expect-error -- accessing internal mock
+  ;(window.ccmc as { pathForFile: (f: File) => string }).pathForFile = fn
 }

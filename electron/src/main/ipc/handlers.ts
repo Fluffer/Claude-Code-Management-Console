@@ -24,6 +24,10 @@ import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
 import { terminalsForPlatform, WINDOWS_TERMINAL_EXE } from '../../core/launch/terminals'
 import { mruAdd } from '../../core/projects/mruList'
 import * as path from 'node:path'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { stat } from 'node:fs/promises'
+import { parseClaudeVersion } from '../../core/claude/claudeVersion'
 
 // ---------------------------------------------------------------------------
 // Deps
@@ -569,6 +573,76 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'claude:onPath': async () => {
       const found = await commandLocator.findOnPath('claude')
       return { onPath: found !== null }
+    },
+
+    // -----------------------------------------------------------------------
+    // claude:version
+    // Resolves the claude CLI and returns its version string, or null.
+    // Fail-soft: any spawn error → { version: null }.
+    // execFileAsync is constructed lazily so test mocks on node:child_process
+    // are picked up at call time rather than at module load time.
+    // -----------------------------------------------------------------------
+    'claude:version': async () => {
+      const claudePath = await commandLocator.findOnPath('claude')
+      if (claudePath === null) return { version: null }
+      try {
+        const execFileAsync = promisify(execFile)
+        const { stdout } = await execFileAsync(claudePath, ['--version'], {
+          timeout: 5000,
+          windowsHide: true,
+        })
+        return { version: parseClaudeVersion(stdout) }
+      } catch {
+        return { version: null }
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // fs:isDirectory
+    // Returns { ok: true } when the given path exists and is a directory.
+    // Fail-soft: ENOENT, EPERM, or any other error → { ok: false }.
+    // -----------------------------------------------------------------------
+    'fs:isDirectory': async (req) => {
+      const obj = requireObject(req, 'req')
+      const fsPath = requireString(obj['path'], 'path')
+      try {
+        const s = await stat(fsPath)
+        return { ok: s.isDirectory() }
+      } catch {
+        return { ok: false }
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // config:addRoots
+    // Atomically appends new root paths that are not already present.
+    // Runs in the single-threaded main handler, so read+write is atomic
+    // relative to other config writes. Returns { added } count of new entries.
+    // -----------------------------------------------------------------------
+    'config:addRoots': async (req) => {
+      const obj = requireObject(req, 'req')
+      if (!Array.isArray(obj['paths'])) {
+        throw new TypeError(`IPC validation: 'paths' must be an array`)
+      }
+      const paths = obj['paths'] as unknown[]
+      for (let i = 0; i < paths.length; i++) {
+        if (typeof paths[i] !== 'string') {
+          throw new TypeError(`IPC validation: 'paths[${i}]' must be a string`)
+        }
+      }
+      const incoming = paths as string[]
+
+      const config = await loadConfig(configPath)
+      const existingRoots = config.roots ?? []
+      const toAdd = incoming.filter(
+        (p) => !existingRoots.some((r) => r.toLowerCase() === p.toLowerCase()),
+      )
+
+      if (toAdd.length > 0) {
+        await saveConfig(configPath, { ...config, roots: [...existingRoots, ...toAdd] })
+      }
+
+      return { added: toAdd.length }
     },
   }
 }

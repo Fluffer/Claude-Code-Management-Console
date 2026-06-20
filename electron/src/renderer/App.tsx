@@ -21,7 +21,7 @@
  *   stop-session                 → sessions:kill (with confirm)
  *   stop-all (CommandBar)        → kill all running sessions
  */
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { ThemeProvider } from './theme/ThemeProvider'
 import { ToastProvider, useToast } from './components/ui/Toast'
 import { useProjects } from './hooks/useProjects'
@@ -30,7 +30,9 @@ import { useAppState } from './hooks/useAppState'
 import { useProjectEnrichment } from './hooks/useProjectEnrichment'
 import { useDeepLink } from './hooks/useDeepLink'
 import { useClaudeOnPath } from './hooks/useClaudeOnPath'
+import { useClaudeVersion } from './hooks/useClaudeVersion'
 import { Banner } from './components/ui/Banner'
+import { DropOverlay } from './components/DropOverlay'
 import { applyAccent, applyFont } from './theme/applyAppearance'
 import { buildSidebarItems, type SidebarEntry } from './features/sidebar/sidebarItems'
 import { Sidebar } from './features/sidebar/Sidebar'
@@ -53,11 +55,14 @@ function MainWindow(): React.ReactElement {
   const { openDialog, registerRefresh } = useDialogs()
   const { showToast } = useToast()
   const { onPath: claudeOnPath } = useClaudeOnPath()
+  const { version: claudeVersion } = useClaudeVersion()
 
   const [config, setConfig] = useState<LauncherConfig | null>(null)
   const [searchText, setSearchText] = useState('')
   const [selectedSidebar, setSelectedSidebar] = useState<SidebarEntry | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const dragCounterRef = useRef(0)
 
   const reloadConfig = useCallback(() => {
     void window.ccmc.invoke('config:read').then(setConfig)
@@ -86,13 +91,31 @@ function MainWindow(): React.ReactElement {
     })
   }, [registerRefresh, refresh, reloadState, reloadConfig])
 
-  // Ctrl+K / Cmd+K opens command palette; F1 opens help
+  // Global keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent): void {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      // Ctrl/Cmd+K or Ctrl/Cmd+P → toggle palette
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'p')) {
         e.preventDefault()
         setPaletteOpen((o) => !o)
       }
+      // Ctrl/Cmd+N → new project dialog (blocked while typing in inputs)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        const tgt = e.target as HTMLElement | null
+        const typing = !!tgt && (tgt instanceof HTMLInputElement || tgt instanceof HTMLTextAreaElement || tgt.isContentEditable)
+        if (typing) return
+        e.preventDefault()
+        openDialog({ kind: 'new-project', roots: config?.roots ?? [] })
+      }
+      // F5 → refresh (blocked while typing in inputs)
+      if (e.key === 'F5') {
+        const tgt = e.target as HTMLElement | null
+        const typing = !!tgt && (tgt instanceof HTMLInputElement || tgt instanceof HTMLTextAreaElement || tgt.isContentEditable)
+        if (typing) return
+        e.preventDefault()
+        refresh()
+      }
+      // F1 → help
       if (e.key === 'F1') {
         e.preventDefault()
         openDialog({ kind: 'help' })
@@ -100,7 +123,7 @@ function MainWindow(): React.ReactElement {
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [openDialog])
+  }, [openDialog, config, refresh])
 
   // Build sidebar from config roots so empty roots still appear
   const sidebarItems = buildSidebarItems(
@@ -517,8 +540,72 @@ function MainWindow(): React.ReactElement {
     }
   }
 
+  function handleDragEnter(e: React.DragEvent<HTMLDivElement>): void {
+    e.preventDefault()
+    dragCounterRef.current++
+    setDragging(true)
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>): void {
+    e.preventDefault()
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>): void {
+    e.preventDefault()
+    dragCounterRef.current--
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0
+      setDragging(false)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>): void {
+    e.preventDefault()
+    dragCounterRef.current = 0
+    setDragging(false)
+
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length === 0) {
+      showToast('Nothing added — drop a folder', 'info')
+      return
+    }
+
+    void (async () => {
+      const paths = files.map((f) => window.ccmc.pathForFile(f))
+      const results = await Promise.all(
+        paths.map((p) => window.ccmc.invoke('fs:isDirectory', { path: p })),
+      )
+      const dirs = paths.filter((_, i) => results[i].ok)
+
+      if (dirs.length === 0) {
+        showToast('Ignored non-folder — drop a folder to add it as a source root', 'info')
+        return
+      }
+
+      const { added } = await window.ccmc.invoke('config:addRoots', { paths: dirs })
+
+      if (added === 0) {
+        showToast('Nothing added — already present or not a folder', 'info')
+        return
+      }
+
+      refresh()
+      reloadConfig()
+      showToast(`Added ${added} source root${added !== 1 ? 's' : ''}`, 'info')
+    })().catch((err: unknown) => {
+      showToast(err instanceof Error ? err.message : String(err), 'error')
+    })
+  }
+
   return (
-    <div className="flex flex-col h-screen bg-[var(--surface)] text-[var(--text-primary)] font-ui select-none overflow-hidden">
+    <div
+      className="relative flex flex-col h-screen bg-[var(--surface)] text-[var(--text-primary)] font-ui select-none overflow-hidden"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      <DropOverlay show={dragging} />
       {/* Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar — 240px matching WinUI ColumnDefinition Width="240" */}
@@ -555,7 +642,7 @@ function MainWindow(): React.ReactElement {
               <Banner
                 severity="info"
                 title="Welcome to Claude Code Management Console!"
-                message="Pick a project and press Enter to continue its last Claude session, or Ctrl+Enter for a fresh one. Filter by folder on the left, search with Ctrl+F, pin favourites with the star, and press F1 anytime for the full guide."
+                message="Pick a project and press Enter to continue its last Claude session, or Ctrl+Enter for a fresh one. Filter by folder on the left, search with Ctrl+F, pin favourites with the star, open the palette with Ctrl+K / Ctrl+P, and press F1 anytime for the full guide."
                 actionLabel="Open guide"
                 onAction={() => openDialog({ kind: 'help' })}
                 onClose={setOnboardingDismissed}
@@ -633,8 +720,11 @@ function MainWindow(): React.ReactElement {
             {runningSessions.length !== 1 ? 's' : ''}
           </span>
         )}
+        {claudeVersion != null && (
+          <span>· Claude v{claudeVersion}</span>
+        )}
         <span className="ml-auto opacity-60">
-          Enter = Continue · Ctrl+Enter = New · Ctrl+F = Search · Ctrl+K = Palette · F1 = Help
+          Enter = Continue · Ctrl+Enter = New · Ctrl+F = Search · Ctrl+K / Ctrl+P = Palette · F1 = Help
         </span>
       </footer>
 
