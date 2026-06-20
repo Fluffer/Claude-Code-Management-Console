@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
@@ -33,6 +33,8 @@ describe('ResumeSessionDialog', () => {
     mockMatchMedia()
     installMockCcmc()
     setChannelResponse('sessions:listHistory', SESSIONS)
+    setChannelResponse('sessions:readTranscript', [])
+    setChannelResponse('sessions:cost', { usd: 0, hasUnknownModel: false, sessionCount: 2 })
     setChannelResponse('launch:run', { ok: true, pid: 5678 })
   })
 
@@ -44,7 +46,7 @@ describe('ResumeSessionDialog', () => {
         onClose={vi.fn()}
       />,
     )
-    expect(screen.getByText('Resume a session')).toBeInTheDocument()
+    expect(screen.getByText('Sessions')).toBeInTheDocument()
   })
 
   it('loads and displays sessions from sessions:listHistory', async () => {
@@ -131,7 +133,7 @@ describe('ResumeSessionDialog', () => {
         onClose={onClose}
       />,
     )
-    await waitFor(() => expect(screen.getByText('Resume a session')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Sessions')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onClose).toHaveBeenCalled()
     expect(getMockInvoke()).not.toHaveBeenCalledWith('launch:run', expect.anything())
@@ -147,8 +149,68 @@ describe('ResumeSessionDialog', () => {
         onClose={onClose}
       />,
     )
-    await waitFor(() => expect(screen.getByText('Resume a session')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Sessions')).toBeInTheDocument())
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('shows project cost header with $3.00 and session count', async () => {
+    setChannelResponse('sessions:cost', { usd: 3, hasUnknownModel: false, sessionCount: 1 })
+    render(
+      <ResumeSessionDialog
+        open={true}
+        project={PROJECT}
+        onClose={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText(/\$3\.00/)).toBeInTheDocument())
+    expect(screen.getByText(/1 session/)).toBeInTheDocument()
+  })
+
+  it('loads transcript preview when a session is selected', async () => {
+    const user = userEvent.setup()
+    setChannelResponse('sessions:listHistory', SESSIONS)
+    setChannelResponse('sessions:readTranscript', [
+      { role: 'assistant', text: 'hello world', timestamp: null, model: 'claude-opus-4-7', usage: null },
+    ])
+    render(
+      <ResumeSessionDialog
+        open={true}
+        project={PROJECT}
+        onClose={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Fix the login bug')).toBeInTheDocument())
+    await user.click(screen.getByText('Fix the login bug'))
+    await waitFor(() => expect(screen.getByText('hello world')).toBeInTheDocument())
+    expect(getMockInvoke()).toHaveBeenCalledWith(
+      'sessions:readTranscript',
+      { projectPath: PROJECT.path, sessionId: 'abc123' },
+    )
+  })
+
+  it('filter narrows transcript messages', async () => {
+    const user = userEvent.setup()
+    setChannelResponse('sessions:listHistory', SESSIONS)
+    setChannelResponse('sessions:readTranscript', [
+      { role: 'user', text: 'alpha', timestamp: null, model: null, usage: null },
+      { role: 'assistant', text: 'beta', timestamp: null, model: 'claude-opus-4-7', usage: null },
+    ])
+    render(
+      <ResumeSessionDialog
+        open={true}
+        project={PROJECT}
+        onClose={vi.fn()}
+      />,
+    )
+    await waitFor(() => expect(screen.getByText('Fix the login bug')).toBeInTheDocument())
+    await user.click(screen.getByText('Fix the login bug'))
+    await waitFor(() => expect(screen.getByText('alpha')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('beta')).toBeInTheDocument())
+    fireEvent.change(screen.getByRole('textbox', { name: /filter messages/i }), {
+      target: { value: 'alpha' },
+    })
+    await waitFor(() => expect(screen.queryByText('beta')).not.toBeInTheDocument())
+    expect(screen.getByText('alpha')).toBeInTheDocument()
   })
 })

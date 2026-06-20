@@ -13,6 +13,7 @@ import type {
   RunningSession,
   SessionSummary,
   SkillInfo,
+  TranscriptMessage,
 } from '../core/models'
 
 // ---------------------------------------------------------------------------
@@ -57,6 +58,8 @@ export const IPC = Object.freeze({
   SESSIONS_LIST_HISTORY: 'sessions:listHistory',
   SESSIONS_LIST_RUNNING: 'sessions:listRunning',
   SESSIONS_KILL: 'sessions:kill',
+  SESSIONS_READ_TRANSCRIPT: 'sessions:readTranscript',
+  SESSIONS_COST: 'sessions:cost',
   GIT_INFO: 'git:info',
   GIT_WORKTREES: 'git:worktrees',
   GIT_ADD_WORKTREE: 'git:addWorktree',
@@ -111,6 +114,14 @@ export interface IpcMap {
   'sessions:listHistory': { req: { projectPath?: string }; res: SessionSummary[] }
   'sessions:listRunning': { req: void; res: RunningSession[] }
   'sessions:kill': { req: { pid: number }; res: { ok: boolean } }
+  'sessions:readTranscript': {
+    req: { projectPath: string; sessionId: string }
+    res: TranscriptMessage[]
+  }
+  'sessions:cost': {
+    req: { projectPath: string }
+    res: { usd: number; hasUnknownModel: boolean; sessionCount: number }
+  }
   'git:info': { req: { path: string }; res: GitInfo }
   'git:worktrees': { req: { path: string }; res: GitWorktree[] }
   'git:addWorktree': {

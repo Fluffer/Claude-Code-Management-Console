@@ -11,6 +11,7 @@ import { loadConfig, saveConfig } from '../services/configStore'
 import { loadState, saveState } from '../services/stateStore'
 import { scanProjects } from '../services/projectScanner'
 import { listSessions } from '../services/claudeSessionStore'
+import { readTranscript, projectCost } from '../services/transcriptStore'
 import { getBranchInfo, getIsDirty, getWorktrees, addWorktree, cloneRepo, commitAll, openPr } from '../services/gitRunner'
 import { validateCloneName } from '../../core/git/cloneName'
 import { readEnv, writeEnv } from '../services/envFileStore'
@@ -293,6 +294,31 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       }
       const ok = await sessionKiller.kill(pid)
       return { ok }
+    },
+
+    // -----------------------------------------------------------------------
+    // sessions:readTranscript
+    // -----------------------------------------------------------------------
+    'sessions:readTranscript': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['projectPath'], 'projectPath')
+      const sessionId = requireString(obj['sessionId'], 'sessionId')
+      // sessionId must be a bare file stem (UUID-style). Positive allowlist rejects
+      // path separators, '..', and Windows drive-relative prefixes like 'C:'.
+      if (!/^[A-Za-z0-9_-]+$/.test(sessionId)) {
+        throw new Error("IPC validation: 'sessionId' must be a bare session id")
+      }
+      return readTranscript(claudeDir, projectPath, sessionId)
+    },
+
+    // -----------------------------------------------------------------------
+    // sessions:cost
+    // -----------------------------------------------------------------------
+    'sessions:cost': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['projectPath'], 'projectPath')
+      // projectPath traversal is neutralised by encodeProjectPath (non-alphanumeric → '-').
+      return projectCost(claudeDir, projectPath)
     },
 
     // -----------------------------------------------------------------------
