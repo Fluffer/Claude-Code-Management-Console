@@ -2,9 +2,7 @@
  * SettingsDialog — ports SettingsDialog.xaml + .xaml.cs.
  *
  * App settings:
- *   - Appearance: theme (System/Light/Dark/High Contrast), accent (note: accent/font
- *     stored in AppState but not wired in the Electron ThemeProvider yet; stored and
- *     persisted faithfully)
+ *   - Appearance: theme (System/Light/Dark/High Contrast), accent, font
  *   - Source roots: list with Add (dialog:pickFolder) / Remove
  *   - Default root for new projects (combo)
  *   - Close to tray toggle
@@ -12,16 +10,17 @@
  *
  * IPC: state:read + config:read (load), state:write + config:write (save).
  * Theme changes apply immediately via useTheme().
- *
- * Note: font/accent combos are stored in AppState for parity with the C# dialog
- * but the Electron ThemeProvider currently only applies light/dark/high-contrast.
- * The full palette system is a future concern.
+ * Accent/font changes apply immediately via applyAccent/applyFont (live preview).
+ * On Cancel, the persisted accent/font are re-applied to revert any un-saved preview.
  */
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch'
 import { useTheme, type AppTheme } from '../../theme/ThemeProvider'
+import { applyAccent, applyFont } from '../../theme/applyAppearance'
+import { ACCENTS } from '../../../core/theme/accents'
+import { FONTS } from '../../../core/theme/fonts'
 import type { AppState, LauncherConfig } from '../../../core/models'
 
 const THEME_OPTIONS = ['System', 'Light', 'Dark', 'High Contrast'] as const
@@ -61,6 +60,8 @@ export function SettingsDialog({
   const [appState, setAppState] = useState<AppState | null>(null)
   const [config, setConfig] = useState<LauncherConfig | null>(null)
   const [selectedTheme, setSelectedTheme] = useState<ThemeOption>('System')
+  const [selectedAccent, setSelectedAccent] = useState('default')
+  const [selectedFont, setSelectedFont] = useState('default')
   const [closeToTray, setCloseToTray] = useState(false)
   const [roots, setRoots] = useState<string[]>([])
   const [defaultRoot, setDefaultRoot] = useState<string | null>(null)
@@ -91,6 +92,10 @@ export function SettingsDialog({
       setCloseToTray(state.closeToTray)
       setTerminals(detected)
       setTerminalId(state.terminalId ?? '')
+      const accentId = ACCENTS.some((a) => a.id === state.accent) ? state.accent : 'default'
+      const fontId = FONTS.some((f) => f.id === state.font) ? state.font : 'default'
+      setSelectedAccent(accentId)
+      setSelectedFont(fontId)
       const r = cfg.roots ?? []
       setRoots(r)
       setDefaultRoot(cfg.defaultRoot ?? null)
@@ -103,6 +108,29 @@ export function SettingsDialog({
   function handleThemeChange(option: ThemeOption): void {
     setSelectedTheme(option)
     setTheme(appThemeFromOption(option))
+  }
+
+  function handleAccentChange(id: string): void {
+    setSelectedAccent(id)
+    applyAccent(id)
+  }
+
+  function handleFontChange(id: string): void {
+    setSelectedFont(id)
+    applyFont(id)
+  }
+
+  function handleClose(): void {
+    if (appState) {
+      const accentId = ACCENTS.some((a) => a.id === appState.accent) ? appState.accent : 'default'
+      const fontId = FONTS.some((f) => f.id === appState.font) ? appState.font : 'default'
+      applyAccent(accentId)
+      applyFont(fontId)
+      // Theme also previews live (via setTheme) — revert it to the persisted value too,
+      // otherwise an un-saved theme preview sticks after Cancel.
+      setTheme(appThemeFromOption(themeOptionFromState(appState.theme)))
+    }
+    onClose()
   }
 
   async function handleAddRoot(): Promise<void> {
@@ -147,6 +175,8 @@ export function SettingsDialog({
         theme: themeValue,
         closeToTray,
         terminalId,
+        accent: selectedAccent,
+        font: selectedFont,
       }
       const nextConfig: LauncherConfig = {
         ...config,
@@ -169,7 +199,7 @@ export function SettingsDialog({
 
   const footer = (
     <>
-      <Button onClick={onClose} variant="subtle" disabled={saving}>
+      <Button onClick={handleClose} variant="subtle" disabled={saving}>
         Cancel
       </Button>
       <Button variant="accent" onClick={() => void handleSave()} disabled={saving || !appState}>
@@ -179,7 +209,7 @@ export function SettingsDialog({
   )
 
   return (
-    <Modal open={open} title="Settings" onClose={onClose} footer={footer}>
+    <Modal open={open} title="Settings" onClose={handleClose} footer={footer}>
       <div className="flex flex-col gap-4 min-w-[420px]">
 
         {/* Appearance */}
@@ -225,6 +255,48 @@ export function SettingsDialog({
               <option value="">Auto (Windows Terminal, else shell)</option>
               {terminals.map((t) => (
                 <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" htmlFor="settings-accent">
+              Accent
+            </label>
+            <select
+              id="settings-accent"
+              aria-label="Accent color"
+              value={selectedAccent}
+              onChange={(e) => handleAccentChange(e.target.value)}
+              className={[
+                'flex-1 rounded px-2 py-1.5 text-sm',
+                'bg-[var(--control-fill)] border border-[var(--control-border)]',
+                'text-[var(--text-primary)]',
+                'focus:outline focus:outline-2 focus:outline-[var(--accent)]',
+              ].join(' ')}
+            >
+              {ACCENTS.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" htmlFor="settings-font">
+              Font
+            </label>
+            <select
+              id="settings-font"
+              aria-label="UI font"
+              value={selectedFont}
+              onChange={(e) => handleFontChange(e.target.value)}
+              className={[
+                'flex-1 rounded px-2 py-1.5 text-sm',
+                'bg-[var(--control-fill)] border border-[var(--control-border)]',
+                'text-[var(--text-primary)]',
+                'focus:outline focus:outline-2 focus:outline-[var(--accent)]',
+              ].join(' ')}
+            >
+              {FONTS.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
               ))}
             </select>
           </div>

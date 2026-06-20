@@ -561,5 +561,14 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'app:rendererReady': async () => {
       onRendererReady?.()
     },
+
+    // -----------------------------------------------------------------------
+    // claude:onPath
+    // Returns whether the 'claude' CLI is available on PATH.
+    // -----------------------------------------------------------------------
+    'claude:onPath': async () => {
+      const found = await commandLocator.findOnPath('claude')
+      return { onPath: found !== null }
+    },
   }
 }

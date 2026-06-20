@@ -6,6 +6,8 @@ import { ThemeProvider } from '../../../../src/renderer/theme/ThemeProvider'
 import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
 import { SettingsDialog } from '../../../../src/renderer/features/dialogs/SettingsDialog'
 import type { AppState, LauncherConfig } from '../../../../src/core/models'
+import { resolveAccentHex } from '../../../../src/core/theme/accents'
+import { resolveFontStack } from '../../../../src/core/theme/fonts'
 
 function mockMatchMedia(): void {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -188,5 +190,70 @@ describe('SettingsDialog', () => {
     renderSettings(onClose)
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('shows Accent selector seeded from state', async () => {
+    renderSettings()
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Accent color/i)).toBeInTheDocument()
+    })
+  })
+
+  it('shows Font selector seeded from state', async () => {
+    renderSettings()
+    await waitFor(() => {
+      expect(screen.getByLabelText(/UI font/i)).toBeInTheDocument()
+    })
+  })
+
+  it('selecting an accent applies it immediately (sets --accent CSS var)', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+    const accentSelect = await screen.findByLabelText(/Accent color/i)
+    await user.selectOptions(accentSelect, 'purple')
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe(
+      resolveAccentHex('purple'),
+    )
+  })
+
+  it('selecting a font applies it immediately (sets --app-font CSS var)', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+    const fontSelect = await screen.findByLabelText(/UI font/i)
+    await user.selectOptions(fontSelect, 'verdana')
+    expect(document.documentElement.style.getPropertyValue('--app-font')).toBe(
+      resolveFontStack('verdana'),
+    )
+  })
+
+  it('Save writes accent and font into state:write payload', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+    const accentSelect = await screen.findByLabelText(/Accent color/i)
+    const fontSelect = await screen.findByLabelText(/UI font/i)
+    await user.selectOptions(accentSelect, 'teal')
+    await user.selectOptions(fontSelect, 'cascadia')
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => {
+      expect(getMockInvoke()).toHaveBeenCalledWith(
+        'state:write',
+        expect.objectContaining({ accent: 'teal', font: 'cascadia' }),
+      )
+    })
+  })
+
+  it('Cancel re-applies persisted accent/font to revert live preview', async () => {
+    const user = userEvent.setup()
+    setChannelResponse('state:read', { ...baseState, accent: 'green', font: 'verdana' })
+    renderSettings()
+    const accentSelect = await screen.findByLabelText(/Accent color/i)
+    await user.selectOptions(accentSelect, 'red')
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe(
+      resolveAccentHex('red'),
+    )
+    await user.click(screen.getByRole('button', { name: /cancel/i }))
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe(
+      resolveAccentHex('green'),
+    )
   })
 })

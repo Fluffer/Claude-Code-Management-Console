@@ -29,6 +29,9 @@ import { useRunningSessions } from './hooks/useRunningSessions'
 import { useAppState } from './hooks/useAppState'
 import { useProjectEnrichment } from './hooks/useProjectEnrichment'
 import { useDeepLink } from './hooks/useDeepLink'
+import { useClaudeOnPath } from './hooks/useClaudeOnPath'
+import { Banner } from './components/ui/Banner'
+import { applyAccent, applyFont } from './theme/applyAppearance'
 import { buildSidebarItems, type SidebarEntry } from './features/sidebar/sidebarItems'
 import { Sidebar } from './features/sidebar/Sidebar'
 import { useProjectList } from './features/projects/useProjectList'
@@ -45,10 +48,11 @@ import type { LaunchGroup, LauncherConfig, ProjectInfo, SavedFilter } from '../c
 function MainWindow(): React.ReactElement {
   const { projects, loading: projectsLoading, error: projectsError, refresh } = useProjects()
   const { sessions: runningSessions } = useRunningSessions()
-  const { state, loading: stateLoading, togglePin, setSortMode, reload: reloadState } = useAppState()
+  const { state, loading: stateLoading, togglePin, setSortMode, setOnboardingDismissed, reload: reloadState } = useAppState()
   const { enrichments } = useProjectEnrichment(projects)
   const { openDialog, registerRefresh } = useDialogs()
   const { showToast } = useToast()
+  const { onPath: claudeOnPath } = useClaudeOnPath()
 
   const [config, setConfig] = useState<LauncherConfig | null>(null)
   const [searchText, setSearchText] = useState('')
@@ -63,6 +67,14 @@ function MainWindow(): React.ReactElement {
   useEffect(() => {
     reloadConfig()
   }, [reloadConfig])
+
+  // Apply saved accent + font whenever state loads or changes (including after Settings save).
+  // Re-runs on cancel too, reverting any un-saved live preview back to the persisted values.
+  useEffect(() => {
+    if (!state) return
+    applyAccent(state.accent)
+    applyFont(state.font)
+  }, [state])
 
   // Dialogs report data mutations via onRefresh; re-pull every source the
   // command bar / sidebar / list read from (projects, state.json, config.json).
@@ -529,6 +541,27 @@ function MainWindow(): React.ReactElement {
 
         {/* Main content */}
         <main className="flex-1 flex flex-col overflow-hidden px-3 py-2">
+          {/* Banners — WinUI row 0 (warning) then row 1 (info) */}
+          {!claudeOnPath && (
+            <div className="mb-2">
+              <Banner
+                severity="warning"
+                message="'claude' was not found on PATH. Sessions will open a terminal, but the claude command will fail. Install Claude Code or fix PATH, then press Refresh (F5)."
+              />
+            </div>
+          )}
+          {state != null && !state.onboardingDismissed && (
+            <div className="mb-2">
+              <Banner
+                severity="info"
+                title="Welcome to Claude Code Management Console!"
+                message="Pick a project and press Enter to continue its last Claude session, or Ctrl+Enter for a fresh one. Filter by folder on the left, search with Ctrl+F, pin favourites with the star, and press F1 anytime for the full guide."
+                actionLabel="Open guide"
+                onAction={() => openDialog({ kind: 'help' })}
+                onClose={setOnboardingDismissed}
+              />
+            </div>
+          )}
           {/* Search row */}
           <div className="flex gap-2 mb-2">
             <TextInput

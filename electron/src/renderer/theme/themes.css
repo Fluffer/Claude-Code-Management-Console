@@ -30,9 +30,12 @@
  *  ControlFillColorDisabledBrush        → --control-fill-disabled
  *  ControlStrokeColorDefaultBrush       → --control-border
  *  ControlStrokeColorSecondaryBrush     → --control-border-secondary
- *  ContentControlThemeFontFamily        → font-family on :root (Segoe UI Variable)
+ *  ContentControlThemeFontFamily        → --app-font (applied via font-family: var(--app-font))
  *
  * Accent defaults: Blue #0078D4 (Accents.cs — Windows system default).
+ * Accent ramp is derived from --accent via color-mix(); applyAccent() in
+ * applyAppearance.ts sets --accent on documentElement.style and all shades
+ * recompute automatically.
  */
 
 /* --------------------------------------------------------------------------
@@ -41,17 +44,18 @@
 :root,
 [data-theme="light"] {
   --accent:               #0078d4;
-  --accent-light1:        #1a86d9;
-  --accent-light2:        #3394de;
-  --accent-light3:        #4da3e4;
-  --accent-dark1:         #0067b4;
-  --accent-dark2:         #005694;
-  --accent-dark3:         #004574;
-
-  --accent-fill:          #0078d4;
-  --accent-fill-secondary:rgba(0, 120, 212, 0.90);
-  --accent-fill-tertiary: rgba(0, 120, 212, 0.80);
+  --accent-fill:          var(--accent);
+  --accent-fill-secondary: color-mix(in srgb, var(--accent) 90%, black);
+  --accent-fill-tertiary:  color-mix(in srgb, var(--accent) 80%, black);
+  --accent-light1:        color-mix(in srgb, var(--accent) 90%, white);
+  --accent-light2:        color-mix(in srgb, var(--accent) 80%, white);
+  --accent-light3:        color-mix(in srgb, var(--accent) 70%, white);
+  --accent-dark1:         color-mix(in srgb, var(--accent) 90%, black);
+  --accent-dark2:         color-mix(in srgb, var(--accent) 80%, black);
+  --accent-dark3:         color-mix(in srgb, var(--accent) 70%, black);
   --text-on-accent:       #ffffff;
+
+  --app-font:             'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
 
   --surface:              #f3f3f3;
   --layer:                rgba(255, 255, 255, 0.70);
@@ -77,7 +81,7 @@
   --fill-critical:        #c42b1c;
   --fill-attention:       #0078d4;
 
-  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--app-font);
 }
 
 /* --------------------------------------------------------------------------
@@ -85,17 +89,18 @@
  * -------------------------------------------------------------------------- */
 [data-theme="dark"] {
   --accent:               #60cdff;
-  --accent-light1:        #78d4ff;
-  --accent-light2:        #90dcff;
-  --accent-light3:        #a8e4ff;
-  --accent-dark1:         #4db8e8;
-  --accent-dark2:         #3aa3d1;
-  --accent-dark3:         #278eba;
-
-  --accent-fill:          #60cdff;
-  --accent-fill-secondary:rgba(96, 205, 255, 0.90);
-  --accent-fill-tertiary: rgba(96, 205, 255, 0.80);
+  --accent-fill:          var(--accent);
+  --accent-fill-secondary: color-mix(in srgb, var(--accent) 90%, black);
+  --accent-fill-tertiary:  color-mix(in srgb, var(--accent) 80%, black);
+  --accent-light1:        color-mix(in srgb, var(--accent) 90%, white);
+  --accent-light2:        color-mix(in srgb, var(--accent) 80%, white);
+  --accent-light3:        color-mix(in srgb, var(--accent) 70%, white);
+  --accent-dark1:         color-mix(in srgb, var(--accent) 90%, black);
+  --accent-dark2:         color-mix(in srgb, var(--accent) 80%, black);
+  --accent-dark3:         color-mix(in srgb, var(--accent) 70%, black);
   --text-on-accent:       #000000;
+
+  --app-font:             'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
 
   --surface:              #202020;
   --layer:                rgba(255, 255, 255, 0.06);
@@ -121,7 +126,7 @@
   --fill-critical:        #ff99a4;
   --fill-attention:       #60cdff;
 
-  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--app-font);
 }
 
 /* --------------------------------------------------------------------------
@@ -129,17 +134,18 @@
  * -------------------------------------------------------------------------- */
 [data-theme="high-contrast"] {
   --accent:               #1aebff;
-  --accent-light1:        #4af0ff;
-  --accent-light2:        #79f5ff;
-  --accent-light3:        #a9faff;
-  --accent-dark1:         #00c8d7;
-  --accent-dark2:         #00a5b0;
-  --accent-dark3:         #008289;
-
-  --accent-fill:          #1aebff;
-  --accent-fill-secondary:#1aebff;
-  --accent-fill-tertiary: #1aebff;
+  --accent-fill:          var(--accent);
+  --accent-fill-secondary: color-mix(in srgb, var(--accent) 90%, black);
+  --accent-fill-tertiary:  color-mix(in srgb, var(--accent) 80%, black);
+  --accent-light1:        color-mix(in srgb, var(--accent) 90%, white);
+  --accent-light2:        color-mix(in srgb, var(--accent) 80%, white);
+  --accent-light3:        color-mix(in srgb, var(--accent) 70%, white);
+  --accent-dark1:         color-mix(in srgb, var(--accent) 90%, black);
+  --accent-dark2:         color-mix(in srgb, var(--accent) 80%, black);
+  --accent-dark3:         color-mix(in srgb, var(--accent) 70%, black);
   --text-on-accent:       #000000;
+
+  --app-font:             'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
 
   --surface:              #000000;
   --layer:                #000000;
@@ -165,5 +171,5 @@
   --fill-critical:        #ff0000;
   --fill-attention:       #1aebff;
 
-  font-family: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--app-font);
 }

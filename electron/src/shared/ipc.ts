@@ -66,6 +66,7 @@ export const IPC = Object.freeze({
   SHELL_OPEN_PATH: 'shell:openPath',
   SHELL_OPEN_IN_VSCODE: 'shell:openInVscode',
   APP_RENDERER_READY: 'app:rendererReady',
+  CLAUDE_ON_PATH: 'claude:onPath',
 } as const)
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
@@ -124,6 +125,7 @@ export interface IpcMap {
   'shell:openPath': { req: { path: string }; res: { ok: boolean; error?: string } }
   'shell:openInVscode': { req: { path: string }; res: { ok: boolean; error?: string } }
   'app:rendererReady': { req: void; res: void }
+  'claude:onPath': { req: void; res: { onPath: boolean } }
 }
 
 // ---------------------------------------------------------------------------
