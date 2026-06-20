@@ -11,6 +11,7 @@ import { loadConfig, saveConfig } from '../services/configStore'
 import { loadState, saveState } from '../services/stateStore'
 import { scanProjects } from '../services/projectScanner'
 import { listSessions } from '../services/claudeSessionStore'
+import { readTranscript, projectCost } from '../services/transcriptStore'
 import { getBranchInfo, getIsDirty, getWorktrees, addWorktree, cloneRepo, commitAll, openPr } from '../services/gitRunner'
 import { validateCloneName } from '../../core/git/cloneName'
 import { readEnv, writeEnv } from '../services/envFileStore'
@@ -293,6 +294,29 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       }
       const ok = await sessionKiller.kill(pid)
       return { ok }
+    },
+
+    // -----------------------------------------------------------------------
+    // sessions:readTranscript
+    // -----------------------------------------------------------------------
+    'sessions:readTranscript': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['projectPath'], 'projectPath')
+      const sessionId = requireString(obj['sessionId'], 'sessionId')
+      // sessionId is a bare file stem; reject anything that could escape the dir.
+      if (/[\\/]/.test(sessionId) || sessionId.includes('..')) {
+        throw new Error("IPC validation: 'sessionId' must be a bare session id")
+      }
+      return readTranscript(claudeDir, projectPath, sessionId)
+    },
+
+    // -----------------------------------------------------------------------
+    // sessions:cost
+    // -----------------------------------------------------------------------
+    'sessions:cost': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['projectPath'], 'projectPath')
+      return projectCost(claudeDir, projectPath)
     },
 
     // -----------------------------------------------------------------------
