@@ -122,6 +122,12 @@ export function ContextMenu({
       {enrichment?.gitBranch != null && (
         <MenuItem label="Launch in worktree…" onClick={() => dispatch({ kind: 'launch-worktree', project })} />
       )}
+      {enrichment?.gitBranch != null && (
+        <MenuItem label="Commit…"             onClick={() => dispatch({ kind: 'commit', project })} />
+      )}
+      {enrichment?.gitBranch != null && (
+        <MenuItem label="Open PR…"            onClick={() => dispatch({ kind: 'open-pr', project })} />
+      )}
       <MenuItem label="Resume session…"     onClick={() => dispatch({ kind: 'resume-session', project })} />
 
       <Separator />

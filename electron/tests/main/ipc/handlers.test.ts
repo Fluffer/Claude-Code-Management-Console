@@ -913,3 +913,206 @@ describe('projects:claudeInfo', () => {
     await expect(handlers['projects:claudeInfo'](null)).rejects.toThrow()
   })
 })
+
+// ---------------------------------------------------------------------------
+// git:clone
+// ---------------------------------------------------------------------------
+
+describe('git:clone', () => {
+  it('throws when url is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:clone']({ targetRoot: tmpDir, name: 'repo' })).rejects.toThrow()
+  })
+
+  it('throws when targetRoot is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:clone']({ url: 'https://x.com/r.git', name: 'repo' })).rejects.toThrow()
+  })
+
+  it('throws when name is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:clone']({ url: 'https://x.com/r.git', targetRoot: tmpDir })).rejects.toThrow()
+  })
+
+  it('returns ok=false when name is invalid (validateCloneName rejects)', async () => {
+    const handlers = createHandlers(makeDeps())
+    const result = await handlers['git:clone']({
+      url: 'https://x.com/r.git',
+      targetRoot: tmpDir,
+      name: 'bad:name',
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBeTruthy()
+  })
+
+  it('returns ok=false when name is empty', async () => {
+    const handlers = createHandlers(makeDeps())
+    const result = await handlers['git:clone']({
+      url: 'https://x.com/r.git',
+      targetRoot: tmpDir,
+      name: '',
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBeTruthy()
+  })
+
+  it('returns ok=false when name contains a path separator', async () => {
+    const handlers = createHandlers(makeDeps())
+    const result = await handlers['git:clone']({
+      url: 'https://x.com/r.git',
+      targetRoot: tmpDir,
+      name: 'sub/dir',
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBeTruthy()
+  })
+
+  it('returns ok=false (no throw) when targetDir already exists', async () => {
+    const existingDir = path.join(tmpDir, 'existing-repo')
+    await fs.mkdir(existingDir)
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+    // seed config so tmpDir is a known root
+    const cfg = createDefaultConfig()
+    cfg.roots = [tmpDir]
+    await handlers['config:write'](cfg)
+
+    const result = await handlers['git:clone']({
+      url: 'https://x.com/r.git',
+      targetRoot: tmpDir,
+      name: 'existing-repo',
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/already exists/i)
+  })
+
+  it('returns ok=false when URL starts with "-" (option-injection guard)', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+    const cfg = createDefaultConfig()
+    cfg.roots = [tmpDir]
+    await handlers['config:write'](cfg)
+
+    const result = await handlers['git:clone']({
+      url: '--upload-pack=evil',
+      targetRoot: tmpDir,
+      name: 'repo',
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/invalid repository url/i)
+  })
+
+  it('returns ok=false when targetRoot is not in configured roots', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+    // config has no roots (default is [])
+    const result = await handlers['git:clone']({
+      url: 'https://x.com/r.git',
+      targetRoot: tmpDir,
+      name: 'repo',
+    })
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/not a configured source root/i)
+  })
+
+  it('returns ok=false when name is ".." (traversal guard in handler)', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+    const cfg = createDefaultConfig()
+    cfg.roots = [tmpDir]
+    await handlers['config:write'](cfg)
+
+    const result = await handlers['git:clone']({
+      url: 'https://x.com/r.git',
+      targetRoot: tmpDir,
+      name: '..',
+    })
+    expect(result.ok).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// git:commit
+// ---------------------------------------------------------------------------
+
+describe('git:commit', () => {
+  it('throws when path is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:commit']({ message: 'msg', push: false })).rejects.toThrow()
+  })
+
+  it('throws when message is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:commit']({ path: tmpDir, push: false })).rejects.toThrow()
+  })
+
+  it('throws when push is not a boolean', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:commit']({ path: tmpDir, message: 'msg', push: 'yes' })).rejects.toThrow()
+  })
+
+  it('returns ok=false (no throw) for a non-git directory', async () => {
+    const handlers = createHandlers(makeDeps())
+    const result = await handlers['git:commit']({ path: tmpDir, message: 'msg', push: false })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBeTruthy()
+  }, 15000)
+})
+
+// ---------------------------------------------------------------------------
+// git:openPr
+// ---------------------------------------------------------------------------
+
+describe('git:openPr', () => {
+  it('throws when path is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:openPr']({ title: 'PR title' })).rejects.toThrow()
+  })
+
+  it('throws when title is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:openPr']({ path: tmpDir })).rejects.toThrow()
+  })
+
+  it('returns ok=false with gh-not-found message when findOnPath returns null', async () => {
+    const deps = makeDeps({
+      commandLocator: {
+        findOnPath: vi.fn().mockResolvedValue(null),
+        findWindowsTerminal: vi.fn().mockResolvedValue(null),
+        findTerminalPath: vi.fn().mockResolvedValue(null),
+        getPreferredShell: vi.fn().mockResolvedValue('powershell'),
+      },
+    })
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['git:openPr']({ path: tmpDir, title: 'Test PR' })
+    expect(result.ok).toBe(false)
+    expect(result.error).toMatch(/gh/i)
+    expect(result.error).toMatch(/not found/i)
+  })
+
+  it('calls findOnPath with "gh" to locate the GitHub CLI', async () => {
+    const findOnPath = vi.fn().mockResolvedValue(null)
+    const deps = makeDeps({
+      commandLocator: {
+        findOnPath,
+        findWindowsTerminal: vi.fn().mockResolvedValue(null),
+        findTerminalPath: vi.fn().mockResolvedValue(null),
+        getPreferredShell: vi.fn().mockResolvedValue('powershell'),
+      },
+    })
+    const handlers = createHandlers(deps)
+
+    await handlers['git:openPr']({ path: tmpDir, title: 'Test PR' })
+    expect(findOnPath).toHaveBeenCalledWith('gh')
+  })
+})

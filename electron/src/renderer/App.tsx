@@ -226,6 +226,14 @@ function MainWindow(): React.ReactElement {
           openDialog({ kind: 'move-to-root', project: action.project })
           break
 
+        case 'commit':
+          openDialog({ kind: 'commit', project: action.project })
+          break
+
+        case 'open-pr':
+          openDialog({ kind: 'open-pr', project: action.project })
+          break
+
         // ------------------------------------------------------------------
         // set-model — write --model into the project's saved flags (config.json)
         // Mirrors MainWindow.SetModel_Click → FlagsEditor.SetModel + persist.
@@ -566,6 +574,9 @@ function MainWindow(): React.ReactElement {
             onSelectRecent={(project) => onAction({ kind: 'launch-continue', project })}
             onNewProject={() => {
               openDialog({ kind: 'new-project', roots: config?.roots ?? [] })
+            }}
+            onCloneRepo={() => {
+              openDialog({ kind: 'clone', roots: config?.roots ?? [], defaultRoot: config?.defaultRoot ?? null })
             }}
             onRefresh={refresh}
             onStopAll={handleStopAll}

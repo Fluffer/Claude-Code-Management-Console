@@ -10,6 +10,7 @@ interface CommandBarProps {
   recent: ProjectInfo[]
   onSelectRecent: (project: ProjectInfo) => void
   onNewProject: () => void
+  onCloneRepo: () => void
   onRefresh: () => void
   onStopAll: () => void
   onManageProfiles: () => void
@@ -101,6 +102,7 @@ export function CommandBar({
   recent,
   onSelectRecent,
   onNewProject,
+  onCloneRepo,
   onRefresh,
   onStopAll,
   onManageProfiles,
@@ -114,6 +116,9 @@ export function CommandBar({
       <div className="flex items-center gap-2">
         <Button onClick={onNewProject} aria-label="New Project">
           + New Project
+        </Button>
+        <Button onClick={onCloneRepo} aria-label="Clone repo">
+          ⤓ Clone repo…
         </Button>
         <Button onClick={onRefresh} aria-label="Refresh">
           ↻ Refresh

@@ -11,7 +11,8 @@ import { loadConfig, saveConfig } from '../services/configStore'
 import { loadState, saveState } from '../services/stateStore'
 import { scanProjects } from '../services/projectScanner'
 import { listSessions } from '../services/claudeSessionStore'
-import { getBranchInfo, getIsDirty, getWorktrees, addWorktree } from '../services/gitRunner'
+import { getBranchInfo, getIsDirty, getWorktrees, addWorktree, cloneRepo, commitAll, openPr } from '../services/gitRunner'
+import { validateCloneName } from '../../core/git/cloneName'
 import { readEnv, writeEnv } from '../services/envFileStore'
 import { readMcp } from '../services/mcpStore'
 import { createProjectFolder } from '../services/projectFolderCreator'
@@ -471,6 +472,86 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const filePath = requireString(obj['path'], 'path')
       return openInVscode(filePath)
+    },
+
+    // -----------------------------------------------------------------------
+    // git:clone — clone a URL into <targetRoot>/<name>
+    // -----------------------------------------------------------------------
+    'git:clone': async (req) => {
+      const obj = requireObject(req, 'req')
+      const url = requireString(obj['url'], 'url')
+      const targetRoot = requireString(obj['targetRoot'], 'targetRoot')
+      const name = requireString(obj['name'], 'name')
+
+      // Reject URLs that start with `-` — these would be parsed as git options
+      // and can be used as an RCE vector (e.g. --upload-pack=…).
+      if (url.trim().startsWith('-')) {
+        return { ok: false, error: 'Invalid repository URL.' }
+      }
+
+      // Validate targetRoot against the configured roots so the renderer cannot
+      // direct a clone into an arbitrary directory.
+      const config = await loadConfig(configPath)
+      const resolvedTarget = path.resolve(targetRoot)
+      const isConfiguredRoot = (config.roots ?? []).some(
+        (r) => path.resolve(r).toLowerCase() === resolvedTarget.toLowerCase(),
+      )
+      if (!isConfiguredRoot) {
+        return { ok: false, error: 'Target root is not a configured source root.' }
+      }
+
+      const validation = validateCloneName(name)
+      if (!validation.ok) {
+        return { ok: false, error: validation.reason }
+      }
+
+      // Assert the resolved target stays within the root (path-traversal guard).
+      const base = path.resolve(targetRoot)
+      const full = path.resolve(targetRoot, name)
+      if (full !== base && !full.startsWith(base + path.sep)) {
+        return { ok: false, error: 'Invalid project name.' }
+      }
+
+      return cloneRepo(url, full)
+    },
+
+    // -----------------------------------------------------------------------
+    // git:commit — stage all + commit + optional push
+    // -----------------------------------------------------------------------
+    'git:commit': async (req) => {
+      const obj = requireObject(req, 'req')
+      const repoPath = requireString(obj['path'], 'path')
+      const message = requireString(obj['message'], 'message')
+      if (typeof obj['push'] !== 'boolean') {
+        throw new TypeError(`IPC validation: 'push' must be a boolean, got ${typeof obj['push']}`)
+      }
+      const push = obj['push'] as boolean
+      return commitAll(repoPath, message, push)
+    },
+
+    // -----------------------------------------------------------------------
+    // git:openPr — commit-if-dirty + push + gh pr create
+    // -----------------------------------------------------------------------
+    'git:openPr': async (req) => {
+      const obj = requireObject(req, 'req')
+      const repoPath = requireString(obj['path'], 'path')
+      const title = requireString(obj['title'], 'title')
+      const commitMessage =
+        obj['commitMessage'] !== undefined && obj['commitMessage'] !== null
+          ? requireString(obj['commitMessage'], 'commitMessage')
+          : undefined
+      const body =
+        obj['body'] !== undefined && obj['body'] !== null
+          ? requireString(obj['body'], 'body')
+          : undefined
+      const ghPath = await commandLocator.findOnPath('gh')
+      if (ghPath === null) {
+        return {
+          ok: false,
+          error: 'GitHub CLI (gh) not found on PATH. Install gh and run `gh auth login`.',
+        }
+      }
+      return openPr(repoPath, { commitMessage, title, body }, ghPath)
     },
 
     // -----------------------------------------------------------------------

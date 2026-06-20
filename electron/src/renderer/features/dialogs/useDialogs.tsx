@@ -26,6 +26,9 @@ import { SettingsDialog } from './SettingsDialog'
 import { WorktreePickerDialog } from './WorktreePickerDialog'
 import { HelpDialog } from './HelpDialog'
 import { MoveToRootDialog } from './MoveToRootDialog'
+import { CloneRepoDialog } from './CloneRepoDialog'
+import { CommitDialog } from './CommitDialog'
+import { OpenPrDialog } from './OpenPrDialog'
 import type { ProjectInfo } from '../../../core/models'
 
 // ---------------------------------------------------------------------------
@@ -47,6 +50,9 @@ export type DialogRequest =
   | { kind: 'pick-worktree'; project: ProjectInfo }
   | { kind: 'help' }
   | { kind: 'move-to-root'; project: ProjectInfo }
+  | { kind: 'clone'; roots: string[]; defaultRoot: string | null }
+  | { kind: 'commit'; project: ProjectInfo }
+  | { kind: 'open-pr'; project: ProjectInfo }
 
 // ---------------------------------------------------------------------------
 // Context
@@ -219,6 +225,33 @@ export function DialogsProvider({
           project={active.project}
           onClose={handleClose}
           onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'clone' && (
+        <CloneRepoDialog
+          open={true}
+          roots={active.roots}
+          defaultRoot={active.defaultRoot}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'commit' && (
+        <CommitDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'open-pr' && (
+        <OpenPrDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
         />
       )}
     </DialogsContext.Provider>

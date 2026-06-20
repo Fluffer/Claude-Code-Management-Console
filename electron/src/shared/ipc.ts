@@ -54,6 +54,9 @@ export const IPC = Object.freeze({
   GIT_INFO: 'git:info',
   GIT_WORKTREES: 'git:worktrees',
   GIT_ADD_WORKTREE: 'git:addWorktree',
+  GIT_CLONE: 'git:clone',
+  GIT_COMMIT: 'git:commit',
+  GIT_OPEN_PR: 'git:openPr',
   LAUNCH_RUN: 'launch:run',
   ENV_READ: 'env:read',
   ENV_WRITE: 'env:write',
@@ -99,6 +102,18 @@ export interface IpcMap {
   'git:addWorktree': {
     req: { repoPath: string; branch: string }
     res: { ok: boolean; path?: string; error?: string }
+  }
+  'git:clone': {
+    req: { url: string; targetRoot: string; name: string }
+    res: { ok: boolean; path?: string; error?: string }
+  }
+  'git:commit': {
+    req: { path: string; message: string; push: boolean }
+    res: { ok: boolean; error?: string }
+  }
+  'git:openPr': {
+    req: { path: string; commitMessage?: string; title: string; body?: string }
+    res: { ok: boolean; url?: string; error?: string }
   }
   'launch:run': { req: LaunchRequest; res: { ok: boolean; pid?: number; error?: string } }
   'env:read': { req: { path: string }; res: string }

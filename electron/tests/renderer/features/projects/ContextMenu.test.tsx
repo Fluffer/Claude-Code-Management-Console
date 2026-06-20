@@ -141,10 +141,10 @@ describe('ContextMenu', () => {
   it('all context menu actions render as menu items', () => {
     renderMenu()
     const items = screen.getAllByRole('menuitem')
-    // 19 items: open-folder, open-vscode, open-claude-md, open-settings-json,
+    // 21 items: open-folder, open-vscode, open-claude-md, open-settings-json,
     // view-mcp, copy-path, copy-deep-link, rename, move-to-root, apply-profile,
     // pin-toggle, stop-session, launch-quick-prompt, launch-worktree,
-    // resume-session, edit-env, open-claudeignore, hide, delete
-    expect(items.length).toBe(19)
+    // commit, open-pr, resume-session, edit-env, open-claudeignore, hide, delete
+    expect(items.length).toBe(21)
   })
 })
