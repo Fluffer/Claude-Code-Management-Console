@@ -33,6 +33,8 @@ describe('ResumeSessionDialog', () => {
     mockMatchMedia()
     installMockCcmc()
     setChannelResponse('sessions:listHistory', SESSIONS)
+    setChannelResponse('sessions:readTranscript', [])
+    setChannelResponse('sessions:cost', { usd: 0, hasUnknownModel: false, sessionCount: 2 })
     setChannelResponse('launch:run', { ok: true, pid: 5678 })
   })
 
@@ -44,7 +46,7 @@ describe('ResumeSessionDialog', () => {
         onClose={vi.fn()}
       />,
     )
-    expect(screen.getByText('Resume a session')).toBeInTheDocument()
+    expect(screen.getByText('Sessions')).toBeInTheDocument()
   })
 
   it('loads and displays sessions from sessions:listHistory', async () => {
@@ -131,7 +133,7 @@ describe('ResumeSessionDialog', () => {
         onClose={onClose}
       />,
     )
-    await waitFor(() => expect(screen.getByText('Resume a session')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Sessions')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /cancel/i }))
     expect(onClose).toHaveBeenCalled()
     expect(getMockInvoke()).not.toHaveBeenCalledWith('launch:run', expect.anything())
@@ -147,7 +149,7 @@ describe('ResumeSessionDialog', () => {
         onClose={onClose}
       />,
     )
-    await waitFor(() => expect(screen.getByText('Resume a session')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Sessions')).toBeInTheDocument())
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
   })
