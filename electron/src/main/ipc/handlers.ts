@@ -303,8 +303,9 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['projectPath'], 'projectPath')
       const sessionId = requireString(obj['sessionId'], 'sessionId')
-      // sessionId is a bare file stem; reject anything that could escape the dir.
-      if (/[\\/]/.test(sessionId) || sessionId.includes('..')) {
+      // sessionId must be a bare file stem (UUID-style). Positive allowlist rejects
+      // path separators, '..', and Windows drive-relative prefixes like 'C:'.
+      if (!/^[A-Za-z0-9_-]+$/.test(sessionId)) {
         throw new Error("IPC validation: 'sessionId' must be a bare session id")
       }
       return readTranscript(claudeDir, projectPath, sessionId)
@@ -316,6 +317,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'sessions:cost': async (req) => {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['projectPath'], 'projectPath')
+      // projectPath traversal is neutralised by encodeProjectPath (non-alphanumeric → '-').
       return projectCost(claudeDir, projectPath)
     },
 
