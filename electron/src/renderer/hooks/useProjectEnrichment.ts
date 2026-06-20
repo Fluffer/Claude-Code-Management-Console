@@ -83,7 +83,9 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
           if (cancelled || !mountedRef.current) return
 
           const enrichment: ProjectEnrichment = {
-            gitBranch: gitInfo.branch ?? null,
+            // git:info returns '' (not null) for non-git paths — normalize so
+            // gitBranch is null when absent (gates the worktree menu item, hasGit filter).
+            gitBranch: gitInfo.branch || null,
             gitDirty: gitInfo.isDirty ?? null,
             hasClaudeMd: claudeInfo.hasClaudeMd,
             hasMcp: claudeInfo.hasMcp,

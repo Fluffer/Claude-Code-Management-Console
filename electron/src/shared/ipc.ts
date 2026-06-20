@@ -53,6 +53,7 @@ export const IPC = Object.freeze({
   SESSIONS_KILL: 'sessions:kill',
   GIT_INFO: 'git:info',
   GIT_WORKTREES: 'git:worktrees',
+  GIT_ADD_WORKTREE: 'git:addWorktree',
   LAUNCH_RUN: 'launch:run',
   ENV_READ: 'env:read',
   ENV_WRITE: 'env:write',
@@ -94,6 +95,10 @@ export interface IpcMap {
   'sessions:kill': { req: { pid: number }; res: { ok: boolean } }
   'git:info': { req: { path: string }; res: GitInfo }
   'git:worktrees': { req: { path: string }; res: GitWorktree[] }
+  'git:addWorktree': {
+    req: { repoPath: string; branch: string }
+    res: { ok: boolean; path?: string; error?: string }
+  }
   'launch:run': { req: LaunchRequest; res: { ok: boolean; pid?: number; error?: string } }
   'env:read': { req: { path: string }; res: string }
   'env:write': { req: { path: string; contents: string }; res: void }

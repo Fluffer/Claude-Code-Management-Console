@@ -11,7 +11,7 @@ import { loadConfig, saveConfig } from '../services/configStore'
 import { loadState, saveState } from '../services/stateStore'
 import { scanProjects } from '../services/projectScanner'
 import { listSessions } from '../services/claudeSessionStore'
-import { getBranchInfo, getIsDirty, getWorktrees } from '../services/gitRunner'
+import { getBranchInfo, getIsDirty, getWorktrees, addWorktree } from '../services/gitRunner'
 import { readEnv, writeEnv } from '../services/envFileStore'
 import { readMcp } from '../services/mcpStore'
 import { createProjectFolder } from '../services/projectFolderCreator'
@@ -286,6 +286,19 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const repoPath = requireString(obj['path'], 'path')
       return getWorktrees(repoPath)
+    },
+
+    // -----------------------------------------------------------------------
+    // git:addWorktree — create a new worktree + branch off HEAD (sibling path)
+    // -----------------------------------------------------------------------
+    'git:addWorktree': async (req) => {
+      const obj = requireObject(req, 'req')
+      const repoPath = requireString(obj['repoPath'], 'repoPath')
+      const branch = requireString(obj['branch'], 'branch')
+      if (branch.trim().length === 0) {
+        throw new TypeError(`IPC validation: 'branch' must be a non-empty string`)
+      }
+      return addWorktree(repoPath, branch)
     },
 
     // -----------------------------------------------------------------------

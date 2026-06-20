@@ -4,10 +4,14 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import type { GitWorktree } from '../../core/models'
 import { parseWorktrees, readBranchFromHead, parseGitFileRedirect } from '../../core/git/gitOutputParser'
+import { siblingWorktreePath } from '../../core/git/worktreePath'
 
 const execFileAsync = promisify(execFile)
 
 const GIT_TIMEOUT_MS = 2000
+// Worktree creation checks out a working tree, so it can take longer than the
+// read-only queries above.
+const GIT_WORKTREE_ADD_TIMEOUT_MS = 15000
 
 /**
  * Spawns `git worktree list --porcelain` and returns parsed GitWorktree[].
@@ -28,6 +32,42 @@ export async function getWorktrees(repoPath: string): Promise<GitWorktree[]> {
     return parseWorktrees(stdout)
   } catch {
     return []
+  }
+}
+
+/**
+ * Creates a new git worktree with a new branch, forked from the repo's current
+ * HEAD, in a sibling folder (`<repo>-<branch-slug>`).
+ *
+ * Spawns `git -C <repo> worktree add -b <branch> <path> HEAD`. Returns the
+ * resolved path on success; on failure returns the git stderr as `error`
+ * (folder exists, branch exists, not a repo) without throwing.
+ */
+export async function addWorktree(
+  repoPath: string,
+  branch: string,
+): Promise<{ ok: boolean; path?: string; error?: string }> {
+  const target = siblingWorktreePath(repoPath, branch)
+  try {
+    await execFileAsync(
+      'git',
+      ['worktree', 'add', '-b', branch, target, 'HEAD'],
+      {
+        cwd: repoPath,
+        timeout: GIT_WORKTREE_ADD_TIMEOUT_MS,
+        windowsHide: true,
+      }
+    )
+    return { ok: true, path: target }
+  } catch (err) {
+    const stderr = (err as { stderr?: string }).stderr
+    const message =
+      stderr && stderr.trim().length > 0
+        ? stderr.trim()
+        : err instanceof Error
+          ? err.message
+          : String(err)
+    return { ok: false, error: message }
   }
 }
 

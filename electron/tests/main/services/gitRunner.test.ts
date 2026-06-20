@@ -4,7 +4,8 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { getWorktrees, getBranchInfo, getIsDirty } from '../../../src/main/services/gitRunner'
+import { getWorktrees, getBranchInfo, getIsDirty, addWorktree } from '../../../src/main/services/gitRunner'
+import { siblingWorktreePath } from '../../../src/core/git/worktreePath'
 
 const execFileAsync = promisify(execFile)
 
@@ -61,6 +62,59 @@ describe('gitRunner.getWorktrees', () => {
     const main = worktrees.find(w => w.branch === 'main')
     expect(main).toBeDefined()
   }, 10000)
+})
+
+describe('gitRunner.addWorktree', () => {
+  const createdPaths: string[] = []
+
+  afterAll(async () => {
+    for (const p of createdPaths) {
+      await fs.rm(p, { recursive: true, force: true }).catch(() => {})
+    }
+    if (gitAvailable && tmpDir) {
+      await execFileAsync('git', ['worktree', 'prune'], { cwd: tmpDir, timeout: 5000 }).catch(() => {})
+    }
+  })
+
+  it('creates a new worktree + branch off HEAD in a sibling folder', async () => {
+    if (!gitAvailable) return
+    const branch = 'feat/wt-create'
+    const expected = siblingWorktreePath(tmpDir, branch)
+    createdPaths.push(expected)
+
+    const result = await addWorktree(tmpDir, branch)
+    expect(result.ok).toBe(true)
+    expect(result.path).toBe(expected)
+
+    // The folder exists and the new branch is checked out there
+    const branchInThere = await getBranchInfo(expected)
+    expect(branchInThere).toBe(branch)
+
+    // The main repo now lists the new worktree
+    const worktrees = await getWorktrees(tmpDir)
+    expect(worktrees.some((w) => w.branch === branch)).toBe(true)
+  }, 20000)
+
+  it('fails (ok=false, error set) when the branch already exists', async () => {
+    if (!gitAvailable) return
+    const branch = 'feat/wt-dup'
+    createdPaths.push(siblingWorktreePath(tmpDir, branch))
+
+    const first = await addWorktree(tmpDir, branch)
+    expect(first.ok).toBe(true)
+
+    const second = await addWorktree(tmpDir, branch)
+    expect(second.ok).toBe(false)
+    expect(second.error && second.error.length).toBeTruthy()
+  }, 20000)
+
+  it('fails for a non-git directory', async () => {
+    const fakeDir = path.join(os.tmpdir(), 'not-git-wt-' + Date.now())
+    await fs.mkdir(fakeDir, { recursive: true })
+    const result = await addWorktree(fakeDir, 'x')
+    expect(result.ok).toBe(false)
+    await fs.rm(fakeDir, { recursive: true, force: true }).catch(() => {})
+  }, 20000)
 })
 
 describe('gitRunner.getBranchInfo', () => {

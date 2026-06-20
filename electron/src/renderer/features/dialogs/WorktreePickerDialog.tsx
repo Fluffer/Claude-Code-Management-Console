@@ -15,6 +15,8 @@
 import React, { useState, useEffect } from 'react'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/Button'
+import { TextInput } from '../../components/ui/TextInput'
+import { siblingWorktreePath } from '../../../core/git/worktreePath'
 import type { GitWorktree, ProjectInfo } from '../../../core/models'
 
 export interface WorktreePickerDialogProps {
@@ -33,6 +35,8 @@ export function WorktreePickerDialog({
   const [loading, setLoading] = useState(false)
   const [launching, setLaunching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [newBranch, setNewBranch] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -40,6 +44,8 @@ export function WorktreePickerDialog({
     setSelectedWorktree(null)
     setError(null)
     setLaunching(false)
+    setNewBranch('')
+    setCreating(false)
     setLoading(true)
 
     void window.ccmc.invoke('git:worktrees', { path: project.path })
@@ -78,15 +84,55 @@ export function WorktreePickerDialog({
     }
   }
 
+  // Create a brand-new worktree (new branch off HEAD) then launch into it.
+  async function handleCreate(): Promise<void> {
+    const branch = newBranch.trim()
+    if (!branch || creating || launching) return
+    setCreating(true)
+    setError(null)
+    try {
+      const created = await window.ccmc.invoke('git:addWorktree', {
+        repoPath: project.path,
+        branch,
+      })
+      if (!created.ok || !created.path) {
+        setError(created.error ?? 'Failed to create worktree')
+        setCreating(false)
+        return
+      }
+      const result = await window.ccmc.invoke('launch:run', {
+        projectName: project.name,
+        projectPath: created.path,
+        continueSession: false,
+        recordUsage: false,
+      })
+      if (!result.ok) {
+        // Worktree was created; only the launch failed — report and stay open.
+        setError(result.error ?? 'Worktree created, but launch failed')
+        setCreating(false)
+        return
+      }
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setCreating(false)
+    }
+  }
+
+  const previewPath = newBranch.trim()
+    ? siblingWorktreePath(project.path, newBranch)
+    : null
+  const busy = launching || creating
+
   const footer = (
     <>
-      <Button onClick={onClose} variant="subtle" disabled={launching}>
+      <Button onClick={onClose} variant="subtle" disabled={busy}>
         Cancel
       </Button>
       <Button
         variant="accent"
         onClick={() => void handleLaunch()}
-        disabled={!selectedWorktree || launching}
+        disabled={!selectedWorktree || busy}
       >
         {launching ? 'Launching…' : 'Launch'}
       </Button>
@@ -96,6 +142,43 @@ export function WorktreePickerDialog({
   return (
     <Modal open={open} title={`Worktrees — ${project.name}`} onClose={onClose} footer={footer}>
       <div className="flex flex-col gap-3 min-w-[380px]">
+        {/* Create a new worktree (new branch off the current branch) */}
+        <div className="flex flex-col gap-2 pb-3 border-b border-[var(--divider)]">
+          <p className="text-xs font-medium text-[var(--text-secondary)]">
+            Create new worktree
+          </p>
+          <div className="flex gap-2">
+            <TextInput
+              value={newBranch}
+              onChange={setNewBranch}
+              placeholder="new branch name (e.g. feat/login)"
+              aria-label="New worktree branch name"
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                if (e.key === 'Enter' && newBranch.trim() && !busy) void handleCreate()
+              }}
+            />
+            <Button
+              variant="accent"
+              className="flex-shrink-0"
+              onClick={() => void handleCreate()}
+              disabled={!newBranch.trim() || busy}
+            >
+              {creating ? 'Creating…' : 'Create & launch'}
+            </Button>
+          </div>
+          {previewPath && (
+            <p
+              className="text-[11px] text-[var(--text-tertiary)] font-mono break-all"
+              title={previewPath}
+            >
+              → {previewPath}
+            </p>
+          )}
+          <p className="text-[11px] text-[var(--text-tertiary)]">
+            Branches off the current branch into a sibling folder.
+          </p>
+        </div>
+
         {loading && (
           <p className="text-xs text-[var(--text-secondary)]">Loading worktrees…</p>
         )}

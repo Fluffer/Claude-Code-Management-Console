@@ -50,6 +50,19 @@ describe('useProjectEnrichment', () => {
     expect(result.current.enrichments['/r1/beta']?.gitDirty).toBe(true)
   })
 
+  it('normalizes an empty branch ("" from non-git paths) to null', async () => {
+    const invoke = getMockInvoke()
+    invoke.mockImplementation(async (channel: string, req: unknown) => {
+      const r = req as { path: string }
+      if (channel === 'git:info') return { branch: '', isDirty: null } as GitInfo
+      if (channel === 'projects:claudeInfo') return CLAUDE_INFO_DEFAULT
+      throw new Error(`Unhandled: ${channel}`)
+    })
+    const { result } = renderHook(() => useProjectEnrichment(PROJECTS))
+    await waitFor(() => expect(result.current.enrichments['/r1/alpha']).toBeDefined())
+    expect(result.current.enrichments['/r1/alpha']?.gitBranch).toBeNull()
+  })
+
   it('calls git:info with the correct path for each project', async () => {
     renderHook(() => useProjectEnrichment(PROJECTS))
     await waitFor(() => {

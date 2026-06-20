@@ -480,6 +480,36 @@ describe('launch:run', () => {
 })
 
 // ---------------------------------------------------------------------------
+// git:addWorktree
+// ---------------------------------------------------------------------------
+
+describe('git:addWorktree', () => {
+  it('throws when branch is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:addWorktree']({ repoPath: tmpDir })).rejects.toThrow()
+  })
+
+  it('throws when repoPath is missing', async () => {
+    const handlers = createHandlers(makeDeps())
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['git:addWorktree']({ branch: 'x' })).rejects.toThrow()
+  })
+
+  it('throws when branch is blank', async () => {
+    const handlers = createHandlers(makeDeps())
+    await expect(handlers['git:addWorktree']({ repoPath: tmpDir, branch: '   ' })).rejects.toThrow()
+  })
+
+  it('returns ok=false for a non-git repoPath (no throw)', async () => {
+    const handlers = createHandlers(makeDeps())
+    const result = await handlers['git:addWorktree']({ repoPath: tmpDir, branch: 'feat/x' })
+    expect(result.ok).toBe(false)
+    expect(result.error).toBeTruthy()
+  }, 20000)
+})
+
+// ---------------------------------------------------------------------------
 // env:read / env:write
 // ---------------------------------------------------------------------------
 
