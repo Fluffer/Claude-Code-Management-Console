@@ -47,13 +47,17 @@ export class WindowsCommandLocator implements ICommandLocator {
   }
 
   async findWindowsTerminal(): Promise<string | null> {
-    const onPath = await this.findOnPath('wt.exe')
+    return this.findTerminalPath('wt.exe')
+  }
+
+  async findTerminalPath(exeName: string): Promise<string | null> {
+    const onPath = await this.findOnPath(exeName)
     if (onPath !== null) return onPath
 
     const localAppData = process.env['LOCALAPPDATA'] ?? ''
     if (!localAppData) return null
 
-    const alias = path.join(localAppData, 'Microsoft', 'WindowsApps', 'wt.exe')
+    const alias = path.join(localAppData, 'Microsoft', 'WindowsApps', exeName)
     return (await pathExists(alias)) ? alias : null
   }
 

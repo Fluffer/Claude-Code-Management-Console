@@ -66,6 +66,38 @@ describe('LaunchCommandBuilder', () => {
   })
 
   // ---------------------------------------------------------------------------
+  // buildLaunchSpec — explicit terminal selection
+  // ---------------------------------------------------------------------------
+
+  it('uses the selected terminal strategy (wtai) with its resolved path', () => {
+    const spec = buildLaunchSpec({
+      projectName: 'Proj',
+      projectPath: 'C:\\Dev\\Proj',
+      flags: '',
+      continueSession: false,
+      shell: 'pwsh',
+      wtPath: 'C:\\wt\\wt.exe',
+      terminal: { id: 'wtai', path: 'C:\\wtai\\wtai.exe' },
+    })
+    // wtai strategy wins over wtPath
+    expect(spec.filePath).toBe('C:\\wtai\\wtai.exe')
+    expect(spec.arguments).toContain('new-tab')
+  })
+
+  it('falls back to the wtPath default when the terminal id is unknown', () => {
+    const spec = buildLaunchSpec({
+      projectName: 'Proj',
+      projectPath: 'C:\\Dev\\Proj',
+      flags: '',
+      continueSession: false,
+      shell: 'pwsh',
+      wtPath: 'C:\\wt\\wt.exe',
+      terminal: { id: 'nonsense', path: 'C:\\x.exe' },
+    })
+    expect(spec.filePath).toBe('C:\\wt\\wt.exe')
+  })
+
+  // ---------------------------------------------------------------------------
   // AreFlagsSafe — rejects shell metacharacters
   // ---------------------------------------------------------------------------
 

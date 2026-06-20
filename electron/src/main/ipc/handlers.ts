@@ -20,6 +20,7 @@ import { deleteProject } from '../services/projectDeleter'
 import { claudeMdPath, hasClaudeMdInProject } from '../services/projectClaudeStore'
 import { resolveProjectModel } from '../services/projectModelStore'
 import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
+import { terminalsForPlatform, WINDOWS_TERMINAL_EXE } from '../../core/launch/terminals'
 import { mruAdd } from '../../core/projects/mruList'
 import * as path from 'node:path'
 
@@ -110,6 +111,25 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       ...state,
       recentLaunches: mruAdd(state.recentLaunches, projectPath, 15),
     })
+  }
+
+  /**
+   * Resolve the user's selected terminal from state.json into { id, path } for
+   * buildLaunchSpec, or null for Auto / unavailable / non-Windows. Never throws.
+   */
+  async function resolveSelectedTerminal(): Promise<{ id: string; path: string } | null> {
+    if (process.platform !== 'win32') return null
+    let terminalId = ''
+    try {
+      terminalId = (await loadState(statePath)).terminalId ?? ''
+    } catch {
+      return null
+    }
+    if (!terminalId) return null
+    const exe = WINDOWS_TERMINAL_EXE[terminalId]
+    if (!exe) return null
+    const resolved = await commandLocator.findTerminalPath(exe)
+    return resolved !== null ? { id: terminalId, path: resolved } : null
   }
 
   return {
@@ -325,6 +345,11 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
         commandLocator.findWindowsTerminal(),
       ])
 
+      // Resolve the user's selected terminal (state.terminalId). '' = Auto, which
+      // keeps the wtPath/shell default. An unavailable selection silently falls
+      // back to the default too.
+      const selectedTerminal = await resolveSelectedTerminal()
+
       const spec = buildLaunchSpec({
         projectName,
         projectPath,
@@ -333,6 +358,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
         shell,
         wtPath,
         initialPrompt,
+        terminal: selectedTerminal,
       })
 
       const result = await terminalLauncher.launch(spec)
@@ -383,21 +409,21 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     // terminals:detect
     // -----------------------------------------------------------------------
     'terminals:detect': async () => {
-      const terminals: { id: string; name: string }[] = []
+      // Only terminals that are available AND match the current OS. The raw shell
+      // is intentionally not listed — it is the silent fallback, not a choice.
+      const platform = process.platform === 'win32' ? 'win32' : 'darwin'
+      const detected: { id: string; name: string; path: string }[] = []
 
-      const [wtPath, shell] = await Promise.all([
-        commandLocator.findWindowsTerminal(),
-        commandLocator.getPreferredShell(),
-      ])
-
-      if (wtPath !== null) {
-        terminals.push({ id: 'wt', name: 'Windows Terminal' })
+      for (const t of terminalsForPlatform(platform)) {
+        const exe = WINDOWS_TERMINAL_EXE[t.id]
+        if (!exe) continue // mac detection lands in Phase 3
+        const resolved = await commandLocator.findTerminalPath(exe)
+        if (resolved !== null) {
+          detected.push({ id: t.id, name: t.name, path: resolved })
+        }
       }
 
-      const shellName = shell === 'pwsh' ? 'PowerShell 7' : 'Windows PowerShell'
-      terminals.push({ id: shell, name: shellName })
-
-      return terminals
+      return detected
     },
 
     // -----------------------------------------------------------------------

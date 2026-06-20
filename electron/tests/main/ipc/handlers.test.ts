@@ -50,6 +50,7 @@ function makeDeps(overrides: Partial<IpcHandlerDeps> = {}): IpcHandlerDeps {
     commandLocator: {
       findOnPath: vi.fn().mockResolvedValue(null),
       findWindowsTerminal: vi.fn().mockResolvedValue(null),
+      findTerminalPath: vi.fn().mockResolvedValue(null),
       getPreferredShell: vi.fn().mockResolvedValue('powershell'),
     },
     pickFolder: vi.fn().mockResolvedValue({ path: null }),
@@ -510,6 +511,30 @@ describe('git:addWorktree', () => {
 })
 
 // ---------------------------------------------------------------------------
+// terminals:detect
+// ---------------------------------------------------------------------------
+
+describe('terminals:detect', () => {
+  it('returns only available OS-appropriate terminals with resolved paths', async () => {
+    if (process.platform !== 'win32') return
+    const deps = makeDeps({
+      commandLocator: {
+        findOnPath: vi.fn().mockResolvedValue(null),
+        findWindowsTerminal: vi.fn().mockResolvedValue('C:\\wt.exe'),
+        // wt.exe resolves; wtai.exe does not
+        findTerminalPath: vi.fn().mockImplementation(async (exe: string) =>
+          exe === 'wt.exe' ? 'C:\\wt.exe' : null,
+        ),
+        getPreferredShell: vi.fn().mockResolvedValue('pwsh'),
+      },
+    })
+    const handlers = createHandlers(deps)
+    const result = await handlers['terminals:detect']()
+    expect(result).toEqual([{ id: 'wt', name: 'Windows Terminal', path: 'C:\\wt.exe' }])
+  })
+})
+
+// ---------------------------------------------------------------------------
 // env:read / env:write
 // ---------------------------------------------------------------------------
 
@@ -597,12 +622,13 @@ describe('mcp:read', () => {
 // terminals:detect
 // ---------------------------------------------------------------------------
 
-describe('terminals:detect', () => {
-  it('returns an array of terminal entries', async () => {
+describe('terminals:detect (availability)', () => {
+  it('returns an array of {id,name,path} entries', async () => {
     const deps = makeDeps({
       commandLocator: {
         findOnPath: vi.fn().mockResolvedValue(null),
         findWindowsTerminal: vi.fn().mockResolvedValue(null),
+        findTerminalPath: vi.fn().mockResolvedValue(null),
         getPreferredShell: vi.fn().mockResolvedValue('powershell'),
       },
     })
@@ -610,14 +636,22 @@ describe('terminals:detect', () => {
 
     const result = await handlers['terminals:detect'](undefined)
     expect(Array.isArray(result)).toBe(true)
-    expect(result.every((t) => typeof t.id === 'string' && typeof t.name === 'string')).toBe(true)
+    expect(
+      result.every(
+        (t) => typeof t.id === 'string' && typeof t.name === 'string' && typeof t.path === 'string',
+      ),
+    ).toBe(true)
   })
 
   it('includes Windows Terminal when wt.exe is found', async () => {
+    if (process.platform !== 'win32') return
     const deps = makeDeps({
       commandLocator: {
         findOnPath: vi.fn().mockResolvedValue(null),
         findWindowsTerminal: vi.fn().mockResolvedValue('C:\\wt.exe'),
+        findTerminalPath: vi.fn().mockImplementation(async (exe: string) =>
+          exe === 'wt.exe' ? 'C:\\wt.exe' : null,
+        ),
         getPreferredShell: vi.fn().mockResolvedValue('pwsh'),
       },
     })
@@ -632,6 +666,7 @@ describe('terminals:detect', () => {
       commandLocator: {
         findOnPath: vi.fn().mockResolvedValue(null),
         findWindowsTerminal: vi.fn().mockResolvedValue(null),
+        findTerminalPath: vi.fn().mockResolvedValue(null),
         getPreferredShell: vi.fn().mockResolvedValue('powershell'),
       },
     })

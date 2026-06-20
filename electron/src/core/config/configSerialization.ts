@@ -206,6 +206,7 @@ const APP_STATE_DEFAULTS: AppState = {
   groups: [],
   savedFilters: [],
   closeToTray: false,
+  terminalId: '',
 }
 
 /**
@@ -244,6 +245,7 @@ export function parseState(json: string): AppState {
     groups,
     savedFilters,
     closeToTray: (raw.closeToTray as boolean | undefined) ?? false,
+    terminalId: (raw.terminalId as string | undefined) ?? '',
   }
 }
 
@@ -312,6 +314,7 @@ export function serializeState(state: AppState): string {
       requirePinned: f.requirePinned,
     })),
     closeToTray: state.closeToTray,
+    terminalId: state.terminalId ?? '',
   }
 
   return encObj(obj, 0)

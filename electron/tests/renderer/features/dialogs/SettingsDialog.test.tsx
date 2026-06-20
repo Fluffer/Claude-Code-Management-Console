@@ -32,6 +32,7 @@ const baseState: AppState = {
   groups: [],
   savedFilters: [],
   closeToTray: false,
+  terminalId: '',
 }
 
 const baseConfig: LauncherConfig = {
@@ -59,6 +60,10 @@ describe('SettingsDialog', () => {
     setChannelResponse('state:write', null as unknown as void)
     setChannelResponse('config:write', null as unknown as void)
     setChannelResponse('dialog:pickFolder', { path: null })
+    setChannelResponse('terminals:detect', [
+      { id: 'wt', name: 'Windows Terminal', path: 'C:\\wt.exe' },
+      { id: 'wtai', name: 'Windows Terminal AI', path: 'C:\\wtai.exe' },
+    ])
   })
 
   it('renders the dialog title', async () => {
@@ -113,6 +118,24 @@ describe('SettingsDialog', () => {
       expect(invoke).toHaveBeenCalledWith('config:write', expect.any(Object))
     })
     await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+
+  it('lists detected terminals and persists the selection', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+    const select = await screen.findByLabelText(/open sessions in/i)
+    // Auto + the two detected terminals
+    expect(screen.getByRole('option', { name: /Auto/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Windows Terminal AI' })).toBeInTheDocument()
+
+    await user.selectOptions(select, 'wtai')
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => {
+      expect(getMockInvoke()).toHaveBeenCalledWith(
+        'state:write',
+        expect.objectContaining({ terminalId: 'wtai' }),
+      )
+    })
   })
 
   it('Add root calls dialog:pickFolder', async () => {

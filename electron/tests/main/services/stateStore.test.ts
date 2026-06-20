@@ -31,6 +31,7 @@ const defaultState: AppState = {
   groups: [],
   savedFilters: [],
   closeToTray: false,
+  terminalId: '',
 }
 
 describe('loadState', () => {

@@ -67,6 +67,8 @@ export function SettingsDialog({
   const [hidden, setHidden] = useState<string[]>([])
   const [selectedRoot, setSelectedRootSel] = useState<string | null>(null)
   const [selectedHidden, setSelectedHidden] = useState<string | null>(null)
+  const [terminals, setTerminals] = useState<{ id: string; name: string; path: string }[]>([])
+  const [terminalId, setTerminalId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -81,11 +83,14 @@ export function SettingsDialog({
     Promise.all([
       window.ccmc.invoke('state:read'),
       window.ccmc.invoke('config:read'),
-    ]).then(([state, cfg]) => {
+      window.ccmc.invoke('terminals:detect'),
+    ]).then(([state, cfg, detected]) => {
       setAppState(state)
       setConfig(cfg)
       setSelectedTheme(themeOptionFromState(state.theme))
       setCloseToTray(state.closeToTray)
+      setTerminals(detected)
+      setTerminalId(state.terminalId ?? '')
       const r = cfg.roots ?? []
       setRoots(r)
       setDefaultRoot(cfg.defaultRoot ?? null)
@@ -141,6 +146,7 @@ export function SettingsDialog({
         ...appState,
         theme: themeValue,
         closeToTray,
+        terminalId,
       }
       const nextConfig: LauncherConfig = {
         ...config,
@@ -197,6 +203,28 @@ export function SettingsDialog({
             >
               {THEME_OPTIONS.map((t) => (
                 <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" htmlFor="settings-terminal">
+              Terminal
+            </label>
+            <select
+              id="settings-terminal"
+              aria-label="Open sessions in"
+              value={terminalId}
+              onChange={(e) => setTerminalId(e.target.value)}
+              className={[
+                'flex-1 rounded px-2 py-1.5 text-sm',
+                'bg-[var(--control-fill)] border border-[var(--control-border)]',
+                'text-[var(--text-primary)]',
+                'focus:outline focus:outline-2 focus:outline-[var(--accent)]',
+              ].join(' ')}
+            >
+              <option value="">Auto (Windows Terminal, else shell)</option>
+              {terminals.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>

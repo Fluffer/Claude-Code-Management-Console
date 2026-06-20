@@ -32,4 +32,9 @@ export interface AppState {
   savedFilters: SavedFilter[];
   /** When true, the window close button hides to the tray instead of exiting. */
   closeToTray: boolean;
+  /**
+   * Selected terminal id (registry id, e.g. 'wt' | 'wtai'). '' = Auto:
+   * Windows Terminal if present, else a bare shell.
+   */
+  terminalId: string;
 }

@@ -21,6 +21,7 @@
 
 import type { LaunchSpec } from '../models'
 import { joinArgs } from './argumentEscaper'
+import { getTerminal } from './terminals'
 
 // Characters that would be interpreted as shell operators / expansions by
 // PowerShell -Command if they appeared in a flags string.
@@ -102,6 +103,12 @@ export interface BuildLaunchSpecOptions {
    */
   wtPath: string | null
   initialPrompt?: string | null
+  /**
+   * Explicitly selected terminal (id + resolved exe path). When present and the
+   * id resolves to a registry strategy, that strategy builds the spec. When
+   * absent or unknown, falls back to the wtPath/shell default below.
+   */
+  terminal?: { id: string; path: string } | null
 }
 
 /**
@@ -142,9 +149,24 @@ export function buildShellArgs(claudeCommand: string): string[] {
  * and wtPath before calling here.
  */
 export function buildLaunchSpec(opts: BuildLaunchSpecOptions): LaunchSpec {
-  const { projectName, projectPath, flags, continueSession, shell, wtPath, initialPrompt } = opts
+  const { projectName, projectPath, flags, continueSession, shell, wtPath, initialPrompt, terminal } = opts
 
   const claudeCommand = buildClaudeCommand({ flags, continueSession, initialPrompt, name: projectName })
+
+  // Explicit terminal selection wins when its id resolves to a registry strategy.
+  if (terminal != null && terminal.path.trim().length > 0) {
+    const strategy = getTerminal(terminal.id)
+    if (strategy != null) {
+      return strategy.buildSpec({
+        terminalPath: terminal.path,
+        shell,
+        projectName,
+        projectPath,
+        claudeCommand,
+      })
+    }
+    // Unknown id → fall through to the wtPath/shell default below.
+  }
 
   if (wtPath != null && wtPath.trim().length > 0) {
     const wtArgs = buildWtArgs(projectName, projectPath, shell, claudeCommand)

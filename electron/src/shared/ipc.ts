@@ -103,7 +103,7 @@ export interface IpcMap {
   'env:read': { req: { path: string }; res: string }
   'env:write': { req: { path: string; contents: string }; res: void }
   'mcp:read': { req: { path: string }; res: McpServerInfo[] }
-  'terminals:detect': { req: void; res: { id: string; name: string }[] }
+  'terminals:detect': { req: void; res: { id: string; name: string; path: string }[] }
   'dialog:pickFolder': { req: { title?: string }; res: { path: string | null } }
   'shell:openPath': { req: { path: string }; res: { ok: boolean; error?: string } }
   'shell:openInVscode': { req: { path: string }; res: { ok: boolean; error?: string } }
