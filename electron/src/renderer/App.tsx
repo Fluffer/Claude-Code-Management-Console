@@ -39,14 +39,14 @@ import { TextInput } from './components/ui/TextInput'
 import { deepLinkBuilder } from '../core/links/deepLinkBuilder'
 import { setModel } from '../core/config/flagsEditor'
 import type { ProjectAction } from './features/projects/projectActions'
-import type { LauncherConfig, ProjectInfo } from '../core/models'
+import type { LaunchGroup, LauncherConfig, ProjectInfo, SavedFilter } from '../core/models'
 
 function MainWindow(): React.ReactElement {
   const { projects, loading: projectsLoading, error: projectsError, refresh } = useProjects()
   const { sessions: runningSessions } = useRunningSessions()
-  const { state, loading: stateLoading, togglePin } = useAppState()
+  const { state, loading: stateLoading, togglePin, setSortMode, reload: reloadState } = useAppState()
   const { enrichments } = useProjectEnrichment(projects)
-  const { openDialog } = useDialogs()
+  const { openDialog, registerRefresh } = useDialogs()
   const { showToast } = useToast()
 
   const [config, setConfig] = useState<LauncherConfig | null>(null)
@@ -54,10 +54,24 @@ function MainWindow(): React.ReactElement {
   const [selectedSidebar, setSelectedSidebar] = useState<SidebarEntry | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
-  // Load config once to get the canonical roots list
-  useEffect(() => {
+  const reloadConfig = useCallback(() => {
     void window.ccmc.invoke('config:read').then(setConfig)
   }, [])
+
+  // Load config once to get the canonical roots list
+  useEffect(() => {
+    reloadConfig()
+  }, [reloadConfig])
+
+  // Dialogs report data mutations via onRefresh; re-pull every source the
+  // command bar / sidebar / list read from (projects, state.json, config.json).
+  useEffect(() => {
+    registerRefresh(() => {
+      refresh()
+      reloadState()
+      reloadConfig()
+    })
+  }, [registerRefresh, refresh, reloadState, reloadConfig])
 
   // Ctrl+K / Cmd+K opens command palette; F1 opens help
   useEffect(() => {
@@ -95,6 +109,7 @@ function MainWindow(): React.ReactElement {
     sortMode: state?.sortMode ?? 'LastUsed',
     pinned: state?.pinned ?? [],
     runningSessions,
+    enrichments,
   })
 
   const anySessionRunning = runningSessions.length > 0
@@ -406,6 +421,34 @@ function MainWindow(): React.ReactElement {
     onAction(isNew ? { kind: 'launch-new', project } : { kind: 'launch-continue', project })
   }
 
+  // Launch every project in a saved group (fresh sessions, in listed order).
+  // Mirrors MainViewModel group launch; worktree-style recordUsage handling N/A here.
+  function handleLaunchGroup(group: LaunchGroup): void {
+    for (const path of group.projectPaths) {
+      const proj = projects.find((p) => p.path.toLowerCase() === path.toLowerCase())
+      const name = proj?.name ?? path.replace(/[/\\]+$/, '').split(/[/\\]/).pop() ?? path
+      void window.ccmc
+        .invoke('launch:run', {
+          projectName: name,
+          projectPath: path,
+          continueSession: false,
+          flags: proj?.flags ?? '',
+        })
+        .then((result) => {
+          if (!result.ok) showToast(result.error ?? `Failed to launch ${name}`, 'error')
+        })
+        .catch((err: unknown) => {
+          showToast(err instanceof Error ? err.message : String(err), 'error')
+        })
+    }
+  }
+
+  // Selecting a saved filter narrows the list — same as picking its sidebar entry.
+  function handleSelectFilter(filter: SavedFilter): void {
+    const entry = sidebarItems.find((i) => i.id === `filter:${filter.name}`)
+    if (entry) setSelectedSidebar(entry)
+  }
+
   function handleStopAll(): void {
     if (
       !window.confirm(
@@ -458,6 +501,16 @@ function MainWindow(): React.ReactElement {
                 if (e.key === 'Escape') setSearchText('')
               }}
             />
+            <select
+              aria-label="Sort projects"
+              title="Change how the project list is ordered. Pinned projects always stay on top."
+              value={state?.sortMode ?? 'LastUsed'}
+              onChange={(e) => setSortMode(e.target.value)}
+              className="flex-shrink-0 rounded border border-[var(--control-border)] bg-[var(--control-fill)] text-[var(--text-primary)] text-sm px-2"
+            >
+              <option value="LastUsed">Sort: Recently used</option>
+              <option value="Name">Sort: Name A–Z</option>
+            </select>
           </div>
 
           {/* Project list */}
@@ -476,11 +529,18 @@ function MainWindow(): React.ReactElement {
           {/* Command bar */}
           <CommandBar
             anySessionRunning={anySessionRunning}
+            groups={state?.groups ?? []}
+            savedFilters={state?.savedFilters ?? []}
             onNewProject={() => {
               openDialog({ kind: 'new-project', roots: config?.roots ?? [] })
             }}
             onRefresh={refresh}
             onStopAll={handleStopAll}
+            onManageProfiles={() => openDialog({ kind: 'manage-profiles' })}
+            onLaunchGroup={handleLaunchGroup}
+            onManageGroups={() => openDialog({ kind: 'manage-groups', projects })}
+            onSelectFilter={handleSelectFilter}
+            onManageFilters={() => openDialog({ kind: 'manage-filters' })}
           />
         </main>
       </div>

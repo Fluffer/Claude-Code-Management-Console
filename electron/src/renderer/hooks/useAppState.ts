@@ -8,6 +8,8 @@ export interface UseAppStateResult {
   togglePin: (path: string) => void
   setOnboardingDismissed: () => void
   writeState: (next: AppState) => void
+  /** Re-read state from disk — call after a dialog mutates state.json. */
+  reload: () => void
 }
 
 /**
@@ -21,6 +23,15 @@ export interface UseAppStateResult {
 export function useAppState(): UseAppStateResult {
   const [state, setState] = useState<AppState | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const reload = useCallback(() => {
+    void window.ccmc
+      .invoke('state:read')
+      .then((s) => setState(s))
+      .catch(() => {
+        /* keep last-known state on read failure */
+      })
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -77,5 +88,5 @@ export function useAppState(): UseAppStateResult {
     })
   }, [])
 
-  return { state, loading, setSortMode, togglePin, setOnboardingDismissed, writeState }
+  return { state, loading, setSortMode, togglePin, setOnboardingDismissed, writeState, reload }
 }

@@ -63,7 +63,70 @@ const RUNNING_FILTER_ENTRY: SidebarEntry = {
   tooltip: '',
 }
 
+const CLAUDEMD_FILTER: SavedFilter = {
+  name: 'HasClaudeMd',
+  pathContains: null,
+  requireGit: false,
+  requireClaudeMd: true,
+  requireRunning: false,
+  requirePinned: false,
+}
+const CLAUDEMD_FILTER_ENTRY: SidebarEntry = {
+  id: 'filter:HasClaudeMd',
+  displayName: '🔎 HasClaudeMd',
+  root: null,
+  filter: CLAUDEMD_FILTER,
+  tooltip: '',
+}
+
+function enrich(over: Partial<import('../../../../src/renderer/features/projects/ProjectRow').ProjectEnrichment>) {
+  return {
+    gitBranch: null,
+    gitDirty: null,
+    hasClaudeMd: false,
+    hasMcp: false,
+    hasSettingsError: false,
+    settingsError: '',
+    hasSession: true,
+    isStale: false,
+    defaultModel: null,
+    ...over,
+  }
+}
+
 describe('useProjectList', () => {
+  it('requireClaudeMd matches only projects whose enrichment has CLAUDE.md', () => {
+    const { result } = renderHook(() =>
+      useProjectList({
+        projects: PROJECTS,
+        selectedSidebar: CLAUDEMD_FILTER_ENTRY,
+        searchText: '',
+        sortMode: 'LastUsed',
+        pinned: [],
+        runningSessions: [],
+        enrichments: {
+          [`${ROOT1}/alpha`]: enrich({ hasClaudeMd: true }),
+          [`${ROOT1}/beta`]: enrich({ hasClaudeMd: false }),
+        },
+      }),
+    )
+    expect(result.current.map((p) => p.name)).toEqual(['alpha'])
+  })
+
+  it('requireClaudeMd matches nothing until enrichment is present', () => {
+    const { result } = renderHook(() =>
+      useProjectList({
+        projects: PROJECTS,
+        selectedSidebar: CLAUDEMD_FILTER_ENTRY,
+        searchText: '',
+        sortMode: 'LastUsed',
+        pinned: [],
+        runningSessions: [],
+      }),
+    )
+    expect(result.current).toHaveLength(0)
+  })
+
   it('returns all projects when sidebar = All and search empty', () => {
     const { result } = renderHook(() =>
       useProjectList({

@@ -54,6 +54,12 @@ export type DialogRequest =
 
 interface DialogsContextValue {
   openDialog: (request: DialogRequest) => void
+  /**
+   * Register the handler run when a dialog reports it mutated data.
+   * MainWindow registers a combined refresh (projects + state + config) here;
+   * the provider sits above MainWindow so it cannot reach those hooks directly.
+   */
+  registerRefresh: (handler: () => void) => void
 }
 
 const DialogsContext = createContext<DialogsContextValue | null>(null)
@@ -78,18 +84,22 @@ export function DialogsProvider({
   onRefresh,
 }: DialogsProviderProps): React.ReactElement {
   const [active, setActive] = useState<DialogRequest | null>(null)
+  // Default to the prop; MainWindow overrides via registerRefresh once mounted.
   const onRefreshRef = useRef(onRefresh)
-  onRefreshRef.current = onRefresh
 
   const openDialog = useCallback((request: DialogRequest) => {
     setActive(request)
+  }, [])
+
+  const registerRefresh = useCallback((handler: () => void) => {
+    onRefreshRef.current = handler
   }, [])
 
   const handleClose = useCallback(() => setActive(null), [])
   const handleRefresh = useCallback(() => onRefreshRef.current(), [])
 
   return (
-    <DialogsContext.Provider value={{ openDialog }}>
+    <DialogsContext.Provider value={{ openDialog, registerRefresh }}>
       {children}
 
       {/* Dialog host — only one dialog open at a time */}

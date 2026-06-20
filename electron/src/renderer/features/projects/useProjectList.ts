@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import type { ProjectInfo, RunningSession, SavedFilter } from '../../../core/models'
 import type { SidebarEntry } from '../sidebar/sidebarItems'
+import type { ProjectEnrichment } from './ProjectRow'
 import { projectMatches } from '../../../core/projects/projectSearch'
 import { filterMatches, type ProjectFacts } from '../../../core/projects/projectFilter'
 
@@ -11,6 +12,12 @@ export interface UseProjectListInput {
   sortMode: string
   pinned: string[]
   runningSessions: RunningSession[]
+  /**
+   * Async per-project enrichment, keyed by path. Supplies hasGit / hasClaudeMd
+   * to saved-filter evaluation. Absent until enrichment loads — filters using
+   * requireGit/requireClaudeMd populate once it arrives. Defaults to {}.
+   */
+  enrichments?: Record<string, ProjectEnrichment>
 }
 
 /**
@@ -34,6 +41,7 @@ export interface UseProjectListInput {
  */
 export function useProjectList(input: UseProjectListInput): ProjectInfo[] {
   const { projects, selectedSidebar, searchText, sortMode, pinned, runningSessions } = input
+  const enrichments = input.enrichments
 
   return useMemo(() => {
     const pinnedSet = new Set(pinned.map((p) => p.toLowerCase()))
@@ -57,10 +65,11 @@ export function useProjectList(input: UseProjectListInput): ProjectInfo[] {
     const activeFilter: SavedFilter | null = selectedSidebar?.filter ?? null
     if (activeFilter) {
       filtered = filtered.filter((p) => {
+        const e = enrichments?.[p.path]
         const facts: ProjectFacts = {
           path: p.path,
-          hasGit: false,       // enrichment-only — not yet available synchronously
-          hasClaudeMd: false,  // enrichment-only
+          hasGit: e?.gitBranch != null,
+          hasClaudeMd: e?.hasClaudeMd ?? false,
           isRunning: runningDirs.has(p.path.toLowerCase()),
           isPinned: pinnedSet.has(p.path.toLowerCase()),
         }
@@ -86,5 +95,5 @@ export function useProjectList(input: UseProjectListInput): ProjectInfo[] {
     })
 
     return sorted
-  }, [projects, selectedSidebar, searchText, sortMode, pinned, runningSessions])
+  }, [projects, selectedSidebar, searchText, sortMode, pinned, runningSessions, enrichments])
 }
