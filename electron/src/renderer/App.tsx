@@ -253,6 +253,14 @@ function MainWindow(): React.ReactElement {
           openDialog({ kind: 'view-mcp', project: action.project })
           break
 
+        case 'view-skills':
+          openDialog({ kind: 'view-skills', project: action.project })
+          break
+
+        case 'run-command':
+          openDialog({ kind: 'run-command', project: action.project })
+          break
+
         case 'apply-profile':
           openDialog({ kind: 'manage-profiles' })
           break
