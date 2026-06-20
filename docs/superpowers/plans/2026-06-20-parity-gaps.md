@@ -15,14 +15,17 @@ Status: MISSING = absent, PARTIAL = present but incomplete/different, OK = parit
 | 6 | **Sidebar Help button** | MainWindow.xaml:85 | only Settings in sidebar | MISSING |
 | 7 | **Context-menu conditional visibility** (CLAUDE.md only if HasClaudeMd; MCP if HasMcp; Stop if IsRunning; worktree if HasGitInfo; .claudeignore if exists) | MainWindow.xaml.cs:699–716 | all items always shown | MISSING |
 
-## P1 — Settings / theming / onboarding
+## P1 — Settings / theming / onboarding — DONE (commit 32d9f31)
+
+Spec: `docs/superpowers/specs/2026-06-20-p1-theming-banners-design.md`. Council-reviewed (Ollama)
++ verified live. GUI confirmation (accent/font apply, banners) is the user's.
 
 | # | Feature | WinUI | Electron | Status |
 |---|---------|-------|----------|--------|
-| 8 | **Accent color picker** | SettingsDialog AccentCombo | stored in AppState, not rendered, not applied by ThemeProvider | MISSING |
-| 9 | **Font picker** | SettingsDialog FontCombo | stored in AppState, not rendered, not applied | MISSING |
-| 10 | **Onboarding banner** + dismiss (no roots & !onboardingDismissed) | MainWindow.xaml:34 InfoBar | state+hook DONE, no UI, App.tsx never checks | PARTIAL |
-| 11 | **Claude-missing warning banner** | MainWindow.xaml:29 InfoBar | — | MISSING |
+| 8 | **Accent color picker** | SettingsDialog AccentCombo | curated `core/theme/accents.ts`; themes.css ramp derives from `--accent` via color-mix; `applyAccent` | OK |
+| 9 | **Font picker** | SettingsDialog FontCombo | curated `core/theme/fonts.ts` → `--app-font`; `applyFont` | OK |
+| 10 | **Onboarding banner** + dismiss (no roots & !onboardingDismissed) | MainWindow.xaml:34 InfoBar | `Banner` + App gate on `!onboardingDismissed` | OK |
+| 11 | **Claude-missing warning banner** | MainWindow.xaml:29 InfoBar | `claude:onPath` IPC + `useClaudeOnPath` + non-closable warning `Banner` | OK |
 
 ## P2 — Phase 5 OS integration — DONE (commit 07bca07)
 
