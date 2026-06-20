@@ -19,6 +19,8 @@ import { QuickPromptDialog } from './QuickPromptDialog'
 import { ResumeSessionDialog } from './ResumeSessionDialog'
 import { EnvEditorDialog } from './EnvEditorDialog'
 import { McpViewerDialog } from './McpViewerDialog'
+import { SkillsViewerDialog } from './SkillsViewerDialog'
+import { CommandPickerDialog } from './CommandPickerDialog'
 import { GroupManagerDialog } from './GroupManagerDialog'
 import { ProfileManagerDialog } from './ProfileManagerDialog'
 import { SavedFilterDialog } from './SavedFilterDialog'
@@ -43,6 +45,8 @@ export type DialogRequest =
   | { kind: 'resume-session'; project: ProjectInfo }
   | { kind: 'edit-env'; project: ProjectInfo }
   | { kind: 'view-mcp'; project: ProjectInfo }
+  | { kind: 'view-skills'; project: ProjectInfo }
+  | { kind: 'run-command'; project: ProjectInfo }
   | { kind: 'manage-groups'; projects: ProjectInfo[] }
   | { kind: 'manage-profiles' }
   | { kind: 'manage-filters' }
@@ -165,6 +169,22 @@ export function DialogsProvider({
 
       {active?.kind === 'view-mcp' && (
         <McpViewerDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
+        />
+      )}
+
+      {active?.kind === 'view-skills' && (
+        <SkillsViewerDialog
+          open={true}
+          project={active.project}
+          onClose={handleClose}
+        />
+      )}
+
+      {active?.kind === 'run-command' && (
+        <CommandPickerDialog
           open={true}
           project={active.project}
           onClose={handleClose}

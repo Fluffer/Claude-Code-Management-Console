@@ -85,6 +85,8 @@ function enrich(over: Partial<import('../../../../src/renderer/features/projects
     gitDirty: null,
     hasClaudeMd: false,
     hasMcp: false,
+    hasCommands: false,
+    hasSkills: false,
     hasSettingsError: false,
     settingsError: '',
     hasSession: true,

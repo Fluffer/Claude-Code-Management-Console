@@ -4,6 +4,7 @@
  */
 import type {
   AppState,
+  CommandInfo,
   GitInfo,
   GitWorktree,
   LauncherConfig,
@@ -11,6 +12,7 @@ import type {
   ProjectInfo,
   RunningSession,
   SessionSummary,
+  SkillInfo,
 } from '../core/models'
 
 // ---------------------------------------------------------------------------
@@ -23,7 +25,11 @@ export interface LaunchRequest {
   continueSession: boolean
   /** Extra claude flags (e.g. '--resume <id>'). Must not contain shell operators. */
   flags?: string
-  /** Initial prompt text. Only used when continueSession=false and flags is empty/absent. */
+  /**
+   * Initial prompt text. Appended as the trailing positional argument when
+   * continueSession=false; any `flags` follow it on the same command line.
+   * Ignored when continueSession=true.
+   */
   initialPrompt?: string | null
   /**
    * Record this launch in usage (config lastUsed) + recentLaunches MRU.
@@ -61,6 +67,8 @@ export const IPC = Object.freeze({
   ENV_READ: 'env:read',
   ENV_WRITE: 'env:write',
   MCP_READ: 'mcp:read',
+  COMMANDS_LIST: 'commands:list',
+  SKILLS_LIST: 'skills:list',
   TERMINALS_DETECT: 'terminals:detect',
   DIALOG_PICK_FOLDER: 'dialog:pickFolder',
   SHELL_OPEN_PATH: 'shell:openPath',
@@ -93,6 +101,8 @@ export interface IpcMap {
       hasClaudeMd: boolean
       claudeMdFilename: string | null
       hasMcp: boolean
+      hasCommands: boolean
+      hasSkills: boolean
       /** Effective default model from project/user settings.json, or null. */
       defaultModel: string | null
     }
@@ -123,6 +133,8 @@ export interface IpcMap {
   'env:read': { req: { path: string }; res: string }
   'env:write': { req: { path: string; contents: string }; res: void }
   'mcp:read': { req: { path: string }; res: McpServerInfo[] }
+  'commands:list': { req: { path: string }; res: CommandInfo[] }
+  'skills:list': { req: { path: string }; res: SkillInfo[] }
   'terminals:detect': { req: void; res: { id: string; name: string; path: string }[] }
   'dialog:pickFolder': { req: { title?: string }; res: { path: string | null } }
   'shell:openPath': { req: { path: string }; res: { ok: boolean; error?: string } }

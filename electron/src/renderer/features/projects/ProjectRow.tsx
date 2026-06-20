@@ -15,6 +15,8 @@ export interface ProjectEnrichment {
   gitDirty: boolean | null
   hasClaudeMd: boolean
   hasMcp: boolean
+  hasCommands: boolean
+  hasSkills: boolean
   hasSettingsError: boolean
   settingsError: string
   hasSession: boolean
@@ -269,6 +271,14 @@ export function ProjectRow({
             >
               MCP
             </Badge>
+          )}
+
+          {enrichment?.hasCommands && (
+            <Badge color="subtle" title="Has slash commands">cmds</Badge>
+          )}
+
+          {enrichment?.hasSkills && (
+            <Badge color="subtle" title="Has skills">skills</Badge>
           )}
 
           {enrichment?.hasSettingsError && (

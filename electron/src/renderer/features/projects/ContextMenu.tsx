@@ -92,6 +92,12 @@ export function ContextMenu({
       {enrichment?.hasMcp && (
         <MenuItem label="View MCP servers…"   onClick={() => dispatch({ kind: 'view-mcp', project })} />
       )}
+      {enrichment?.hasCommands && (
+        <MenuItem label="Run command…"        onClick={() => dispatch({ kind: 'run-command', project })} />
+      )}
+      {enrichment?.hasSkills && (
+        <MenuItem label="View skills…"        onClick={() => dispatch({ kind: 'view-skills', project })} />
+      )}
       <MenuItem label="Copy path"           onClick={() => dispatch({ kind: 'copy-path', project })} />
       <MenuItem label="Copy deep link"      onClick={() => dispatch({ kind: 'copy-deep-link', project })} />
 
