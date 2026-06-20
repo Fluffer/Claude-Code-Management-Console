@@ -7,6 +7,7 @@ interface SidebarProps {
   selected: SidebarEntry | null
   onSelect: (entry: SidebarEntry) => void
   onSettingsClick: () => void
+  onHelpClick: () => void
 }
 
 /**
@@ -20,6 +21,7 @@ export function Sidebar({
   selected,
   onSelect,
   onSettingsClick,
+  onHelpClick,
 }: SidebarProps): React.ReactElement {
   return (
     <div className="flex flex-col h-full gap-2">
@@ -62,6 +64,14 @@ export function Sidebar({
           aria-label="Settings"
         >
           ⚙ Settings
+        </Button>
+        <Button
+          variant="subtle"
+          className="w-full justify-start"
+          onClick={onHelpClick}
+          aria-label="Help"
+        >
+          ❔ Help
         </Button>
       </div>
     </div>

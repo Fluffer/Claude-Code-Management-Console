@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc } from '../../mockCcmc'
 import { ContextMenu } from '../../../../src/renderer/features/projects/ContextMenu'
+import type { ProjectEnrichment } from '../../../../src/renderer/features/projects/ProjectRow'
 import type { ProjectInfo } from '../../../../src/core/models'
 
 function makeProject(): ProjectInfo {
@@ -17,20 +18,48 @@ function makeProject(): ProjectInfo {
   }
 }
 
+/** Enrichment with every conditional flag enabled — surfaces all menu items. */
+function fullEnrichment(): ProjectEnrichment {
+  return {
+    gitBranch: 'main',
+    gitDirty: false,
+    hasClaudeMd: true,
+    hasMcp: true,
+    hasSettingsError: true,
+    settingsError: 'boom',
+    hasSession: true,
+    isStale: false,
+  }
+}
+
+interface RenderOpts {
+  isOpen?: boolean
+  isRunning?: boolean
+  enrichment?: ProjectEnrichment | null
+  onClose?: () => void
+  onAction?: (...args: unknown[]) => void
+}
+
+function renderMenu(opts: RenderOpts = {}): void {
+  render(
+    <ContextMenu
+      project={makeProject()}
+      isOpen={opts.isOpen ?? true}
+      isRunning={opts.isRunning ?? true}
+      enrichment={opts.enrichment === undefined ? fullEnrichment() : opts.enrichment}
+      onClose={opts.onClose ?? vi.fn()}
+      onAction={opts.onAction ?? vi.fn()}
+    />,
+  )
+}
+
 describe('ContextMenu', () => {
   beforeEach(() => {
     installMockCcmc()
   })
 
   it('renders expected menu items when open', () => {
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={vi.fn()}
-        onAction={vi.fn()}
-      />,
-    )
+    renderMenu()
     expect(screen.getByText('Open in Explorer')).toBeInTheDocument()
     expect(screen.getByText('Rename…')).toBeInTheDocument()
     expect(screen.getByText('Pin / Unpin')).toBeInTheDocument()
@@ -44,28 +73,26 @@ describe('ContextMenu', () => {
   })
 
   it('does not render when isOpen=false', () => {
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={false}
-        onClose={vi.fn()}
-        onAction={vi.fn()}
-      />,
-    )
+    renderMenu({ isOpen: false })
     expect(screen.queryByText('Open in Explorer')).not.toBeInTheDocument()
+  })
+
+  it('hides conditional items when not applicable', () => {
+    // No enrichment + not running → CLAUDE.md / settings.json / MCP / worktree /
+    // Stop session all gated off; unconditional items still present.
+    renderMenu({ isRunning: false, enrichment: null })
+    expect(screen.getByText('Open in Explorer')).toBeInTheDocument()
+    expect(screen.queryByText('Open CLAUDE.md')).not.toBeInTheDocument()
+    expect(screen.queryByText('Open settings.json')).not.toBeInTheDocument()
+    expect(screen.queryByText('View MCP servers…')).not.toBeInTheDocument()
+    expect(screen.queryByText('Stop session')).not.toBeInTheDocument()
+    expect(screen.queryByText('Launch in worktree…')).not.toBeInTheDocument()
   })
 
   it('pin-toggle calls onAction with pin-toggle kind', async () => {
     const user = userEvent.setup()
     const onAction = vi.fn()
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={vi.fn()}
-        onAction={onAction}
-      />,
-    )
+    renderMenu({ onAction })
     await user.click(screen.getByText('Pin / Unpin'))
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'pin-toggle' }))
   })
@@ -73,14 +100,7 @@ describe('ContextMenu', () => {
   it('rename dispatches dialog action via onAction', async () => {
     const user = userEvent.setup()
     const onAction = vi.fn()
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={vi.fn()}
-        onAction={onAction}
-      />,
-    )
+    renderMenu({ onAction })
     await user.click(screen.getByText('Rename…'))
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'rename' }))
   })
@@ -88,14 +108,7 @@ describe('ContextMenu', () => {
   it('hide dispatches dialog action via onAction', async () => {
     const user = userEvent.setup()
     const onAction = vi.fn()
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={vi.fn()}
-        onAction={onAction}
-      />,
-    )
+    renderMenu({ onAction })
     await user.click(screen.getByText('Hide from console'))
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'hide' }))
   })
@@ -103,14 +116,7 @@ describe('ContextMenu', () => {
   it('delete dispatches dialog action via onAction', async () => {
     const user = userEvent.setup()
     const onAction = vi.fn()
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={vi.fn()}
-        onAction={onAction}
-      />,
-    )
+    renderMenu({ onAction })
     await user.click(screen.getByText('Delete from disk…'))
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'delete' }))
   })
@@ -118,14 +124,7 @@ describe('ContextMenu', () => {
   it('open-folder dispatches open-folder action', async () => {
     const user = userEvent.setup()
     const onAction = vi.fn()
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={vi.fn()}
-        onAction={onAction}
-      />,
-    )
+    renderMenu({ onAction })
     await user.click(screen.getByText('Open in Explorer'))
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'open-folder' }))
   })
@@ -133,27 +132,13 @@ describe('ContextMenu', () => {
   it('calls onClose after dispatching an action', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={onClose}
-        onAction={vi.fn()}
-      />,
-    )
+    renderMenu({ onClose })
     await user.click(screen.getByText('Copy path'))
     expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('all context menu actions render as menu items', () => {
-    render(
-      <ContextMenu
-        project={makeProject()}
-        isOpen={true}
-        onClose={vi.fn()}
-        onAction={vi.fn()}
-      />,
-    )
+    renderMenu()
     const items = screen.getAllByRole('menuitem')
     // 19 items: open-folder, open-vscode, open-claude-md, open-settings-json,
     // view-mcp, copy-path, copy-deep-link, rename, move-to-root, apply-profile,

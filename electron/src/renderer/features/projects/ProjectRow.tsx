@@ -224,6 +224,17 @@ export function ProjectRow({
         >
           Continue
         </Button>
+        {hasSession && (
+          <Button
+            variant="default"
+            className="px-2 py-1 text-xs"
+            onClick={() => onAction({ kind: 'resume-session', project })}
+            aria-label="Resume a past session"
+            title="Pick a specific past Claude session to resume (claude --resume)"
+          >
+            ⟲
+          </Button>
+        )}
       </div>
     </div>
   )

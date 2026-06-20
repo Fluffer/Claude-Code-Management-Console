@@ -118,6 +118,7 @@ function MainWindow(): React.ReactElement {
               projectName: action.project.name,
               projectPath: action.project.path,
               continueSession: true,
+              flags: action.project.flags,
             })
             .then((result) => {
               if (!result.ok) {
@@ -135,6 +136,7 @@ function MainWindow(): React.ReactElement {
               projectName: action.project.name,
               projectPath: action.project.path,
               continueSession: false,
+              flags: action.project.flags,
             })
             .then((result) => {
               if (!result.ok) {
@@ -408,6 +410,9 @@ function MainWindow(): React.ReactElement {
             onSelect={setSelectedSidebar}
             onSettingsClick={() => {
               openDialog({ kind: 'settings' })
+            }}
+            onHelpClick={() => {
+              openDialog({ kind: 'help' })
             }}
           />
         </aside>

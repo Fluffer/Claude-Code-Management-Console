@@ -119,6 +119,8 @@ export function ProjectList({
               <ContextMenu
                 project={project}
                 isOpen={true}
+                isRunning={runningSet.has(project.path.toLowerCase())}
+                enrichment={enrichments[project.path] ?? null}
                 onClose={closeContextMenu}
                 onAction={onAction}
               />

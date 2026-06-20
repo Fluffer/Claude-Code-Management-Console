@@ -1,10 +1,19 @@
 import React from 'react'
 import type { ProjectInfo } from '../../../core/models'
 import type { ProjectAction } from './projectActions'
+import type { ProjectEnrichment } from './ProjectRow'
 
 interface ContextMenuProps {
   project: ProjectInfo
   isOpen: boolean
+  /** Whether a session is running in this project — gates "Stop session". */
+  isRunning: boolean
+  /**
+   * Async enrichment for this project; gates the conditional items the way
+   * RowFlyout_Opening does in MainWindow.xaml.cs (CLAUDE.md / settings.json /
+   * MCP / worktree shown only when applicable). Null until enrichment loads.
+   */
+  enrichment: ProjectEnrichment | null
   onClose: () => void
   onAction: (action: ProjectAction) => void
 }
@@ -52,6 +61,8 @@ function Separator(): React.ReactElement {
 export function ContextMenu({
   project,
   isOpen,
+  isRunning,
+  enrichment,
   onClose,
   onAction,
 }: ContextMenuProps): React.ReactElement | null {
@@ -72,9 +83,15 @@ export function ContextMenu({
       {/* Open / file actions */}
       <MenuItem label="Open in Explorer"    onClick={() => dispatch({ kind: 'open-folder', project })} />
       <MenuItem label="Open in VS Code"     onClick={() => dispatch({ kind: 'open-vscode', project })} />
-      <MenuItem label="Open CLAUDE.md"      onClick={() => dispatch({ kind: 'open-claude-md', project })} />
-      <MenuItem label="Open settings.json"  onClick={() => dispatch({ kind: 'open-settings-json', project })} />
-      <MenuItem label="View MCP servers…"   onClick={() => dispatch({ kind: 'view-mcp', project })} />
+      {enrichment?.hasClaudeMd && (
+        <MenuItem label="Open CLAUDE.md"      onClick={() => dispatch({ kind: 'open-claude-md', project })} />
+      )}
+      {enrichment?.hasSettingsError && (
+        <MenuItem label="Open settings.json"  onClick={() => dispatch({ kind: 'open-settings-json', project })} />
+      )}
+      {enrichment?.hasMcp && (
+        <MenuItem label="View MCP servers…"   onClick={() => dispatch({ kind: 'view-mcp', project })} />
+      )}
       <MenuItem label="Copy path"           onClick={() => dispatch({ kind: 'copy-path', project })} />
       <MenuItem label="Copy deep link"      onClick={() => dispatch({ kind: 'copy-deep-link', project })} />
 
@@ -93,13 +110,18 @@ export function ContextMenu({
       <Separator />
 
       {/* Session control */}
-      <MenuItem label="Stop session"        onClick={() => dispatch({ kind: 'stop-session', project })} />
-
-      <Separator />
+      {isRunning && (
+        <>
+          <MenuItem label="Stop session"      onClick={() => dispatch({ kind: 'stop-session', project })} />
+          <Separator />
+        </>
+      )}
 
       {/* Launch variants */}
       <MenuItem label="Quick prompt…"       onClick={() => dispatch({ kind: 'launch-quick-prompt', project })} />
-      <MenuItem label="Launch in worktree…" onClick={() => dispatch({ kind: 'launch-worktree', project })} />
+      {enrichment?.gitBranch != null && (
+        <MenuItem label="Launch in worktree…" onClick={() => dispatch({ kind: 'launch-worktree', project })} />
+      )}
       <MenuItem label="Resume session…"     onClick={() => dispatch({ kind: 'resume-session', project })} />
 
       <Separator />
