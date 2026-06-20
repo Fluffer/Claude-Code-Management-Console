@@ -299,7 +299,11 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       })
 
       const result = await terminalLauncher.launch(spec)
-      return { ok: result.ok, pid: result.pid, error: result.ok ? undefined : 'Launch failed' }
+      return {
+        ok: result.ok,
+        pid: result.pid,
+        error: result.ok ? undefined : result.error ?? 'Launch failed',
+      }
     },
 
     // -----------------------------------------------------------------------

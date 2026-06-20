@@ -7,6 +7,22 @@ import type { ICommandLocator } from './commandLocator'
  * Searches PATH directories with PATHEXT extensions.
  * No shell:true, no child_process — pure fs stat checks.
  */
+/**
+ * Existence check that works for Windows Store app-execution aliases
+ * (e.g. %LOCALAPPDATA%\Microsoft\WindowsApps\wt.exe, pwsh.exe). Those are
+ * AppExecLink reparse points: fs.stat() on them fails with EACCES even though
+ * they exist and are launchable, so we must NOT use stat().isFile(). fs.access
+ * (F_OK) succeeds on them, so it is the correct existence test here.
+ */
+async function pathExists(candidate: string): Promise<boolean> {
+  try {
+    await fs.access(candidate, fs.constants.F_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export class WindowsCommandLocator implements ICommandLocator {
   async findOnPath(command: string): Promise<string | null> {
     const pathExt = (process.env['PATHEXT'] ?? '.COM;.EXE;.BAT;.CMD')
@@ -23,13 +39,8 @@ export class WindowsCommandLocator implements ICommandLocator {
 
     for (const dir of paths) {
       for (const ext of extensions) {
-        try {
-          const candidate = path.join(dir, command + ext)
-          const stat = await fs.stat(candidate)
-          if (stat.isFile()) return candidate
-        } catch {
-          // Directory doesn't exist or file not found — try next
-        }
+        const candidate = path.join(dir, command + ext)
+        if (await pathExists(candidate)) return candidate
       }
     }
     return null
@@ -43,12 +54,7 @@ export class WindowsCommandLocator implements ICommandLocator {
     if (!localAppData) return null
 
     const alias = path.join(localAppData, 'Microsoft', 'WindowsApps', 'wt.exe')
-    try {
-      const stat = await fs.stat(alias)
-      return stat.isFile() ? alias : null
-    } catch {
-      return null
-    }
+    return (await pathExists(alias)) ? alias : null
   }
 
   async getPreferredShell(): Promise<string> {

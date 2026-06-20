@@ -2,7 +2,7 @@
   "name": "ccmc-electron",
   "version": "0.1.0",
   "description": "Claude Code Management Console — Electron rewrite",
-  "main": "./out/main/index.js",
+  "main": "./out/main/main.js",
   "author": "Peter",
   "license": "UNLICENSED",
   "private": true,
@@ -14,7 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "chokidar": "^5.0.0",
+    "chokidar": "^3.6.0",
     "electron-updater": "^6.3.9",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

@@ -13,6 +13,16 @@ import { registerIpc } from './ipc/register'
 
 let mainWindow: BrowserWindow | null = null
 
+// Safety net: a stray async error (e.g. a filesystem watcher EPERM) must not
+// take down the whole main process and silently break all IPC. Log loudly
+// instead of letting Electron show the fatal "uncaught exception" dialog.
+process.on('uncaughtException', (err) => {
+  console.error('[main] uncaughtException:', err)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('[main] unhandledRejection:', reason)
+})
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -79,8 +89,14 @@ app.whenReady().then(async () => {
     commandLocator,
   }, dialog, shell)
 
-  // Push file-changed events to renderer when config/state/claude dir changes
-  const watchedPaths = [configPath, statePath, claudeDir]
+  // Push file-changed events to renderer when config/state change.
+  // NOTE: we deliberately do NOT recursively watch claudeDir (~/.claude) — on
+  // Windows it contains locked/permission-protected files that throw EPERM from
+  // the native fs watcher (which chokidar surfaces as an uncaught error). Running
+  // sessions are already polled on an interval, so we only watch the two specific
+  // config/state files, which live in %APPDATA% and watch cleanly.
+  void claudeDir
+  const watchedPaths = [configPath, statePath]
   watchPaths(watchedPaths, () => {
     if (mainWindow !== null && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('event:fileChanged', { path: '' })
