@@ -47,10 +47,12 @@ export function ResumeSessionDialog({
   // Load the session list + project cost when the dialog opens.
   useEffect(() => {
     if (!open) return
+    let cancelled = false
     setSessions([])
     setSelectedSessionId(null)
     setSubmitting(false)
     setTranscript([])
+    setTranscriptLoading(false)
     setFilter('')
     setProjectCostLabel(null)
     setLoading(true)
@@ -58,18 +60,28 @@ export function ResumeSessionDialog({
     void window.ccmc
       .invoke('sessions:listHistory', { projectPath: project.path })
       .then((result) => {
+        if (cancelled) return
         setSessions(result)
         setLoading(false)
       })
-      .catch(() => setLoading(false))
+      .catch(() => {
+        if (!cancelled) setLoading(false)
+      })
 
     void window.ccmc
       .invoke('sessions:cost', { projectPath: project.path })
       .then((cost) => {
+        if (cancelled) return
         const label = formatUsd(cost.usd) + (cost.hasUnknownModel ? ' +unknown' : '')
         setProjectCostLabel(`${label} · ${cost.sessionCount} session${cost.sessionCount === 1 ? '' : 's'}`)
       })
-      .catch(() => setProjectCostLabel(null))
+      .catch(() => {
+        if (!cancelled) setProjectCostLabel(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [open, project.path])
 
   // Lazy-load the selected session's transcript.
@@ -205,6 +217,7 @@ export function ResumeSessionDialog({
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                     placeholder="Filter messages…"
+                    aria-label="Filter messages"
                     className="flex-1 px-2 py-1 text-sm rounded bg-[var(--subtle-fill)] text-[var(--text-primary)] focus:outline-none"
                   />
                   <span className="text-[11px] text-[var(--text-tertiary)] flex-shrink-0 font-mono">
