@@ -74,7 +74,13 @@ export interface IpcMap {
   'projects:delete': { req: { path: string; permanent: boolean }; res: { ok: boolean } }
   'projects:claudeInfo': {
     req: { path: string }
-    res: { hasClaudeMd: boolean; claudeMdFilename: string | null; hasMcp: boolean }
+    res: {
+      hasClaudeMd: boolean
+      claudeMdFilename: string | null
+      hasMcp: boolean
+      /** Effective default model from project/user settings.json, or null. */
+      defaultModel: string | null
+    }
   }
   'projects:move': { req: { path: string; targetRoot: string }; res: { ok: boolean; newPath: string } }
   'sessions:listHistory': { req: { projectPath?: string }; res: SessionSummary[] }

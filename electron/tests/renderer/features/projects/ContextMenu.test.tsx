@@ -29,6 +29,7 @@ function fullEnrichment(): ProjectEnrichment {
     settingsError: 'boom',
     hasSession: true,
     isStale: false,
+    defaultModel: null,
   }
 }
 

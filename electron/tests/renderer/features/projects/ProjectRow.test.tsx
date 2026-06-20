@@ -28,6 +28,7 @@ const FULL_ENRICHMENT: ProjectEnrichment = {
   settingsError: '',
   hasSession: true,
   isStale: false,
+  defaultModel: null,
 }
 
 describe('ProjectRow', () => {

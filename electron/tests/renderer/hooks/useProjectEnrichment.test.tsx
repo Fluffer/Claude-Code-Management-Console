@@ -13,7 +13,7 @@ const GIT_INFO_ALPHA: GitInfo = { branch: 'main', isDirty: false }
 const GIT_INFO_BETA: GitInfo = { branch: 'feat/x', isDirty: true }
 
 describe('useProjectEnrichment', () => {
-  const CLAUDE_INFO_DEFAULT = { hasClaudeMd: false, claudeMdFilename: null, hasMcp: false }
+  const CLAUDE_INFO_DEFAULT = { hasClaudeMd: false, claudeMdFilename: null, hasMcp: false, defaultModel: null }
 
   beforeEach(() => {
     installMockCcmc()

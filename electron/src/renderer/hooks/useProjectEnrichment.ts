@@ -93,6 +93,7 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
             isStale: project.lastUsedUtc
               ? Date.now() - new Date(project.lastUsedUtc).getTime() > 7 * 24 * 60 * 60 * 1000
               : false,
+            defaultModel: claudeInfo.defaultModel,
           }
 
           setEnrichments((prev) => ({ ...prev, [project.path]: enrichment }))

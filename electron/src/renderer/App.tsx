@@ -37,6 +37,7 @@ import { CommandPalette } from './features/palette/CommandPalette'
 import { DialogsProvider, useDialogs } from './features/dialogs/useDialogs'
 import { TextInput } from './components/ui/TextInput'
 import { deepLinkBuilder } from '../core/links/deepLinkBuilder'
+import { setModel } from '../core/config/flagsEditor'
 import type { ProjectAction } from './features/projects/projectActions'
 import type { LauncherConfig, ProjectInfo } from '../core/models'
 
@@ -195,6 +196,33 @@ function MainWindow(): React.ReactElement {
         case 'move-to-root':
           openDialog({ kind: 'move-to-root', project: action.project })
           break
+
+        // ------------------------------------------------------------------
+        // set-model — write --model into the project's saved flags (config.json)
+        // Mirrors MainWindow.SetModel_Click → FlagsEditor.SetModel + persist.
+        // ------------------------------------------------------------------
+        case 'set-model': {
+          const projectPath = action.project.path
+          void window.ccmc
+            .invoke('config:read')
+            .then((cfg) => {
+              const projects = cfg.projects ?? {}
+              const usage = projects[projectPath] ?? { lastUsed: null, flags: '' }
+              const nextFlags = setModel(usage.flags, action.model)
+              return window.ccmc.invoke('config:write', {
+                ...cfg,
+                projects: {
+                  ...projects,
+                  [projectPath]: { ...usage, flags: nextFlags },
+                },
+              })
+            })
+            .then(() => refresh())
+            .catch((err: unknown) => {
+              showToast(err instanceof Error ? err.message : String(err), 'error')
+            })
+          break
+        }
 
         // ------------------------------------------------------------------
         // stop-session — confirm + kill the running session for this project

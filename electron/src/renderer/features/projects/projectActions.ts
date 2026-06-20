@@ -33,6 +33,7 @@ export type ProjectAction =
   | { kind: 'view-mcp'; project: ProjectInfo }
   | { kind: 'edit-env'; project: ProjectInfo }
   | { kind: 'resume-session'; project: ProjectInfo }
+  | { kind: 'set-model'; project: ProjectInfo; model: string | null }
 
 /**
  * Context passed down the component tree so any component can dispatch a ProjectAction.

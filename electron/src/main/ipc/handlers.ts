@@ -18,7 +18,9 @@ import { createProjectFolder } from '../services/projectFolderCreator'
 import { renameProject, moveProjectToRoot } from '../services/projectMover'
 import { deleteProject } from '../services/projectDeleter'
 import { claudeMdPath, hasClaudeMdInProject } from '../services/projectClaudeStore'
+import { resolveProjectModel } from '../services/projectModelStore'
 import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
+import * as path from 'node:path'
 
 // ---------------------------------------------------------------------------
 // Deps
@@ -191,16 +193,18 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'projects:claudeInfo': async (req) => {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
-      const [hasClaude, mdPath, mcpServers] = await Promise.all([
+      const [hasClaude, mdPath, mcpServers, defaultModel] = await Promise.all([
         hasClaudeMdInProject(projectPath),
         claudeMdPath(projectPath),
         readMcp(projectPath),
+        resolveProjectModel(projectPath, path.join(claudeDir, 'settings.json')),
       ])
       const filename = mdPath !== null ? mdPath.split(/[\\/]/).pop() ?? null : null
       return {
         hasClaudeMd: hasClaude,
         claudeMdFilename: filename,
         hasMcp: mcpServers.length > 0,
+        defaultModel,
       }
     },
 

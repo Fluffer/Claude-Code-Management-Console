@@ -1,6 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { formatRelativeTime } from '../../../core/util/relativeTimeFormatter'
+import { currentModel } from '../../../core/config/flagsEditor'
 import type { ProjectInfo } from '../../../core/models'
 import type { ProjectAction } from './projectActions'
 
@@ -18,6 +19,8 @@ export interface ProjectEnrichment {
   settingsError: string
   hasSession: boolean
   isStale: boolean
+  /** Effective default model from settings.json; null when none set. */
+  defaultModel: string | null
 }
 
 interface BadgeProps {
@@ -49,6 +52,77 @@ interface ProjectRowProps {
   isPinned: boolean
   enrichment: ProjectEnrichment | null
   onAction: (action: ProjectAction) => void
+}
+
+/** The four model choices in the per-row picker. null === "Default" (Claude's own choice). */
+const MODEL_CHOICES: ReadonlyArray<{ label: string; value: string | null }> = [
+  { label: 'Default', value: null },
+  { label: 'sonnet', value: 'sonnet' },
+  { label: 'opus', value: 'opus' },
+  { label: 'haiku', value: 'haiku' },
+]
+
+/**
+ * Per-row model picker — mirrors the DropDownButton in MainWindow.xaml.
+ * Button label = explicit --model override ?? settings.json default ?? "Default".
+ * Selecting writes --model into the project's saved flags (set-model action).
+ */
+function ModelPicker({
+  project,
+  enrichment,
+  onAction,
+}: Pick<ProjectRowProps, 'project' | 'enrichment' | 'onAction'>): React.ReactElement {
+  const [open, setOpen] = useState(false)
+  const override = currentModel(project.flags)
+  const label = override ?? enrichment?.defaultModel ?? 'Default'
+
+  return (
+    <div className="relative">
+      <Button
+        variant="default"
+        className="px-2.5 py-1 text-xs"
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((o) => !o)
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Choose the Claude model for this project (writes --model into its flags)"
+      >
+        {label} ▾
+      </Button>
+      {open && (
+        <>
+          {/* click-away catcher */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            role="menu"
+            className="absolute right-0 mt-1 z-50 min-w-[120px] bg-[var(--surface)] border border-[var(--divider)] rounded-md shadow-lg py-1"
+          >
+            {MODEL_CHOICES.map((choice) => (
+              <button
+                key={choice.label}
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen(false)
+                  onAction({ kind: 'set-model', project, model: choice.value })
+                }}
+                className={[
+                  'w-full text-left px-3 py-1.5 text-xs rounded',
+                  'hover:bg-[var(--subtle-fill)] focus:outline-none focus:bg-[var(--subtle-fill)]',
+                  choice.value === override ? 'text-[var(--accent-fill)] font-semibold' : 'text-[var(--text-primary)]',
+                ].join(' ')}
+              >
+                {choice.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 function leafName(root: string): string {
@@ -200,8 +274,9 @@ export function ProjectRow({
         )}
       </div>
 
-      {/* Launch buttons — New + Continue */}
+      {/* Launch buttons — Model picker + New + Continue + Resume */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
+        <ModelPicker project={project} enrichment={enrichment} onAction={onAction} />
         <Button
           variant="default"
           className="px-3 py-1 text-xs"
