@@ -111,6 +111,8 @@ export function ResumeSessionDialog({
 
   async function handleResume(): Promise<void> {
     if (!selectedSessionId || submitting) return
+    // Defensive: sessionId must be a bare stem before it goes into launch flags.
+    if (!/^[A-Za-z0-9_-]+$/.test(selectedSessionId)) return
     setSubmitting(true)
     try {
       const result = await window.ccmc.invoke('launch:run', {
