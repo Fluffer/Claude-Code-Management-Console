@@ -41,21 +41,29 @@ behavior (icon visible, summon, jump list, link launch) is the user's to confirm
 | 15 | **Windows jump list** (pinned + recents → ccmc:// links) | JumpListService.cs | pure `buildJumpListCategories` → `app.setJumpList` | OK |
 | 16 | **Close-to-tray** toggle behavior (toggle UI exists) | MainViewModel.CloseToTray | window `close` → hide; synchronous `loadStateSync` seed | OK |
 
-## P3 — keyboard shortcuts + smaller diffs
+## P3 — keyboard shortcuts + smaller diffs — DONE (commit 8b783d2)
+
+Spec: `docs/superpowers/specs/2026-06-20-p3-shortcuts-dragdrop-statusbar-design.md`. Council-reviewed
+(Ollama) + verified live. GUI confirmation is the user's.
 
 | # | Feature | WinUI | Electron | Status |
 |---|---------|-------|----------|--------|
-| 17 | Global shortcuts: Ctrl+N (new), F5 (refresh), Ctrl+Shift+Enter (quick prompt), Enter on row | MainWindow.xaml accelerators | only F1, Esc, Ctrl+K(palette) | MISSING |
-| 18 | Palette shortcut is **Ctrl+K** vs WinUI **Ctrl+P** | — | decide which | DIFFERENT |
-| 19 | Drag-drop folder → add root / launch + drop overlay | MainWindow.xaml.cs:868 | — | MISSING |
-| 20 | Status bar: Claude version text + update-available nudge | MainWindow.xaml:450–453 | count only | MISSING |
-| 21 | Pin button amber hover color | MainWindow.xaml:244 | opacity fade only | PARTIAL |
-| 22 | Command palette result cap (Electron 20 vs WinUI unlimited) | — | MAX_RESULTS=20 | DIFFERENT |
+| 17 | Global shortcuts: Ctrl+N (new), F5 (refresh), Ctrl+Shift+Enter (quick prompt), Enter on row | MainWindow.xaml accelerators | global Ctrl+N/F5 (typing-guarded) + focusable rows: Enter/Ctrl+Enter/Ctrl+Shift+Enter | OK |
+| 18 | Palette shortcut is **Ctrl+K** vs WinUI **Ctrl+P** | — | both Ctrl+K and Ctrl+P | OK |
+| 19 | Drag-drop folder → add root / launch + drop overlay | MainWindow.xaml.cs:868 | drop folder → atomic `config:addRoots` (webUtils path, `fs:isDirectory`) + `DropOverlay` | OK |
+| 20 | Status bar: Claude version text + update-available nudge | MainWindow.xaml:450–453 | `claude:version` + `parseClaudeVersion` (version only; update nudge dropped, no offline source) | OK |
+| 21 | Pin button amber hover color | MainWindow.xaml:244 | `hover:text-amber-400` when unpinned | OK |
+| 22 | Command palette result cap (Electron 20 vs WinUI unlimited) | — | MAX_RESULTS 20 → 50 | OK |
 
-## Dialog field gaps (otherwise field-parity OK)
-- EnvEditorDialog: missing "Values are hidden…" info banner.
-- ProfileManagerDialog: missing "Plain tool names only…" helper text.
-- HelpDialog: omits drop-folder mention (re-add once #19 lands).
+## Dialog field gaps — DONE (commit 8b783d2)
+- EnvEditorDialog: "Values are hidden. Use the eye button…" note added.
+- ProfileManagerDialog: "Plain tool names only…" helper text added.
+- HelpDialog: drag-drop mention added.
+- Palette + quick-prompt test ids added.
+
+---
+
+**Parity complete.** All P0–P3 + dialog gaps shipped on `feat/electron-rewrite` (PR #2).
 - Several dialogs missing automation/test ids (palette, quick prompt).
 
 ## Notes
