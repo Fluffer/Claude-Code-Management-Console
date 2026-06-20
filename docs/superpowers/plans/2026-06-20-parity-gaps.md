@@ -24,15 +24,19 @@ Status: MISSING = absent, PARTIAL = present but incomplete/different, OK = parit
 | 10 | **Onboarding banner** + dismiss (no roots & !onboardingDismissed) | MainWindow.xaml:34 InfoBar | state+hook DONE, no UI, App.tsx never checks | PARTIAL |
 | 11 | **Claude-missing warning banner** | MainWindow.xaml:29 InfoBar | — | MISSING |
 
-## P2 — Phase 5 OS integration (deep-link parse/build already ported in core/links)
+## P2 — Phase 5 OS integration — DONE (commit 07bca07)
+
+Spec: `docs/superpowers/specs/2026-06-20-phase5-os-integration-design.md`. Council-reviewed
+(Ollama, 3 models) + verified live (all `[shell]` registrations succeed, no crash). GUI
+behavior (icon visible, summon, jump list, link launch) is the user's to confirm in the window.
 
 | # | Feature | WinUI | Electron | Status |
 |---|---------|-------|----------|--------|
-| 12 | **System tray** icon + left-click toggle + right-click menu (pinned/recent/open/exit) | TrayIconService.cs | NOT STARTED; `composeShellMenu` ported in core/launch | MISSING |
-| 13 | **Global hotkey** Ctrl+Alt+Space summon | GlobalHotkey.cs | NOT STARTED (use Electron globalShortcut) | MISSING |
-| 14 | **ccmc:// protocol registration + activation** | ProtocolRegistrar.cs + ActivationMessage | parse/build DONE; OS register + `event:deepLink` emit + renderer handler MISSING | PARTIAL |
-| 15 | **Windows jump list** (pinned + recents → ccmc:// links) | JumpListService.cs | NOT STARTED; menu compose DONE (`app.setJumpList`) | MISSING |
-| 16 | **Close-to-tray** toggle behavior (toggle UI exists) | MainViewModel.CloseToTray | toggle in SettingsDialog, no main wiring | PARTIAL |
+| 12 | **System tray** icon + left-click toggle + right-click menu (pinned/recent/open/exit) | TrayIconService.cs | `main/os/shellIntegration.ts` + pure `buildTrayMenuModel` | OK |
+| 13 | **Global hotkey** Ctrl+Alt+Space summon | GlobalHotkey.cs | `globalShortcut` → show + `event:openPalette` | OK |
+| 14 | **ccmc:// protocol registration + activation** | ProtocolRegistrar.cs + ActivationMessage | `setAsDefaultProtocolClient` + single-instance + `extractDeepLinkArg` + activationBuffer + renderer `useDeepLink` | OK |
+| 15 | **Windows jump list** (pinned + recents → ccmc:// links) | JumpListService.cs | pure `buildJumpListCategories` → `app.setJumpList` | OK |
+| 16 | **Close-to-tray** toggle behavior (toggle UI exists) | MainViewModel.CloseToTray | window `close` → hide; synchronous `loadStateSync` seed | OK |
 
 ## P3 — keyboard shortcuts + smaller diffs
 
