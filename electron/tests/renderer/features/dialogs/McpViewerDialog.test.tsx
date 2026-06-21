@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
-import { installMockCcmc, setChannelResponse } from '../../mockCcmc'
+import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
 import { McpViewerDialog } from '../../../../src/renderer/features/dialogs/McpViewerDialog'
 import type { ProjectInfo } from '../../../../src/core/models'
 
@@ -86,5 +86,46 @@ describe('McpViewerDialog', () => {
     )
     await user.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalled()
+  })
+
+  it('"Check health" button is disabled when there are no servers', async () => {
+    setChannelResponse('mcp:read', [])
+    render(
+      <McpViewerDialog open={true} project={project} onClose={vi.fn()} />,
+    )
+    await waitFor(() =>
+      expect(screen.getByText(/No MCP servers configured/i)).toBeInTheDocument(),
+    )
+    const btn = screen.getByRole('button', { name: /Check health/i })
+    expect(btn).toBeInTheDocument()
+    expect(btn).toBeDisabled()
+  })
+
+  it('clicking "Check health" invokes mcp:health and renders status', async () => {
+    const user = userEvent.setup()
+    setChannelResponse('mcp:read', [{ name: 'git', transport: 'uvx' }])
+    setChannelResponse('mcp:health', [{ name: 'git', status: 'ok', detail: 'started' }])
+    render(
+      <McpViewerDialog open={true} project={project} onClose={vi.fn()} />,
+    )
+    await waitFor(() => expect(screen.getByText('git')).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /Check health/i }))
+    await waitFor(() => expect(screen.getByText('ok')).toBeInTheDocument())
+    const invoke = getMockInvoke()
+    expect(invoke).toHaveBeenCalledWith('mcp:health', { path: project.path })
+  })
+
+  it('health probe is NOT triggered on open', async () => {
+    setChannelResponse('mcp:read', [{ name: 'git', transport: 'uvx' }])
+    setChannelResponse('mcp:health', [{ name: 'git', status: 'ok', detail: 'started' }])
+    render(
+      <McpViewerDialog open={true} project={project} onClose={vi.fn()} />,
+    )
+    await waitFor(() => expect(screen.getByText('git')).toBeInTheDocument())
+    const invoke = getMockInvoke()
+    const healthCalls = invoke.mock.calls.filter(
+      (call: unknown[]) => call[0] === 'mcp:health',
+    )
+    expect(healthCalls).toHaveLength(0)
   })
 })
