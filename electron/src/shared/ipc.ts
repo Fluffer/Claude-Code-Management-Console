@@ -7,6 +7,7 @@ import type {
   CommandInfo,
   GitInfo,
   GitWorktree,
+  HealthResult,
   LauncherConfig,
   McpServerInfo,
   ProjectInfo,
@@ -70,6 +71,7 @@ export const IPC = Object.freeze({
   ENV_READ: 'env:read',
   ENV_WRITE: 'env:write',
   MCP_READ: 'mcp:read',
+  MCP_HEALTH: 'mcp:health',
   COMMANDS_LIST: 'commands:list',
   SKILLS_LIST: 'skills:list',
   TERMINALS_DETECT: 'terminals:detect',
@@ -144,6 +146,7 @@ export interface IpcMap {
   'env:read': { req: { path: string }; res: string }
   'env:write': { req: { path: string; contents: string }; res: void }
   'mcp:read': { req: { path: string }; res: McpServerInfo[] }
+  'mcp:health': { req: { path: string }; res: HealthResult[] }
   'commands:list': { req: { path: string }; res: CommandInfo[] }
   'skills:list': { req: { path: string }; res: SkillInfo[] }
   'terminals:detect': { req: void; res: { id: string; name: string; path: string }[] }

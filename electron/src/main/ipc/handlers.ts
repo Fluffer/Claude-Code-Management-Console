@@ -16,6 +16,7 @@ import { getBranchInfo, getIsDirty, getWorktrees, addWorktree, cloneRepo, commit
 import { validateCloneName } from '../../core/git/cloneName'
 import { readEnv, writeEnv } from '../services/envFileStore'
 import { readMcp } from '../services/mcpStore'
+import { checkMcpHealth } from '../services/mcpHealthStore'
 import { listCommands } from '../services/commandStore'
 import { listSkills } from '../services/skillStore'
 import { createProjectFolder } from '../services/projectFolderCreator'
@@ -443,6 +444,15 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
       return readMcp(projectPath)
+    },
+
+    // -----------------------------------------------------------------------
+    // mcp:health  (manual-only — executes configured server commands)
+    // -----------------------------------------------------------------------
+    'mcp:health': async (req) => {
+      const obj = requireObject(req, 'req')
+      const projectPath = requireString(obj['path'], 'path')
+      return checkMcpHealth(projectPath)
     },
 
     // -----------------------------------------------------------------------
