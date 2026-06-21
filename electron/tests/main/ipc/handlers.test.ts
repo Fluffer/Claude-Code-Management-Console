@@ -1067,6 +1067,59 @@ describe('git:commit', () => {
 })
 
 // ---------------------------------------------------------------------------
+// mcp:health
+// ---------------------------------------------------------------------------
+
+describe('mcp:health', () => {
+  it('returns empty array when .mcp.json is absent', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['mcp:health']({ path: tmpDir })
+    expect(result).toEqual([])
+  })
+
+  it('returns a HealthResult for a valid stdio server entry', async () => {
+    const projectDir = path.join(tmpDir, 'project-with-mcp-health')
+    await fs.mkdir(projectDir)
+    await fs.writeFile(
+      path.join(projectDir, '.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          'node-probe': { command: 'node', args: ['-e', ''] },
+        },
+      }),
+    )
+
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    const result = await handlers['mcp:health']({ path: projectDir })
+    expect(Array.isArray(result)).toBe(true)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('node-probe')
+    expect(['ok', 'failed']).toContain(result[0].status)
+    expect(typeof result[0].detail === 'string' || result[0].detail === null).toBe(true)
+  }, 10000)
+
+  it('throws when path is missing', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['mcp:health']({})).rejects.toThrow()
+  })
+
+  it('throws when path is not a string', async () => {
+    const deps = makeDeps()
+    const handlers = createHandlers(deps)
+
+    // @ts-expect-error testing runtime validation
+    await expect(handlers['mcp:health']({ path: 42 })).rejects.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // git:openPr
 // ---------------------------------------------------------------------------
 
