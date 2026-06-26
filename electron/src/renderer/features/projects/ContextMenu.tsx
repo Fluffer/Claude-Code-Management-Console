@@ -106,6 +106,7 @@ export function ContextMenu({
       {/* Rename / move / profile */}
       <MenuItem label="Rename…"             onClick={() => dispatch({ kind: 'rename', project })} />
       <MenuItem label="Move to root"        onClick={() => dispatch({ kind: 'move-to-root', project })} />
+      <MenuItem label="Duplicate…"          onClick={() => dispatch({ kind: 'duplicate', project })} />
       <MenuItem label="Apply profile"       onClick={() => dispatch({ kind: 'apply-profile', project })} />
 
       <Separator />

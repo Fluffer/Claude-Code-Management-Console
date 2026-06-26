@@ -7,14 +7,20 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 
 export type ToastVariant = 'error' | 'info'
 
+interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 interface Toast {
   id: number
   message: string
   variant: ToastVariant
+  action?: ToastAction
 }
 
 interface ToastContextValue {
-  showToast: (message: string, variant?: ToastVariant) => void
+  showToast: (message: string, variant?: ToastVariant, action?: ToastAction) => void
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
@@ -30,9 +36,9 @@ let nextId = 0
 export function ToastProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const showToast = useCallback((message: string, variant: ToastVariant = 'error') => {
+  const showToast = useCallback((message: string, variant: ToastVariant = 'error', action?: ToastAction) => {
     const id = ++nextId
-    setToasts((prev) => [...prev, { id, message, variant }])
+    setToasts((prev) => [...prev, { id, message, variant, action }])
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id))
     }, 5000)
@@ -82,6 +88,17 @@ function ToastItem({
       ].join(' ')}
     >
       <span className="flex-1">{toast.message}</span>
+      {toast.action && (
+        <button
+          onClick={() => {
+            toast.action!.onClick()
+            onDismiss()
+          }}
+          className="font-semibold underline opacity-90 hover:opacity-100 flex-shrink-0"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button
         onClick={onDismiss}
         className="opacity-70 hover:opacity-100 ml-1 flex-shrink-0"

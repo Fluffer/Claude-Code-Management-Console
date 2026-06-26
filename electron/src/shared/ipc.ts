@@ -65,6 +65,7 @@ export const IPC = Object.freeze({
   GIT_WORKTREES: 'git:worktrees',
   GIT_ADD_WORKTREE: 'git:addWorktree',
   GIT_CLONE: 'git:clone',
+  PROJECT_DUPLICATE: 'project:duplicate',
   GIT_COMMIT: 'git:commit',
   GIT_OPEN_PR: 'git:openPr',
   LAUNCH_RUN: 'launch:run',
@@ -132,6 +133,10 @@ export interface IpcMap {
   }
   'git:clone': {
     req: { url: string; targetRoot: string; name: string }
+    res: { ok: boolean; path?: string; error?: string }
+  }
+  'project:duplicate': {
+    req: { sourcePath: string; targetRoot: string; name: string; mode: 'git' | 'copy' }
     res: { ok: boolean; path?: string; error?: string }
   }
   'git:commit': {

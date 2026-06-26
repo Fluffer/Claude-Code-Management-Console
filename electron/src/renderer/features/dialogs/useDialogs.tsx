@@ -29,6 +29,7 @@ import { WorktreePickerDialog } from './WorktreePickerDialog'
 import { HelpDialog } from './HelpDialog'
 import { MoveToRootDialog } from './MoveToRootDialog'
 import { CloneRepoDialog } from './CloneRepoDialog'
+import { DuplicateProjectDialog } from './DuplicateProjectDialog'
 import { CommitDialog } from './CommitDialog'
 import { OpenPrDialog } from './OpenPrDialog'
 import type { ProjectInfo } from '../../../core/models'
@@ -55,6 +56,7 @@ export type DialogRequest =
   | { kind: 'help' }
   | { kind: 'move-to-root'; project: ProjectInfo }
   | { kind: 'clone'; roots: string[]; defaultRoot: string | null }
+  | { kind: 'duplicate'; project: ProjectInfo; projects: ProjectInfo[]; roots: string[]; defaultRoot: string | null; isGitRepo: boolean }
   | { kind: 'commit'; project: ProjectInfo }
   | { kind: 'open-pr'; project: ProjectInfo }
 
@@ -253,6 +255,19 @@ export function DialogsProvider({
           open={true}
           roots={active.roots}
           defaultRoot={active.defaultRoot}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'duplicate' && (
+        <DuplicateProjectDialog
+          open={true}
+          project={active.project}
+          projects={active.projects}
+          roots={active.roots}
+          defaultRoot={active.defaultRoot}
+          isGitRepo={active.isGitRepo}
           onClose={handleClose}
           onRefresh={handleRefresh}
         />
