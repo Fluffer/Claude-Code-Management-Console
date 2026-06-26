@@ -28,9 +28,13 @@ win:
         - x64
   signtoolOptions:
     certificateSha1: BDD3B36174D46CEE989D8DF9FFB6287A0ACE9A82
+    # SHA256 only. The legacy SHA1 pass uses `/t` without `/fd`, which the modern
+    # Windows SDK signtool rejects ("No file digest algorithm specified"). MSIX
+    # requires SHA256 regardless.
+    signingHashAlgorithms:
+      - sha256
     # Certum RFC3161 timestamp authority (keeps signature valid past cert expiry).
     rfc3161TimeStampServer: http://time.certum.pl
-    timeStampServer: http://time.certum.pl
 
 appx:
   identityName: PeterEg.ClaudeCodeManagementConsole
