@@ -1,0 +1,44 @@
+appId: net.isspan.ccmc
+productName: Claude Code Management Console
+copyright: Copyright © 2026 Peter Eg
+
+directories:
+  output: dist
+  buildResources: build
+
+# electron-vite emits the compiled app into out/. Ship that plus prod deps
+# (electron-builder pulls production dependencies from package.json automatically).
+files:
+  - out/**
+  - '!**/*.{map,md,ts}'
+
+# main.ts (packaged branch) reads the tray/window icon from
+# process.resourcesPath/app.ico, so it must land in the resources dir.
+extraResources:
+  - from: resources/app.ico
+    to: app.ico
+
+asar: true
+
+win:
+  icon: resources/app.ico
+  target:
+    - target: appx
+      arch:
+        - x64
+  signtoolOptions:
+    certificateSha1: BDD3B36174D46CEE989D8DF9FFB6287A0ACE9A82
+    # Certum RFC3161 timestamp authority (keeps signature valid past cert expiry).
+    rfc3161TimeStampServer: http://time.certum.pl
+    timeStampServer: http://time.certum.pl
+
+appx:
+  identityName: PeterEg.ClaudeCodeManagementConsole
+  applicationId: ClaudeCodeManagementConsole
+  # MUST match the signing certificate Subject exactly, or makeappx/install fails.
+  publisher: CN=Peter Eg, O=PETER EG, L=Singapore, C=SG
+  publisherDisplayName: Peter Eg
+  backgroundColor: '#1e1e1e'
+  showNameOnTiles: true
+  languages:
+    - en-US
