@@ -20,6 +20,7 @@ export type ProjectAction =
   | { kind: 'pin-toggle'; project: ProjectInfo }
   | { kind: 'rename'; project: ProjectInfo }
   | { kind: 'move-to-root'; project: ProjectInfo }
+  | { kind: 'duplicate'; project: ProjectInfo }
   | { kind: 'apply-profile'; project: ProjectInfo }
   | { kind: 'hide'; project: ProjectInfo }
   | { kind: 'delete'; project: ProjectInfo }

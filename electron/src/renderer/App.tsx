@@ -272,6 +272,17 @@ function MainWindow(): React.ReactElement {
           openDialog({ kind: 'move-to-root', project: action.project })
           break
 
+        case 'duplicate':
+          openDialog({
+            kind: 'duplicate',
+            project: action.project,
+            projects,
+            roots: config?.roots ?? [],
+            defaultRoot: config?.defaultRoot ?? null,
+            isGitRepo: (enrichments[action.project.path]?.gitBranch ?? null) != null,
+          })
+          break
+
         case 'commit':
           openDialog({ kind: 'commit', project: action.project })
           break
@@ -480,7 +491,7 @@ function MainWindow(): React.ReactElement {
         }
       }
     },
-    [togglePin, openDialog, enrichments, runningSessions, refresh, reloadState, showToast],
+    [togglePin, openDialog, enrichments, runningSessions, refresh, reloadState, showToast, config, projects],
   )
 
   useDeepLink({

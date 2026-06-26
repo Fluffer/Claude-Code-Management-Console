@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc } from '../../mockCcmc'
@@ -182,13 +182,20 @@ describe('ContextMenu', () => {
     )
   })
 
+  it('dispatches duplicate when "Duplicate…" is clicked', () => {
+    const onAction = vi.fn()
+    renderMenu({ onAction }) // use the file's existing render helper
+    fireEvent.click(screen.getByText('Duplicate…'))
+    expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ kind: 'duplicate' }))
+  })
+
   it('all context menu actions render as menu items', () => {
     renderMenu()
     const items = screen.getAllByRole('menuitem')
-    // 21 items: open-folder, open-vscode, open-claude-md, open-settings-json,
-    // view-mcp, copy-path, copy-deep-link, rename, move-to-root, apply-profile,
-    // pin-toggle, stop-session, launch-quick-prompt, launch-worktree,
+    // 22 items: open-folder, open-vscode, open-claude-md, open-settings-json,
+    // view-mcp, copy-path, copy-deep-link, rename, move-to-root, duplicate,
+    // apply-profile, pin-toggle, stop-session, launch-quick-prompt, launch-worktree,
     // commit, open-pr, resume-session, edit-env, open-claudeignore, hide, delete
-    expect(items.length).toBe(21)
+    expect(items.length).toBe(22)
   })
 })
