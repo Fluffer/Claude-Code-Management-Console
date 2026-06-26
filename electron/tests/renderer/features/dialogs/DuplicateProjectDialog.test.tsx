@@ -62,4 +62,42 @@ describe('DuplicateProjectDialog', () => {
     }))
     expect(onRefresh).toHaveBeenCalled()
   })
+
+  it('does not re-derive the name after a manual edit when the root changes', () => {
+    const project = makeProject('app', 'C:\\Dev')
+    render(
+      <ToastProvider>
+        <DuplicateProjectDialog
+          open
+          project={project}
+          projects={[project]}
+          roots={['C:\\Dev', 'C:\\Other']}
+          defaultRoot="C:\\Dev"
+          isGitRepo
+          onClose={vi.fn()}
+          onRefresh={vi.fn()}
+        />
+      </ToastProvider>,
+    )
+    const nameInput = screen.getByLabelText(/name/i) as HTMLInputElement
+    fireEvent.change(nameInput, { target: { value: 'my-experiment' } })
+    fireEvent.change(screen.getByLabelText(/root/i), { target: { value: 'C:\\Other' } })
+    expect((screen.getByLabelText(/name/i) as HTMLInputElement).value).toBe('my-experiment')
+  })
+
+  it('closes on success and wires Open session to launch:run', async () => {
+    invoke.mockResolvedValue({ ok: true, path: 'C:\\Dev\\app-copy' })
+    const onClose = vi.fn()
+    renderDialog({ onClose })
+    act(() => { fireEvent.click(screen.getByText('Duplicate')) })
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    const openBtn = await screen.findByText('Open session')
+    act(() => { fireEvent.click(openBtn) })
+    expect(invoke).toHaveBeenCalledWith('launch:run', {
+      projectName: 'app-copy',
+      projectPath: 'C:\\Dev\\app-copy',
+      continueSession: false,
+      recordUsage: false,
+    })
+  })
 })

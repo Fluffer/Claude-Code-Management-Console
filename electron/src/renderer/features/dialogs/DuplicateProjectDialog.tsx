@@ -49,11 +49,13 @@ export function DuplicateProjectDialog({
     setMode(isGitRepo ? 'git' : 'copy')
     const initialRoot = roots.includes(project.root) ? project.root : (defaultRoot ?? roots[0] ?? '')
     setSelectedRoot(initialRoot)
+    const initialSiblings = projects.filter((p) => p.root === initialRoot).map((p) => p.name)
+    setName(deriveDuplicateName(project.name, initialSiblings))
     setNameError(null)
     setBusy(false)
     setError(null)
     nameTouchedRef.current = false
-  }, [open, isGitRepo, project.root, defaultRoot, roots])
+  }, [open, isGitRepo, project.root, project.name, defaultRoot, roots, projects])
 
   // Derive a free default name from the source name + siblings in the root.
   useEffect(() => {
