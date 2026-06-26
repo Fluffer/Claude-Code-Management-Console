@@ -20,9 +20,54 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
+const THEME_STORAGE_KEY = 'ccmc-theme'
+
 function detectOsTheme(): AppTheme {
   if (typeof window === 'undefined') return 'light'
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function isAppTheme(value: string | null): value is AppTheme {
+  return value === 'light' || value === 'dark' || value === 'high-contrast'
+}
+
+/**
+ * Maps a persisted AppState.theme string ("Dark" / "Light" / "HighContrast" /
+ * "System") to an AppTheme. "System" (or anything unknown) follows the OS.
+ * Used to apply the saved theme at startup so the app doesn't launch in the OS
+ * theme and ignore the user's choice.
+ */
+export function appThemeFromStateString(stateTheme: string): AppTheme {
+  if (stateTheme === 'Dark') return 'dark'
+  if (stateTheme === 'Light') return 'light'
+  if (stateTheme === 'HighContrast' || stateTheme === 'High Contrast') return 'high-contrast'
+  return detectOsTheme()
+}
+
+/**
+ * Initial theme for first paint. Reads the last theme synchronously from
+ * localStorage to avoid a flash of the wrong theme before the persisted
+ * AppState loads over async IPC; falls back to the OS preference.
+ */
+function getInitialTheme(defaultTheme?: AppTheme): AppTheme {
+  if (defaultTheme) return defaultTheme
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY)
+    if (isAppTheme(stored)) return stored
+  } catch {
+    // localStorage unavailable — fall through to OS detection.
+  }
+  return detectOsTheme()
+}
+
+/**
+ * Sets data-theme on <html> from the last-known theme BEFORE React renders, so
+ * the very first paint uses the correct theme (the ThemeProvider effect that
+ * sets data-theme only runs after the first paint, which would otherwise flash).
+ * Call once from the renderer entry point.
+ */
+export function applyStoredThemeAttribute(): void {
+  document.documentElement.setAttribute('data-theme', getInitialTheme())
 }
 
 interface ThemeProviderProps {
@@ -32,11 +77,17 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, defaultTheme }: ThemeProviderProps): React.ReactElement {
-  const [theme, setThemeState] = useState<AppTheme>(defaultTheme ?? detectOsTheme)
+  const [theme, setThemeState] = useState<AppTheme>(() => getInitialTheme(defaultTheme))
 
-  // Apply data-theme attribute whenever theme changes
+  // Apply data-theme attribute whenever theme changes, and remember it so the
+  // next launch can paint the correct theme immediately (no flash).
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme)
+    } catch {
+      // ignore — persistence is best-effort
+    }
   }, [theme])
 
   // Listen for OS theme changes (only when not manually overridden)

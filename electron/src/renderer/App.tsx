@@ -22,7 +22,7 @@
  *   stop-all (CommandBar)        → kill all running sessions
  */
 import React, { useState, useCallback, useEffect, useRef } from 'react'
-import { ThemeProvider } from './theme/ThemeProvider'
+import { ThemeProvider, useTheme, appThemeFromStateString } from './theme/ThemeProvider'
 import { ToastProvider, useToast } from './components/ui/Toast'
 import { useProjects } from './hooks/useProjects'
 import { useRunningSessions } from './hooks/useRunningSessions'
@@ -57,6 +57,7 @@ function MainWindow(): React.ReactElement {
   const { showToast } = useToast()
   const { onPath: claudeOnPath } = useClaudeOnPath()
   const { version: claudeVersion } = useClaudeVersion()
+  const { setTheme } = useTheme()
 
   const [config, setConfig] = useState<LauncherConfig | null>(null)
   const [searchText, setSearchText] = useState('')
@@ -74,13 +75,16 @@ function MainWindow(): React.ReactElement {
     reloadConfig()
   }, [reloadConfig])
 
-  // Apply saved accent + font whenever state loads or changes (including after Settings save).
+  // Apply saved theme + accent + font whenever state loads or changes (including
+  // after Settings save). Without applying the persisted theme here the app would
+  // launch in the OS theme and ignore the user's saved choice.
   // Re-runs on cancel too, reverting any un-saved live preview back to the persisted values.
   useEffect(() => {
     if (!state) return
+    setTheme(appThemeFromStateString(state.theme))
     applyAccent(state.accent)
     applyFont(state.font)
-  }, [state])
+  }, [state, setTheme])
 
   // Dialogs report data mutations via onRefresh; re-pull every source the
   // command bar / sidebar / list read from (projects, state.json, config.json).

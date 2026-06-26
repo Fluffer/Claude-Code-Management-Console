@@ -29,6 +29,9 @@ describe('ThemeProvider', () => {
     originalMatchMedia = window.matchMedia
     // Reset data-theme on root
     document.documentElement.removeAttribute('data-theme')
+    // The provider now seeds its initial theme from localStorage; clear it so the
+    // OS-preference tests start from a clean slate.
+    localStorage.clear()
   })
 
   afterEach(() => {
@@ -78,6 +81,29 @@ describe('ThemeProvider', () => {
     )
 
     expect(document.documentElement.getAttribute('data-theme')).toBe('light')
+  })
+
+  it('seeds the initial theme from localStorage, ignoring OS preference', () => {
+    localStorage.setItem('ccmc-theme', 'dark')
+    // OS prefers light, but the stored theme should win on first paint.
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }))
+
+    render(
+      <ThemeProvider>
+        <ThemeDisplay />
+      </ThemeProvider>,
+    )
+
+    expect(screen.getByTestId('theme-display').textContent).toBe('dark')
   })
 
   it('allows forcing HighContrast theme via setTheme', () => {
