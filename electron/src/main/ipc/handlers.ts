@@ -14,6 +14,7 @@ import { listSessions } from '../services/claudeSessionStore'
 import { readTranscript, projectCost } from '../services/transcriptStore'
 import { getBranchInfo, getIsDirty, getWorktrees, addWorktree, cloneRepo, commitAll, openPr } from '../services/gitRunner'
 import { validateCloneName } from '../../core/git/cloneName'
+import { duplicateProject } from '../services/projectDuplicator'
 import { readEnv, writeEnv } from '../services/envFileStore'
 import { readMcp } from '../services/mcpStore'
 import { checkMcpHealth } from '../services/mcpHealthStore'
@@ -577,6 +578,44 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       }
 
       return cloneRepo(url, full)
+    },
+
+    // -----------------------------------------------------------------------
+    // project:duplicate — copy an on-disk project into <targetRoot>/<name>
+    // -----------------------------------------------------------------------
+    'project:duplicate': async (req) => {
+      const obj = requireObject(req, 'req')
+      const sourcePath = requireString(obj['sourcePath'], 'sourcePath')
+      const targetRoot = requireString(obj['targetRoot'], 'targetRoot')
+      const name = requireString(obj['name'], 'name')
+      const mode = requireString(obj['mode'], 'mode')
+      if (mode !== 'git' && mode !== 'copy') {
+        return { ok: false, error: 'Invalid copy mode.' }
+      }
+
+      // Target root must be one of the configured source roots.
+      const config = await loadConfig(configPath)
+      const resolvedTarget = path.resolve(targetRoot)
+      const isConfiguredRoot = (config.roots ?? []).some(
+        (r) => path.resolve(r).toLowerCase() === resolvedTarget.toLowerCase(),
+      )
+      if (!isConfiguredRoot) {
+        return { ok: false, error: 'Target root is not a configured source root.' }
+      }
+
+      const validation = validateCloneName(name)
+      if (!validation.ok) {
+        return { ok: false, error: validation.reason }
+      }
+
+      // Path-traversal guard: resolved target must stay within the root.
+      const base = path.resolve(targetRoot)
+      const full = path.resolve(targetRoot, name)
+      if (full !== base && !full.startsWith(base + path.sep)) {
+        return { ok: false, error: 'Invalid project name.' }
+      }
+
+      return duplicateProject({ sourcePath, targetDir: full, mode })
     },
 
     // -----------------------------------------------------------------------
