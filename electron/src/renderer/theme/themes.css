@@ -43,6 +43,8 @@
  * -------------------------------------------------------------------------- */
 :root,
 [data-theme="light"] {
+  /* Make native controls (select popups, scrollbars, date pickers) render light. */
+  color-scheme: light;
   --accent:               #0078d4;
   --accent-fill:          var(--accent);
   --accent-fill-secondary: color-mix(in srgb, var(--accent) 90%, black);
@@ -88,6 +90,8 @@
  * Dark theme
  * -------------------------------------------------------------------------- */
 [data-theme="dark"] {
+  /* Make native controls (select popups, scrollbars, date pickers) render dark. */
+  color-scheme: dark;
   --accent:               #60cdff;
   --accent-fill:          var(--accent);
   --accent-fill-secondary: color-mix(in srgb, var(--accent) 90%, black);
@@ -133,6 +137,8 @@
  * High Contrast theme (Windows 11 high contrast white/black inspired)
  * -------------------------------------------------------------------------- */
 [data-theme="high-contrast"] {
+  /* High-contrast is a dark scheme — keep native controls dark too. */
+  color-scheme: dark;
   --accent:               #1aebff;
   --accent-fill:          var(--accent);
   --accent-fill-secondary: color-mix(in srgb, var(--accent) 90%, black);
@@ -172,4 +178,18 @@
   --fill-attention:       #1aebff;
 
   font-family: var(--app-font);
+}
+
+/* --------------------------------------------------------------------------
+ * Native <select> dropdown options
+ * --------------------------------------------------------------------------
+ * The native listbox popup paints option backgrounds from the option's own
+ * color, NOT the page behind it. --control-fill is a translucent white, which
+ * composites to white inside the popup (there is no dark surface behind it), so
+ * in dark mode the options looked white-on-white. Force opaque themed colors.
+ * color-scheme (set per theme above) handles the popup chrome + scrollbar. */
+select option,
+select optgroup {
+  background-color: var(--surface);
+  color: var(--text-primary);
 }
