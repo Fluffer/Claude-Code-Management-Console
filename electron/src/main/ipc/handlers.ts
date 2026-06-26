@@ -606,9 +606,9 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       // sourcePath must live within a configured root (the project being
       // duplicated is always under one) — stops a compromised renderer from
       // copying an arbitrary host path (.ssh, system dirs, …).
-      const resolvedSource = path.resolve(sourcePath)
+      const resolvedSource = path.resolve(sourcePath).toLowerCase()
       const sourceUnderRoot = (config.roots ?? []).some((r) => {
-        const root = path.resolve(r)
+        const root = path.resolve(r).toLowerCase()
         return resolvedSource === root || resolvedSource.startsWith(root + path.sep)
       })
       if (!sourceUnderRoot) {

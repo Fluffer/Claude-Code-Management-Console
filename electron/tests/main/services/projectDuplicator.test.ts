@@ -77,4 +77,11 @@ describe('duplicateProject', () => {
     expect(res.ok).toBe(true)
     expect(cloneRepo).toHaveBeenCalledWith(path.resolve(src), path.resolve(dst))
   })
+
+  it('detects a nested target case-insensitively', async () => {
+    const src = path.join(work, 'src'); await mkdir(src)
+    const res = await duplicateProject({ sourcePath: src, targetDir: path.join(src.toUpperCase(), 'inner'), mode: 'copy' })
+    expect(res.ok).toBe(false)
+    expect(res.error).toMatch(/into itself/i)
+  })
 })

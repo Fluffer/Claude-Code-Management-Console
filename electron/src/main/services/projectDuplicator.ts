@@ -30,7 +30,9 @@ export async function duplicateProject(
     return { ok: false, error: 'Source is not a folder.' }
   }
 
-  if (dst === src || dst.startsWith(src + path.sep)) {
+  const srcCmp = src.toLowerCase()
+  const dstCmp = dst.toLowerCase()
+  if (dstCmp === srcCmp || dstCmp.startsWith(srcCmp + path.sep)) {
     return { ok: false, error: 'Cannot duplicate a folder into itself.' }
   }
 
