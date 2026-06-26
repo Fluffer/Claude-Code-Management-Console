@@ -47,6 +47,24 @@ describe('project:duplicate', () => {
     expect(res.error).toMatch(/separator/i)
   })
 
+  it('rejects an invalid copy mode', async () => {
+    const root = path.join(work, 'root'); await mkdir(root)
+    const src = path.join(root, 'src'); await mkdir(src)
+    const handlers = createHandlers(await makeDeps([root]))
+    const res = await handlers['project:duplicate']({ sourcePath: src, targetRoot: root, name: 'src-copy', mode: 'symlink' as 'copy' })
+    expect(res.ok).toBe(false)
+    expect(res.error).toMatch(/mode/i)
+  })
+
+  it('rejects a source path outside every configured root', async () => {
+    const root = path.join(work, 'root'); await mkdir(root)
+    const outside = path.join(work, 'outside'); await mkdir(outside)
+    const handlers = createHandlers(await makeDeps([root]))
+    const res = await handlers['project:duplicate']({ sourcePath: outside, targetRoot: root, name: 'x-copy', mode: 'copy' })
+    expect(res.ok).toBe(false)
+    expect(res.error).toMatch(/source/i)
+  })
+
   it('copies the project into the configured root', async () => {
     const root = path.join(work, 'root'); await mkdir(root)
     const src = path.join(root, 'src'); await mkdir(src)

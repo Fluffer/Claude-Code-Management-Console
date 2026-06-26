@@ -595,12 +595,24 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
 
       // Target root must be one of the configured source roots.
       const config = await loadConfig(configPath)
-      const resolvedTarget = path.resolve(targetRoot)
+      const base = path.resolve(targetRoot)
       const isConfiguredRoot = (config.roots ?? []).some(
-        (r) => path.resolve(r).toLowerCase() === resolvedTarget.toLowerCase(),
+        (r) => path.resolve(r).toLowerCase() === base.toLowerCase(),
       )
       if (!isConfiguredRoot) {
         return { ok: false, error: 'Target root is not a configured source root.' }
+      }
+
+      // sourcePath must live within a configured root (the project being
+      // duplicated is always under one) — stops a compromised renderer from
+      // copying an arbitrary host path (.ssh, system dirs, …).
+      const resolvedSource = path.resolve(sourcePath)
+      const sourceUnderRoot = (config.roots ?? []).some((r) => {
+        const root = path.resolve(r)
+        return resolvedSource === root || resolvedSource.startsWith(root + path.sep)
+      })
+      if (!sourceUnderRoot) {
+        return { ok: false, error: 'Source project is not under a configured source root.' }
       }
 
       const validation = validateCloneName(name)
@@ -608,8 +620,8 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
         return { ok: false, error: validation.reason }
       }
 
-      // Path-traversal guard: resolved target must stay within the root.
-      const base = path.resolve(targetRoot)
+      // Defense in depth: validateCloneName already rejects path separators, so
+      // a name cannot encode traversal — this guard is a belt-and-suspenders check.
       const full = path.resolve(targetRoot, name)
       if (full !== base && !full.startsWith(base + path.sep)) {
         return { ok: false, error: 'Invalid project name.' }
