@@ -47,7 +47,11 @@ export async function duplicateProject(
     } catch {
       return { ok: false, error: 'Source is not a git repository.' }
     }
-    return cloneRepo(src, dst)
+    try {
+      return await cloneRepo(src, dst)
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) }
+    }
   }
 
   try {

@@ -33,6 +33,13 @@ describe('duplicateProject', () => {
     expect(res.error).toMatch(/into itself/i)
   })
 
+  it('errors when the target is the source', async () => {
+    const src = path.join(work, 'src'); await mkdir(src)
+    const res = await duplicateProject({ sourcePath: src, targetDir: src, mode: 'copy' })
+    expect(res.ok).toBe(false)
+    expect(res.error).toMatch(/into itself/i)
+  })
+
   it('errors when the target already exists', async () => {
     const src = path.join(work, 'src'); await mkdir(src)
     const dst = path.join(work, 'dst'); await mkdir(dst)
