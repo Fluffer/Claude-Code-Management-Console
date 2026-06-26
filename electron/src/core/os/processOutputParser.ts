@@ -48,6 +48,7 @@ export function parseWmicProcessOutput(stdout: string): ProcEntry[] {
   const cmdIdx = header.indexOf('commandline')
   const ppidIdx = header.indexOf('parentprocessid')
   const pidIdx = header.indexOf('processid')
+  const wdIdx = header.indexOf('workingdirectory')
 
   if (pidIdx === -1 || captionIdx === -1) return []
 
@@ -62,8 +63,9 @@ export function parseWmicProcessOutput(stdout: string): ProcEntry[] {
     const ppid = parseInt(ppidStr, 10) || 0
     const name = captionIdx < fields.length ? stripQuotes(fields[captionIdx]) : ''
     const commandLine = cmdIdx >= 0 && cmdIdx < fields.length ? stripQuotes(fields[cmdIdx]) : ''
+    const workingDirectory = wdIdx >= 0 && wdIdx < fields.length ? stripQuotes(fields[wdIdx]) : ''
 
-    result.push({ pid, ppid, name, commandLine, workingDirectory: '' })
+    result.push({ pid, ppid, name, commandLine, workingDirectory })
   }
   return result
 }
@@ -110,8 +112,10 @@ export function extractSessionName(commandLine: string): string | null {
  * sessions.
  * - claude / claude.exe: included unless they are the desktop app, an Electron
  *   child, or a headless/SDK invocation (see isNonSessionProcess).
- * - node / node.exe / bun / bun.exe: included only when commandLine contains
- *   "claude" and is not one of the excluded kinds above.
+ * - node / node.exe / bun / bun.exe: included only when commandLine runs the
+ *   Claude Code CLI (contains "claude-code"). A bare "claude" substring is too
+ *   loose — it matches unrelated tools whose path merely contains the word
+ *   "claude" (e.g. this app's own "Claude Code Management Console" node procs).
  * Each result carries the trimmed workingDirectory and the parsed sessionName
  * (from -n / --name) used to map the session back to a project.
  */
@@ -127,7 +131,7 @@ export function filterClaudeSessions(entries: ProcEntry[]): RunningSession[] {
     const cmdLower = e.commandLine.toLowerCase()
 
     if (CLAUDE_HOSTS.has(nameLower)) {
-      if (!cmdLower.includes('claude')) continue
+      if (!cmdLower.includes('claude-code')) continue
     }
 
     if (isNonSessionProcess(cmdLower)) continue

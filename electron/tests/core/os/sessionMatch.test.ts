@@ -13,6 +13,18 @@ describe('sessionMatchesProject', () => {
     expect(sessionMatchesProject(session({ workingDirectory: 'c:\\dev\\active\\my project' }), project)).toBe(true)
   })
 
+  it('matches a working directory beneath the project folder', () => {
+    expect(sessionMatchesProject(session({ workingDirectory: 'C:\\Dev\\Active\\My Project\\src\\core' }), project)).toBe(true)
+  })
+
+  it('does not match a sibling folder with the same prefix', () => {
+    expect(sessionMatchesProject(session({ workingDirectory: 'C:\\Dev\\Active\\My Project Two' }), project)).toBe(false)
+  })
+
+  it('ignores a trailing separator on the working directory', () => {
+    expect(sessionMatchesProject(session({ workingDirectory: 'C:\\Dev\\Active\\My Project\\' }), project)).toBe(true)
+  })
+
   it('matches on session name when working directory is unknown', () => {
     expect(sessionMatchesProject(session({ sessionName: 'My Project' }), project)).toBe(true)
   })

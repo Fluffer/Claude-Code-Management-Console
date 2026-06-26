@@ -89,6 +89,24 @@ describe('parseWmicProcessOutput', () => {
     expect(entries).toHaveLength(1)
     expect(entries[0].commandLine).toBe('node.exe --flag=a,b')
   })
+
+  it('reads the WorkingDirectory column when present', () => {
+    const csv = [
+      'Caption,CommandLine,ParentProcessId,ProcessId,WorkingDirectory',
+      'claude.exe,"claude.exe -n MyProject",100,200,"C:\\Dev\\Active\\My Project"',
+    ].join('\r\n')
+    const entries = parseWmicProcessOutput(csv)
+    expect(entries).toHaveLength(1)
+    expect(entries[0].workingDirectory).toBe('C:\\Dev\\Active\\My Project')
+  })
+
+  it('defaults workingDirectory to empty when the column is absent', () => {
+    const csv = [
+      'Caption,CommandLine,ParentProcessId,ProcessId',
+      'claude.exe,"claude.exe",0,1',
+    ].join('\r\n')
+    expect(parseWmicProcessOutput(csv)[0].workingDirectory).toBe('')
+  })
 })
 
 describe('filterClaudeSessions', () => {
@@ -118,6 +136,22 @@ describe('filterClaudeSessions', () => {
   it('excludes node.exe processes not running claude', () => {
     const result = filterClaudeSessions(entries)
     expect(result.some(s => s.pid === 4)).toBe(false)
+  })
+
+  it('excludes a node process whose path merely contains the word "claude"', () => {
+    // The app's own dev/build node procs run from "Claude Code Management
+    // Console" (space, not hyphen) — must not be mistaken for a CLI session.
+    const falsePositive = [
+      { pid: 99, ppid: 0, name: 'node.exe', commandLine: '"node" "C:\\Dev\\Active\\Claude Code Management Console\\electron\\node_modules\\.bin\\electron-vite.js" dev', workingDirectory: 'C:\\Dev\\Active\\Claude Code Management Console\\electron' },
+    ]
+    expect(filterClaudeSessions(falsePositive)).toHaveLength(0)
+  })
+
+  it('carries the real working directory through to the session', () => {
+    const withCwd = [
+      { pid: 50, ppid: 0, name: 'claude.exe', commandLine: '"C:\\bin\\claude.exe"', workingDirectory: 'C:\\Dev\\Active\\Repo' },
+    ]
+    expect(filterClaudeSessions(withCwd)[0].workingDirectory).toBe('C:\\Dev\\Active\\Repo')
   })
 
   it('excludes unrelated processes', () => {
