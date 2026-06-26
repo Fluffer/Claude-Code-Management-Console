@@ -743,6 +743,7 @@ function MainWindow(): React.ReactElement {
         {claudeVersion != null && (
           <span>· Claude v{claudeVersion}</span>
         )}
+        <span>· App v{__APP_VERSION__}</span>
         <span className="ml-auto opacity-60">
           Enter = Continue · Ctrl+Enter = New · Ctrl+F = Search · Ctrl+K / Ctrl+P = Palette · F1 = Help
         </span>

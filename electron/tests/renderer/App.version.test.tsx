@@ -81,6 +81,12 @@ describe('App status bar — Claude version (#20)', () => {
     })
   })
 
+  it('shows the app version in the footer', async () => {
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('alpha')).toBeInTheDocument())
+    expect(screen.getByText(/App v\d+\.\d+\.\d+/)).toBeInTheDocument()
+  })
+
   it('does not show Claude version in footer when version is null', async () => {
     setChannelResponse('claude:version', { version: null })
 
