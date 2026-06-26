@@ -67,8 +67,11 @@ export function HelpDialog({ open, onClose }: HelpDialogProps): React.ReactEleme
       title="Claude Code Management Console — Help"
       onClose={onClose}
       footer={footer}
+      size="lg"
     >
-      <div className="overflow-y-auto max-h-[65vh] pr-1 min-w-[520px]">
+      {/* Modal body owns the scroll + height cap now; no inner min-width (it forced
+          horizontal overflow past the panel). */}
+      <div>
 
         <Para>
           Claude Code Management Console is a launcher hub for Claude Code. It lists every project

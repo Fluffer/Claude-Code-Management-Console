@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef, useLayoutEffect } from 'react'
 import { Spinner } from '../../components/ui/Spinner'
 import { Button } from '../../components/ui/Button'
 import { ProjectRow } from './ProjectRow'
@@ -108,14 +108,7 @@ export function ProjectList({
             onAction={onAction}
           />
           {contextMenuProject?.path === project.path && contextMenuPos && (
-            <div
-              style={{
-                position: 'fixed',
-                left: contextMenuPos.x,
-                top: contextMenuPos.y,
-                zIndex: 50,
-              }}
-            >
+            <PositionedMenu x={contextMenuPos.x} y={contextMenuPos.y}>
               <ContextMenu
                 project={project}
                 isOpen={true}
@@ -124,10 +117,62 @@ export function ProjectList({
                 onClose={closeContextMenu}
                 onAction={onAction}
               />
-            </div>
+            </PositionedMenu>
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+/**
+ * Fixed-position wrapper for the row context menu that keeps the menu fully
+ * inside the viewport. The raw cursor coords (clientX/Y) clip the menu when the
+ * row is near the bottom/right edge, so after first layout we measure the menu
+ * and shift it back in-bounds (flip up / nudge left). If the menu is taller than
+ * the viewport, it caps its height and scrolls instead of overflowing.
+ */
+function PositionedMenu({
+  x,
+  y,
+  children,
+}: {
+  x: number
+  y: number
+  children: React.ReactNode
+}): React.ReactElement {
+  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState<{ left: number; top: number }>({ left: x, top: y })
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const margin = 8
+    const rect = el.getBoundingClientRect()
+    let left = x
+    let top = y
+    if (left + rect.width > window.innerWidth - margin) {
+      left = Math.max(margin, window.innerWidth - rect.width - margin)
+    }
+    if (top + rect.height > window.innerHeight - margin) {
+      top = Math.max(margin, window.innerHeight - rect.height - margin)
+    }
+    setPos({ left, top })
+  }, [x, y])
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'fixed',
+        left: pos.left,
+        top: pos.top,
+        zIndex: 50,
+        maxHeight: 'calc(100vh - 16px)',
+        overflowY: 'auto',
+      }}
+    >
+      {children}
     </div>
   )
 }

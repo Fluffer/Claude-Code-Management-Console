@@ -209,8 +209,8 @@ export function SettingsDialog({
   )
 
   return (
-    <Modal open={open} title="Settings" onClose={handleClose} footer={footer}>
-      <div className="flex flex-col gap-4 min-w-[420px]">
+    <Modal open={open} title="Settings" onClose={handleClose} footer={footer} size="lg">
+      <div className="flex flex-col gap-4">
 
         {/* Appearance */}
         <section className="flex flex-col gap-2">

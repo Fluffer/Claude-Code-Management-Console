@@ -43,6 +43,21 @@ export interface ModalProps {
   footer?: React.ReactNode
   /** Close when backdrop is clicked. Default: true. */
   closeOnBackdrop?: boolean
+  /** Panel target width. Default: 'md'. Use 'lg'/'xl' for content-heavy dialogs. */
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+}
+
+/**
+ * Size maps to a *minimum* width (px), not a hard max. The panel grows to fit
+ * its content (e.g. dialogs with their own min-w children) and is only ever
+ * capped by the viewport (max-w-[95vw]). This prevents the horizontal-clip bug
+ * where a fixed max-w-md panel cut off wider dialog content.
+ */
+const SIZE_MIN_WIDTH: Record<NonNullable<ModalProps['size']>, number> = {
+  sm: 320,
+  md: 420,
+  lg: 640,
+  xl: 880,
 }
 
 // ---------------------------------------------------------------------------
@@ -56,6 +71,7 @@ export function Modal({
   children,
   footer,
   closeOnBackdrop = true,
+  size = 'md',
 }: ModalProps): React.ReactElement | null {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -148,10 +164,10 @@ export function Modal({
     /* Backdrop */
     <div
       data-testid="modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--smoke)]"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--smoke)]"
       onClick={handleBackdropClick}
     >
-      {/* Panel */}
+      {/* Panel — capped at viewport height; body scrolls, title/footer stay pinned. */}
       <div
         ref={dialogRef}
         role="dialog"
@@ -159,14 +175,15 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={[
-          'relative z-10 w-full max-w-md rounded-lg shadow-xl',
+          'relative z-10 w-auto max-w-[95vw] max-h-[90vh] rounded-lg shadow-xl',
           'bg-[var(--acrylic-bg)] border border-[var(--flyout-border)]',
           'flex flex-col outline-none',
         ].join(' ')}
+        style={{ minWidth: `min(${SIZE_MIN_WIDTH[size]}px, 95vw)` }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Title */}
-        <div className="px-6 pt-5 pb-3 border-b border-[var(--divider)]">
+        <div className="px-6 pt-5 pb-3 border-b border-[var(--divider)] shrink-0">
           <h2
             id={titleId}
             className="text-base font-semibold text-[var(--text-primary)] leading-snug"
@@ -175,14 +192,14 @@ export function Modal({
           </h2>
         </div>
 
-        {/* Body */}
-        <div className="px-6 py-4 text-sm text-[var(--text-primary)] overflow-y-auto">
+        {/* Body — the sole scroll region (min-h-0 lets it shrink inside the flex column). */}
+        <div className="px-6 py-4 text-sm text-[var(--text-primary)] overflow-auto min-h-0">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 pt-3 border-t border-[var(--divider)] flex justify-end gap-2">
+          <div className="px-6 py-4 pt-3 border-t border-[var(--divider)] flex justify-end gap-2 shrink-0">
             {footer}
           </div>
         )}
