@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button'
 import { ProjectRow } from './ProjectRow'
 import { ContextMenu } from './ContextMenu'
 import type { ProjectInfo, RunningSession } from '../../../core/models'
+import { sessionMatchesProject } from '../../../core/os/sessionMatch'
 import type { ProjectAction } from './projectActions'
 import type { ProjectEnrichment } from './ProjectRow'
 
@@ -26,8 +27,9 @@ interface ProjectListProps {
  *   - searchText set     → "No projects match…"  (search returned nothing)
  *   - searchText empty   → "No projects found…"  (no projects at all)
  *
- * Running badge: a project is live if its path (case-insensitive) is in
- * runningSessions[].workingDirectory — mirrors RunningClaudeDetector.IsProjectRunning().
+ * Running badge: a project is live when a running session maps to it via
+ * sessionMatchesProject (working directory when known, else the launcher's
+ * `-n <project name>`) — Windows cannot read a process working directory.
  */
 export function ProjectList({
   projects,
@@ -81,7 +83,6 @@ export function ProjectList({
     )
   }
 
-  const runningSet = new Set(runningSessions.map((s) => s.workingDirectory.toLowerCase()))
   const pinnedSet = new Set(pinnedPaths.map((p) => p.toLowerCase()))
 
   return (
@@ -90,7 +91,9 @@ export function ProjectList({
       onClick={closeContextMenu}
       onKeyDown={(e) => { if (e.key === 'Escape') closeContextMenu() }}
     >
-      {projects.map((project) => (
+      {projects.map((project) => {
+        const isRunning = runningSessions.some((s) => sessionMatchesProject(s, project))
+        return (
         <div
           key={project.path}
           className="relative"
@@ -102,7 +105,7 @@ export function ProjectList({
         >
           <ProjectRow
             project={project}
-            isRunning={runningSet.has(project.path.toLowerCase())}
+            isRunning={isRunning}
             isPinned={pinnedSet.has(project.path.toLowerCase())}
             enrichment={enrichments[project.path] ?? null}
             onAction={onAction}
@@ -112,7 +115,7 @@ export function ProjectList({
               <ContextMenu
                 project={project}
                 isOpen={true}
-                isRunning={runningSet.has(project.path.toLowerCase())}
+                isRunning={isRunning}
                 enrichment={enrichments[project.path] ?? null}
                 onClose={closeContextMenu}
                 onAction={onAction}
@@ -120,7 +123,8 @@ export function ProjectList({
             </PositionedMenu>
           )}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

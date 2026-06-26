@@ -44,6 +44,7 @@ import { DialogsProvider, useDialogs } from './features/dialogs/useDialogs'
 import { TextInput } from './components/ui/TextInput'
 import { deepLinkBuilder } from '../core/links/deepLinkBuilder'
 import { setModel } from '../core/config/flagsEditor'
+import { sessionMatchesProject } from '../core/os/sessionMatch'
 import type { ProjectAction } from './features/projects/projectActions'
 import type { LaunchGroup, LauncherConfig, ProjectInfo, SavedFilter } from '../core/models'
 
@@ -234,9 +235,7 @@ function MainWindow(): React.ReactElement {
             kind: 'delete',
             project: action.project,
             gitDirty: enrichment?.gitDirty ?? null,
-            isRunning: runningSessions.some(
-              (s) => s.workingDirectory.toLowerCase() === action.project.path.toLowerCase(),
-            ),
+            isRunning: runningSessions.some((s) => sessionMatchesProject(s, action.project)),
           })
           break
         }
@@ -308,9 +307,7 @@ function MainWindow(): React.ReactElement {
         // stop-session — confirm + kill the running session for this project
         // ------------------------------------------------------------------
         case 'stop-session': {
-          const running = runningSessions.find(
-            (s) => s.workingDirectory.toLowerCase() === action.project.path.toLowerCase(),
-          )
+          const running = runningSessions.find((s) => sessionMatchesProject(s, action.project))
           if (!running) {
             showToast('No running session found for this project', 'info')
             break

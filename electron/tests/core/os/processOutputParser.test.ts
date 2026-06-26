@@ -3,6 +3,7 @@ import {
   parseTasklistCsv,
   parseWmicProcessOutput,
   filterClaudeSessions,
+  extractSessionName,
 } from '../../../src/core/os/processOutputParser'
 
 describe('parseTasklistCsv', () => {
@@ -99,7 +100,7 @@ describe('filterClaudeSessions', () => {
     { pid: 5, ppid: 0, name: 'code.exe', commandLine: 'code.exe', workingDirectory: 'C:\\Dev\\E' },
   ]
 
-  it('includes claude.exe processes unconditionally', () => {
+  it('includes a plain interactive claude.exe process', () => {
     const result = filterClaudeSessions(entries)
     expect(result.some(s => s.pid === 1)).toBe(true)
   })
@@ -130,5 +131,58 @@ describe('filterClaudeSessions', () => {
     ]
     const result = filterClaudeSessions(withTrailing)
     expect(result[0].workingDirectory).toBe('C:\\Dev\\A')
+  })
+
+  // Regression: the Claude Desktop app and its Electron children share the
+  // claude.exe image name and previously inflated the live-session count.
+  const desktopAppEntries = [
+    // Real interactive CLI sessions (the only ones that should count).
+    { pid: 100, ppid: 0, name: 'claude.exe', commandLine: '"C:\\Users\\p\\.local\\bin\\claude.exe"', workingDirectory: '' },
+    { pid: 101, ppid: 0, name: 'claude.exe', commandLine: '"C:\\Users\\p\\.local\\bin\\claude.exe" -n "AI Command Center-test"', workingDirectory: '' },
+    // Claude Desktop app main + Electron children (Store package under WindowsApps).
+    { pid: 200, ppid: 0, name: 'claude.exe', commandLine: '"C:\\Program Files\\WindowsApps\\Claude_1.0_x64__abc\\app\\Claude.exe"', workingDirectory: '' },
+    { pid: 201, ppid: 200, name: 'claude.exe', commandLine: '"C:\\Program Files\\WindowsApps\\Claude_1.0_x64__abc\\app\\Claude.exe" --type=renderer --user-data-dir="x"', workingDirectory: '' },
+    { pid: 202, ppid: 200, name: 'claude.exe', commandLine: '"C:\\Program Files\\WindowsApps\\Claude_1.0_x64__abc\\app\\Claude.exe" --type=gpu-process', workingDirectory: '' },
+    // Desktop app's embedded headless Claude Code (stream-json / permission tool).
+    { pid: 300, ppid: 0, name: 'claude.exe', commandLine: 'C:\\Users\\p\\AppData\\Roaming\\Claude\\claude-code\\2.1.181\\claude.exe --output-format stream-json --input-format stream-json --permission-prompt-tool stdio', workingDirectory: '' },
+  ]
+
+  it('excludes the desktop app, its Electron children, and headless agents', () => {
+    const result = filterClaudeSessions(desktopAppEntries)
+    expect(result.map((s) => s.pid).sort()).toEqual([100, 101])
+  })
+
+  it('parses the session name from -n for the launched session', () => {
+    const result = filterClaudeSessions(desktopAppEntries)
+    const launched = result.find((s) => s.pid === 101)
+    expect(launched?.sessionName).toBe('AI Command Center-test')
+  })
+
+  it('leaves sessionName undefined for a bare manual session', () => {
+    const result = filterClaudeSessions(desktopAppEntries)
+    const bare = result.find((s) => s.pid === 100)
+    expect(bare?.sessionName).toBeUndefined()
+  })
+})
+
+describe('extractSessionName', () => {
+  it('extracts a double-quoted name', () => {
+    expect(extractSessionName('claude -n "My Project"')).toBe('My Project')
+  })
+
+  it('extracts a single-quoted name', () => {
+    expect(extractSessionName("claude -n 'My Project'")).toBe('My Project')
+  })
+
+  it('extracts a bare token name', () => {
+    expect(extractSessionName('claude -n myproj --flag')).toBe('myproj')
+  })
+
+  it('supports the --name long form', () => {
+    expect(extractSessionName('claude --name "X Y"')).toBe('X Y')
+  })
+
+  it('returns null when no name flag is present', () => {
+    expect(extractSessionName('"C:\\bin\\claude.exe"')).toBeNull()
   })
 })
