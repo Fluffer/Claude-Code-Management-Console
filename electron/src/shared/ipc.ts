@@ -84,9 +84,25 @@ export const IPC = Object.freeze({
   CLAUDE_VERSION: 'claude:version',
   FS_IS_DIRECTORY: 'fs:isDirectory',
   CONFIG_ADD_ROOTS: 'config:addRoots',
+  APPROVER_STATUS: 'approver:status',
+  APPROVER_SET: 'approver:set',
 } as const)
 
 export type IpcChannel = (typeof IPC)[keyof typeof IPC]
+
+/**
+ * Runtime status of the terminal auto-approver background daemon.
+ * `enabled` is the persisted desired state; `running` is whether the daemon
+ * process is actually alive; `available` is whether it can run at all
+ * (PowerShell located + script present).
+ */
+export interface ApproverStatus {
+  enabled: boolean
+  running: boolean
+  available: boolean
+  classify: boolean
+  error?: string
+}
 
 // ---------------------------------------------------------------------------
 // IpcMap — maps every channel to its { req, res } pair
@@ -163,6 +179,8 @@ export interface IpcMap {
   'claude:version': { req: void; res: { version: string | null } }
   'fs:isDirectory': { req: { path: string }; res: { ok: boolean } }
   'config:addRoots': { req: { paths: string[] }; res: { added: number } }
+  'approver:status': { req: void; res: ApproverStatus }
+  'approver:set': { req: { enabled: boolean; classify?: boolean }; res: ApproverStatus }
 }
 
 // ---------------------------------------------------------------------------

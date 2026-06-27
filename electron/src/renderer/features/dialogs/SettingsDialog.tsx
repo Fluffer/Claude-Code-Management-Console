@@ -22,6 +22,7 @@ import { applyAccent, applyFont } from '../../theme/applyAppearance'
 import { ACCENTS } from '../../../core/theme/accents'
 import { FONTS } from '../../../core/theme/fonts'
 import type { AppState, LauncherConfig } from '../../../core/models'
+import type { ApproverStatus } from '../../../shared/ipc'
 
 const THEME_OPTIONS = ['System', 'Light', 'Dark', 'High Contrast'] as const
 type ThemeOption = typeof THEME_OPTIONS[number]
@@ -72,6 +73,8 @@ export function SettingsDialog({
   const [terminalId, setTerminalId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [approver, setApprover] = useState<ApproverStatus | null>(null)
+  const [approverBusy, setApproverBusy] = useState(false)
 
   // Load on open
   useEffect(() => {
@@ -85,9 +88,11 @@ export function SettingsDialog({
       window.ccmc.invoke('state:read'),
       window.ccmc.invoke('config:read'),
       window.ccmc.invoke('terminals:detect'),
-    ]).then(([state, cfg, detected]) => {
+      window.ccmc.invoke('approver:status'),
+    ]).then(([state, cfg, detected, approverStatus]) => {
       setAppState(state)
       setConfig(cfg)
+      setApprover(approverStatus)
       setSelectedTheme(themeOptionFromState(state.theme))
       setCloseToTray(state.closeToTray)
       setTerminals(detected)
@@ -118,6 +123,21 @@ export function SettingsDialog({
   function handleFontChange(id: string): void {
     setSelectedFont(id)
     applyFont(id)
+  }
+
+  // Auto-approver toggles apply immediately (start/stop a background process),
+  // independent of the dialog's Save button.
+  async function applyApprover(next: { enabled: boolean; classify?: boolean }): Promise<void> {
+    if (approverBusy) return
+    setApproverBusy(true)
+    try {
+      const status = await window.ccmc.invoke('approver:set', next)
+      setApprover(status)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setApproverBusy(false)
+    }
   }
 
   function handleClose(): void {
@@ -378,6 +398,42 @@ export function SettingsDialog({
           onChange={setCloseToTray}
           label="Close to tray"
         />
+
+        {/* Terminal auto-approver */}
+        <section className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)]">Terminal automation</h3>
+          <p className="text-xs text-[var(--text-secondary)]">
+            Auto-presses permission prompts (Yes / allow-always) in every Windows
+            Terminal tab — foreground or background. Applies immediately.
+          </p>
+          <ToggleSwitch
+            checked={approver?.enabled ?? false}
+            onChange={(v) => void applyApprover({ enabled: v, classify: approver?.classify })}
+            label="Auto-approve terminal prompts"
+            disabled={approverBusy || !(approver?.available ?? false)}
+          />
+          <ToggleSwitch
+            checked={approver?.classify ?? false}
+            onChange={(v) => void applyApprover({ enabled: approver?.enabled ?? false, classify: v })}
+            label="Security classifier (local model gates risky actions)"
+            disabled={approverBusy || !(approver?.available ?? false)}
+            className="ml-2"
+          />
+          {approver && !approver.available && (
+            <p className="text-xs text-[var(--text-secondary)]">
+              Unavailable: requires Windows + PowerShell on PATH.
+            </p>
+          )}
+          {approver?.available && (
+            <p className="text-xs text-[var(--text-secondary)]">
+              Status: {approver.running ? 'running' : 'stopped'}
+              {approver.enabled && !approver.running ? ' (failed to start)' : ''}
+            </p>
+          )}
+          {approver?.error && (
+            <p className="text-xs text-amber-500">{approver.error}</p>
+          )}
+        </section>
 
         {/* Hidden projects */}
         {hidden.length > 0 && (

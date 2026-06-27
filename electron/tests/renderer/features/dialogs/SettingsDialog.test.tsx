@@ -66,6 +66,12 @@ describe('SettingsDialog', () => {
       { id: 'wt', name: 'Windows Terminal', path: 'C:\\wt.exe' },
       { id: 'wtai', name: 'Windows Terminal AI', path: 'C:\\wtai.exe' },
     ])
+    setChannelResponse('approver:status', {
+      enabled: false,
+      running: false,
+      available: false,
+      classify: false,
+    })
   })
 
   it('renders the dialog title', async () => {

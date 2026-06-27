@@ -7,6 +7,7 @@ import type { IProcessInspector } from '../os/processInspector'
 import type { ISessionKiller } from '../os/sessionKiller'
 import type { ITerminalLauncher } from '../os/terminalLauncher'
 import type { ICommandLocator } from '../os/commandLocator'
+import type { IApproverService } from '../services/approverService'
 import { loadConfig, saveConfig } from '../services/configStore'
 import { loadState, saveState } from '../services/stateStore'
 import { scanProjects } from '../services/projectScanner'
@@ -55,6 +56,8 @@ export interface IpcHandlerDeps {
   openInVscode: (filePath: string) => Promise<{ ok: boolean; error?: string }>
   /** Called when the renderer signals its IPC subscriptions are live. */
   onRendererReady?: () => void
+  /** Terminal auto-approver daemon lifecycle. */
+  approver: IApproverService
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +108,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     openPath,
     openInVscode,
     onRendererReady,
+    approver,
   } = deps
 
   /**
@@ -754,6 +758,25 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       }
 
       return { added: toAdd.length }
+    },
+
+    // -----------------------------------------------------------------------
+    // approver:status — current daemon runtime status.
+    // -----------------------------------------------------------------------
+    'approver:status': async () => {
+      return approver.status()
+    },
+
+    // -----------------------------------------------------------------------
+    // approver:set — enable/disable the auto-approver daemon (+ classifier).
+    // -----------------------------------------------------------------------
+    'approver:set': async (req) => {
+      const obj = requireObject(req, 'req')
+      if (typeof obj['enabled'] !== 'boolean') {
+        throw new TypeError(`IPC validation: 'enabled' must be a boolean`)
+      }
+      const classify = typeof obj['classify'] === 'boolean' ? (obj['classify'] as boolean) : undefined
+      return approver.set({ enabled: obj['enabled'] as boolean, classify })
     },
   }
 }

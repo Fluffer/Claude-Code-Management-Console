@@ -1,0 +1,34 @@
+{
+  "pollMs": 300,
+  "cooldownMs": 1500,
+  "scanLines": 30,
+  "logPath": "approver.log",
+
+  "policy": {
+    "mode": "approve",
+    "_mode_help": "approve = auto-pick allow/allow-always. classify = ask local model first. off = detect+log only (never press).",
+    "preferAllowAlways": true,
+    "denyOnClassifierDeny": true,
+    "skipOnClassifierAsk": true
+  },
+
+  "patterns": {
+    "allowAlways": "(don'?t ask again|always allow|allow (for|all)|all future)",
+    "allow": "^(yes|allow|y|approve|accept|continue|proceed)\\b",
+    "deny": "^(no|deny|reject|cancel|abort)\\b"
+  },
+
+  "keystroke": {
+    "numberedMenu": "digitOnly",
+    "_numberedMenu_help": "digitOnly = press the option number (Claude Code style). digitEnter = press number then Enter (classic menus).",
+    "ynPrompt": "yEnter"
+  },
+
+  "classifier": {
+    "url": "http://localhost:11434/api/generate",
+    "model": "qwen2.5-coder",
+    "timeoutSec": 20,
+    "fallbackOnError": "skip",
+    "_fallback_help": "skip = leave prompt for human if model unreachable. allow = approve anyway. deny = press No."
+  }
+}

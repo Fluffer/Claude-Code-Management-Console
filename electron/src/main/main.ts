@@ -11,6 +11,7 @@ import { createTerminalLauncher } from './os/terminalLauncher'
 import { createCommandLocator } from './os/commandLocator'
 import { watchPaths } from './os/fileWatch'
 import { registerIpc } from './ipc/register'
+import { createApproverService } from './services/approverService'
 import { extractDeepLinkArg } from '../core/links/deepLinkArg'
 import { installShellIntegration } from './os/shellIntegration'
 import { createActivationBuffer } from '../core/util/activationBuffer'
@@ -131,6 +132,15 @@ if (!gotLock) {
     const terminalLauncher = createTerminalLauncher()
     const commandLocator = createCommandLocator()
 
+    // Terminal auto-approver daemon. Script ships under resources (packaged) or
+    // the repo's tools/ dir (dev); it runs from a writable app-data copy.
+    const approverSource = app.isPackaged
+      ? join(process.resourcesPath, 'tools', 'terminal-auto-approver')
+      : join(app.getAppPath(), '..', 'tools', 'terminal-auto-approver')
+    const approverWorkDir = join(resolveAppDataDir(appDataBase), 'approver')
+    const approver = createApproverService({ sourceDir: approverSource, workDir: approverWorkDir })
+    await approver.init()
+
     createWindow()
 
     if (mainWindow === null) return
@@ -144,6 +154,7 @@ if (!gotLock) {
       sessionKiller,
       terminalLauncher,
       commandLocator,
+      approver,
       onRendererReady: () => activation.setReady(),
     }, dialog, shell)
 
@@ -198,6 +209,7 @@ if (!gotLock) {
 
     app.on('will-quit', () => {
       shellIntegration.dispose()
+      approver.dispose()
     })
   })
 

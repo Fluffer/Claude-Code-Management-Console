@@ -17,6 +17,15 @@ files:
 extraResources:
   - from: resources/app.ico
     to: app.ico
+  # Terminal auto-approver daemon (lives at repo-root/tools, outside electron/).
+  # main.ts (packaged) runs it from process.resourcesPath/tools/...
+  - from: ../tools/terminal-auto-approver
+    to: tools/terminal-auto-approver
+    filter:
+      - '**/*.ps1'
+      - '**/*.json'
+      - '**/*.cmd'
+      - '**/*.md'
 
 asar: true
 
