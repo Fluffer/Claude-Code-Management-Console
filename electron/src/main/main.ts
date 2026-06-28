@@ -43,6 +43,17 @@ process.on('unhandledRejection', (reason) => {
   console.error('[main] unhandledRejection:', reason)
 })
 
+// Resolve the app icon (the same app.ico used by the tray and the packaged
+// AppX manifest) so the BrowserWindow — and therefore the taskbar — shows it
+// instead of the default Electron atom. Packaged build reads from
+// process.resourcesPath; dev reads from the source resources directory.
+function resolveAppIcon(): string | null {
+  const iconPath = app.isPackaged
+    ? join(process.resourcesPath, 'app.ico')
+    : join(__dirname, '../../resources/app.ico')
+  return existsSync(iconPath) ? iconPath : null
+}
+
 // ---------------------------------------------------------------------------
 // Single-instance lock (#14) — must be requested before app.whenReady()
 // ---------------------------------------------------------------------------
@@ -69,11 +80,13 @@ if (!gotLock) {
   })
 
   function createWindow(): void {
+    const windowIcon = resolveAppIcon()
     mainWindow = new BrowserWindow({
       width: 1200,
       height: 800,
       show: false,
       autoHideMenuBar: true,
+      ...(windowIcon ? { icon: windowIcon } : {}),
       webPreferences: {
         preload: join(__dirname, '../preload/preload.js'),
         contextIsolation: true,
@@ -158,12 +171,9 @@ if (!gotLock) {
       onRendererReady: () => activation.setReady(),
     }, dialog, shell)
 
-    // Resolve icon path: packaged build uses process.resourcesPath, dev uses
-    // the source resources directory.
-    const iconPath = app.isPackaged
-      ? join(process.resourcesPath, 'app.ico')
-      : join(__dirname, '../../resources/app.ico')
-    const resolvedIconPath = existsSync(iconPath) ? iconPath : null
+    // Same icon the BrowserWindow/taskbar uses, shared with the tray and
+    // jump list via shell integration.
+    const resolvedIconPath = resolveAppIcon()
 
     // Install OS shell integration: tray, hotkey, protocol, jump list, close-to-tray.
     let shellIntegration = installShellIntegration({
