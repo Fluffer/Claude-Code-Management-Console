@@ -11,6 +11,7 @@ import {
   selectFilesToPrune,
 } from '../../core/config/configSnapshot'
 import { writeFileAtomic, readFileUtf8 } from '../os/atomicFile'
+import { withFileLock } from '../os/fileMutex'
 
 const SNAPSHOT_KEEP = 10
 
@@ -70,6 +71,28 @@ export async function saveConfig(configPath: string, config: LauncherConfig): Pr
   // Best-effort snapshot
   void takeSnapshot(configPath).catch(() => {
     // swallow — snapshot failure must never propagate
+  })
+}
+
+/**
+ * Read-modify-write config.json under a per-path lock, so two concurrent
+ * mutations cannot both load the same starting state and overwrite each other.
+ * Returns the config that was saved.
+ *
+ * Use this for every partial update (stamping lastUsed, adding a root,
+ * re-keying a renamed project). A whole-snapshot `saveConfig` from the renderer
+ * still replaces the file wholesale — the lock stops it interleaving with a
+ * main-side update, but it cannot make a stale snapshot fresh.
+ */
+export async function updateConfig(
+  configPath: string,
+  mutate: (current: LauncherConfig) => LauncherConfig,
+): Promise<LauncherConfig> {
+  return withFileLock(configPath, async () => {
+    const current = await loadConfig(configPath)
+    const next = mutate(current)
+    await saveConfig(configPath, next)
+    return next
   })
 }
 

@@ -7,23 +7,35 @@ export type Disposer = () => Promise<void>
  * Watches `paths` with chokidar and calls `onChange` debounced ~150 ms after
  * any add/change/unlink event. Returns a disposer to stop watching.
  *
+ * `onChange` receives the paths that changed during the debounce window, so
+ * callers can tell which file moved — and, with selfWriteTracker, whether the
+ * change was one of their own writes echoing back.
+ *
  * `ignoreInitial: true` suppresses the synthetic "add" events on startup so
  * only real filesystem mutations trigger the callback.
  */
-export function watchPaths(paths: string[], onChange: () => void): Disposer {
+export function watchPaths(paths: string[], onChange: (changed: string[]) => void): Disposer {
   let timer: ReturnType<typeof setTimeout> | null = null
+  let pending = new Set<string>()
 
-  const debounced = (): void => {
+  const debounced = (changedPath: string): void => {
+    pending.add(changedPath)
     if (timer !== null) clearTimeout(timer)
     timer = setTimeout(() => {
       timer = null
-      onChange()
+      const changed = [...pending]
+      pending = new Set()
+      onChange(changed)
     }, 150)
   }
 
   const watcher = watch(paths, {
     ignoreInitial: true,
     persistent: false,
+    // writeFileAtomic stages through '<file>.<pid>.<n>.tmp' in the same folder.
+    // Those are implementation detail, never a change worth reporting — they
+    // only surface when a caller watches a directory rather than a file.
+    ignored: /\.\d+\.\d+\.tmp$/,
     // Windows: ~/.claude can contain locked/permission-protected session files.
     // Without this + the 'error' handler below, an EPERM surfaces as an uncaught
     // EventEmitter 'error' and crashes the main process (the whole app dies).

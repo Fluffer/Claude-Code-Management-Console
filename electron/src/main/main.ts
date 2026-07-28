@@ -10,6 +10,7 @@ import { createSessionKiller } from './os/sessionKiller'
 import { createTerminalLauncher } from './os/terminalLauncher'
 import { createCommandLocator } from './os/commandLocator'
 import { watchPaths } from './os/fileWatch'
+import { consumeSelfWrite } from './os/selfWriteTracker'
 import { registerIpc } from './ipc/register'
 import { createApproverService } from './services/approverService'
 import { extractDeepLinkArg } from '../core/links/deepLinkArg'
@@ -193,10 +194,24 @@ if (!gotLock) {
     // config/state files, which live in %APPDATA% and watch cleanly.
     void claudeDir
     const watchedPaths = [configPath, statePath]
-    watchPaths(watchedPaths, () => {
-      if (mainWindow !== null && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('event:fileChanged', { path: '' })
+    watchPaths(watchedPaths, (changed) => {
+      // Suppress the echo of our own writes. Pinning a project or stamping
+      // lastUsed after a launch writes state/config, which the watcher would
+      // otherwise report as an external change — making the renderer rescan
+      // every root, re-run git status per project and re-enumerate sessions.
+      // The renderer already refreshes itself after the actions it initiates.
+      const external = changed.filter((p) => !consumeSelfWrite(p))
+
+      if (external.length > 0) {
+        if (mainWindow !== null && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('event:fileChanged', { path: external[0] })
+        }
+      } else {
+        console.log('[watch] own write, renderer refresh skipped:', changed.join(', '))
       }
+
+      // Tray menu and jump list are built from state.json, so they must follow
+      // our own writes too — a pin change has to show up there immediately.
       shellIntegration.refresh()
     })
 

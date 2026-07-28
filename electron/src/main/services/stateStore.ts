@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import type { AppState } from '../../core/models'
 import { parseState, serializeState } from '../../core/config/configSerialization'
 import { writeFileAtomic, readFileUtf8 } from '../os/atomicFile'
+import { withFileLock } from '../os/fileMutex'
 
 /**
  * Loads state.json synchronously — used at startup to seed values that must
@@ -42,4 +43,21 @@ export async function saveState(statePath: string, state: AppState): Promise<voi
   await fs.mkdir(dir, { recursive: true })
   const serialized = serializeState(state)
   await writeFileAtomic(statePath, serialized)
+}
+
+/**
+ * Read-modify-write state.json under a per-path lock. Mirrors updateConfig:
+ * concurrent partial updates (pushing a recent launch, re-keying a renamed
+ * project) each see the previous one's result instead of racing it.
+ */
+export async function updateState(
+  statePath: string,
+  mutate: (current: AppState) => AppState,
+): Promise<AppState> {
+  return withFileLock(statePath, async () => {
+    const current = await loadState(statePath)
+    const next = mutate(current)
+    await saveState(statePath, next)
+    return next
+  })
 }

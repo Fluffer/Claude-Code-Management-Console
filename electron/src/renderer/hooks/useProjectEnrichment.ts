@@ -57,11 +57,13 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
     }
   }, [])
 
-  // Subscribe to file-change events to invalidate cache
+  // Subscribe to file-change events to re-enrich.
+  //
+  // The previous rows are deliberately kept in place: clearing the cache made
+  // every badge vanish and reappear, and re-enrichment re-runs git:info for
+  // every project anyway, so each entry is overwritten as its result lands.
   useEffect(() => {
     const unsub = window.ccmc.on('event:fileChanged', () => {
-      // Clear cache and re-enrich
-      setEnrichments({})
       setInvalidateKey((k) => k + 1)
     })
     return unsub

@@ -8,8 +8,9 @@ import type { ISessionKiller } from '../os/sessionKiller'
 import type { ITerminalLauncher } from '../os/terminalLauncher'
 import type { ICommandLocator } from '../os/commandLocator'
 import type { IApproverService } from '../services/approverService'
-import { loadConfig, saveConfig } from '../services/configStore'
-import { loadState, saveState } from '../services/stateStore'
+import { loadConfig, saveConfig, updateConfig } from '../services/configStore'
+import { loadState, saveState, updateState } from '../services/stateStore'
+import { withFileLock } from '../os/fileMutex'
 import { scanProjects } from '../services/projectScanner'
 import { listSessions, newestSessionUtc } from '../services/claudeSessionStore'
 import { readTranscript, projectCost } from '../services/transcriptStore'
@@ -125,17 +126,19 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
    * Mirrors MainViewModel.LaunchWithFlagsAsync → UpdateUsage + PushRecent.
    */
   async function recordLaunchUsage(projectPath: string): Promise<void> {
-    const config = await loadConfig(configPath)
-    const projects = { ...(config.projects ?? {}) }
-    const usage = projects[projectPath] ?? { lastUsed: null, flags: null }
-    projects[projectPath] = { ...usage, lastUsed: new Date().toISOString() }
-    await saveConfig(configPath, { ...config, projects })
+    // Locked read-modify-write: a launch stamping lastUsed must not lose a
+    // concurrent config change, nor have its own stamp overwritten.
+    await updateConfig(configPath, (config) => {
+      const projects = { ...(config.projects ?? {}) }
+      const usage = projects[projectPath] ?? { lastUsed: null, flags: null }
+      projects[projectPath] = { ...usage, lastUsed: new Date().toISOString() }
+      return { ...config, projects }
+    })
 
-    const state = await loadState(statePath)
-    await saveState(statePath, {
+    await updateState(statePath, (state) => ({
       ...state,
       recentLaunches: mruAdd(state.recentLaunches, projectPath, 15),
-    })
+    }))
   }
 
   /**
@@ -146,15 +149,13 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
    */
   async function remapProjectPath(oldPath: string, newPath: string): Promise<void> {
     try {
-      const config = await loadConfig(configPath)
-      await saveConfig(configPath, {
+      await updateConfig(configPath, (config) => ({
         ...config,
         projects: remapPathKeys(config.projects, oldPath, newPath),
         hidden: remapPathList(config.hidden, oldPath, newPath),
-      })
+      }))
 
-      const state = await loadState(statePath)
-      await saveState(statePath, {
+      await updateState(statePath, (state) => ({
         ...state,
         pinned: remapPathList(state.pinned, oldPath, newPath),
         recentLaunches: remapPathList(state.recentLaunches, oldPath, newPath),
@@ -162,7 +163,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
           ...g,
           projectPaths: remapPathList(g.projectPaths, oldPath, newPath),
         })),
-      })
+      }))
     } catch (err) {
       console.error('[ipc] remapProjectPath failed:', (err as Error)?.message ?? err)
     }
@@ -207,9 +208,11 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     // -----------------------------------------------------------------------
     // config:write
     // -----------------------------------------------------------------------
+    // Whole-snapshot replace from the renderer. Locked so it cannot interleave
+    // with a main-side read-modify-write (see updateConfig).
     'config:write': async (req) => {
       requireObject(req, 'config')
-      await saveConfig(configPath, req)
+      await withFileLock(configPath, () => saveConfig(configPath, req))
     },
 
     // -----------------------------------------------------------------------
@@ -224,7 +227,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     // -----------------------------------------------------------------------
     'state:write': async (req) => {
       requireObject(req, 'state')
-      await saveState(statePath, req)
+      await withFileLock(statePath, () => saveState(statePath, req))
     },
 
     // -----------------------------------------------------------------------
@@ -831,17 +834,17 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       }
       const incoming = paths as string[]
 
-      const config = await loadConfig(configPath)
-      const existingRoots = config.roots ?? []
-      const toAdd = incoming.filter(
-        (p) => !existingRoots.some((r) => r.toLowerCase() === p.toLowerCase()),
-      )
+      let added = 0
+      await updateConfig(configPath, (config) => {
+        const existingRoots = config.roots ?? []
+        const toAdd = incoming.filter(
+          (p) => !existingRoots.some((r) => r.toLowerCase() === p.toLowerCase()),
+        )
+        added = toAdd.length
+        return toAdd.length > 0 ? { ...config, roots: [...existingRoots, ...toAdd] } : config
+      })
 
-      if (toAdd.length > 0) {
-        await saveConfig(configPath, { ...config, roots: [...existingRoots, ...toAdd] })
-      }
-
-      return { added: toAdd.length }
+      return { added }
     },
 
     // -----------------------------------------------------------------------
