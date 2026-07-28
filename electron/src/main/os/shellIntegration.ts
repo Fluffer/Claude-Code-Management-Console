@@ -108,11 +108,20 @@ export function installShellIntegration(deps: {
   // Protocol registration (#14)
   // -------------------------------------------------------------------------
 
-  try {
-    const ok = app.setAsDefaultProtocolClient(SCHEME)
-    console.log(`[shell] protocol ccmc:// registered: ${ok}`)
-  } catch (err) {
-    console.error('[shell] protocol registration failed:', (err as Error)?.message ?? err)
+  // A packaged build declares ccmc:// in its AppX manifest, and that is the
+  // only registration Windows honours for a packaged app. Calling
+  // setAsDefaultProtocolClient here would not complete the registration — it
+  // writes the marker keys (URL Protocol / URL:ccmc) with no shell\open\command
+  // — so it only leaves litter in HKCU. Unpackaged dev runs still need it.
+  if (app.isPackaged) {
+    console.log('[shell] protocol ccmc:// provided by the package manifest')
+  } else {
+    try {
+      const ok = app.setAsDefaultProtocolClient(SCHEME)
+      console.log(`[shell] protocol ccmc:// registered (dev): ${ok}`)
+    } catch (err) {
+      console.error('[shell] protocol registration failed:', (err as Error)?.message ?? err)
+    }
   }
 
   // -------------------------------------------------------------------------
