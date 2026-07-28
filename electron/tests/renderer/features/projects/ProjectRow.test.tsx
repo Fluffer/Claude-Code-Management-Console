@@ -29,8 +29,13 @@ const FULL_ENRICHMENT: ProjectEnrichment = {
   hasSettingsError: false,
   settingsError: '',
   hasSession: true,
-  isStale: false,
+  newestSessionUtc: null,
   defaultModel: null,
+}
+
+/** ISO timestamp `days` in the past, for staleness assertions. */
+function daysAgo(days: number): string {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
 }
 
 describe('ProjectRow', () => {
@@ -145,17 +150,56 @@ describe('ProjectRow', () => {
     expect(screen.getByText(/settings\.json/i)).toBeInTheDocument()
   })
 
-  it('shows stale badge when enrichment.isStale is true', () => {
+  it('shows stale badge when the newest session is over a week old', () => {
     render(
       <ProjectRow
         project={makeProject()}
         isRunning={false}
         isPinned={false}
-        enrichment={{ ...FULL_ENRICHMENT, isStale: true }}
+        enrichment={{ ...FULL_ENRICHMENT, newestSessionUtc: daysAgo(10) }}
         onAction={vi.fn()}
       />,
     )
     expect(screen.getByText('stale')).toBeInTheDocument()
+  })
+
+  it('does not show stale badge for a recent session', () => {
+    render(
+      <ProjectRow
+        project={makeProject()}
+        isRunning={false}
+        isPinned={false}
+        enrichment={{ ...FULL_ENRICHMENT, newestSessionUtc: daysAgo(2) }}
+        onAction={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText('stale')).not.toBeInTheDocument()
+  })
+
+  it('does not show stale badge while a session is running, however old the newest is', () => {
+    render(
+      <ProjectRow
+        project={makeProject()}
+        isRunning={true}
+        isPinned={false}
+        enrichment={{ ...FULL_ENRICHMENT, newestSessionUtc: daysAgo(90) }}
+        onAction={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText('stale')).not.toBeInTheDocument()
+  })
+
+  it('does not show stale badge for a project that has never had a session', () => {
+    render(
+      <ProjectRow
+        project={makeProject()}
+        isRunning={false}
+        isPinned={false}
+        enrichment={{ ...FULL_ENRICHMENT, newestSessionUtc: null }}
+        onAction={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText('stale')).not.toBeInTheDocument()
   })
 
   it('shows description when project has one', () => {

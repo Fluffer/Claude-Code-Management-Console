@@ -11,7 +11,7 @@ import type { IApproverService } from '../services/approverService'
 import { loadConfig, saveConfig } from '../services/configStore'
 import { loadState, saveState } from '../services/stateStore'
 import { scanProjects } from '../services/projectScanner'
-import { listSessions } from '../services/claudeSessionStore'
+import { listSessions, newestSessionUtc } from '../services/claudeSessionStore'
 import { readTranscript, projectCost } from '../services/transcriptStore'
 import { getBranchInfo, getIsDirty, getWorktrees, addWorktree, cloneRepo, commitAll, openPr } from '../services/gitRunner'
 import { validateCloneName } from '../../core/git/cloneName'
@@ -30,6 +30,9 @@ import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
 import { buildInvocation } from '../../core/launch/batchInvocation'
 import { terminalsForPlatform, WINDOWS_TERMINAL_EXE } from '../../core/launch/terminals'
 import { mruAdd } from '../../core/projects/mruList'
+import { remapPathKeys, remapPathList } from '../../core/projects/pathRemap'
+import { validateSettingsJson } from '../../core/config/settingsJsonValidator'
+import { readFileUtf8 } from '../os/atomicFile'
 import * as path from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -60,6 +63,10 @@ export interface IpcHandlerDeps {
   /** Terminal auto-approver daemon lifecycle. */
   approver: IApproverService
 }
+
+/** npm package that publishes the claude CLI, and how long to wait for it. */
+const NPM_LATEST_URL = 'https://registry.npmjs.org/@anthropic-ai/claude-code/latest'
+const NPM_REGISTRY_TIMEOUT_MS = 5000
 
 // ---------------------------------------------------------------------------
 // Validation helpers
@@ -129,6 +136,36 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       ...state,
       recentLaunches: mruAdd(state.recentLaunches, projectPath, 15),
     })
+  }
+
+  /**
+   * Follow a project's saved settings to its new path after a rename or move.
+   * Re-keys config.projects (flags + lastUsed) and rewrites the state.json path
+   * lists (pins, recent launches). Best-effort: a failure here must not undo an
+   * already-successful folder operation, so it never throws.
+   */
+  async function remapProjectPath(oldPath: string, newPath: string): Promise<void> {
+    try {
+      const config = await loadConfig(configPath)
+      await saveConfig(configPath, {
+        ...config,
+        projects: remapPathKeys(config.projects, oldPath, newPath),
+        hidden: remapPathList(config.hidden, oldPath, newPath),
+      })
+
+      const state = await loadState(statePath)
+      await saveState(statePath, {
+        ...state,
+        pinned: remapPathList(state.pinned, oldPath, newPath),
+        recentLaunches: remapPathList(state.recentLaunches, oldPath, newPath),
+        groups: state.groups.map((g) => ({
+          ...g,
+          projectPaths: remapPathList(g.projectPaths, oldPath, newPath),
+        })),
+      })
+    } catch (err) {
+      console.error('[ipc] remapProjectPath failed:', (err as Error)?.message ?? err)
+    }
   }
 
   /**
@@ -222,6 +259,8 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const projectPath = requireString(obj['path'], 'path')
       const newName = requireString(obj['newName'], 'newName')
       const newPath = await renameProject(projectPath, newName)
+      // Saved flags, lastUsed, pin, recents and group membership follow the folder.
+      await remapProjectPath(projectPath, newPath)
       return { path: newPath }
     },
 
@@ -251,15 +290,21 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'projects:claudeInfo': async (req) => {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
-      const [hasClaude, mdPath, mcpServers, defaultModel, commands, skills] = await Promise.all([
-        hasClaudeMdInProject(projectPath),
-        claudeMdPath(projectPath),
-        readMcp(projectPath),
-        resolveProjectModel(projectPath, path.join(claudeDir, 'settings.json')),
-        listCommands(projectPath),
-        listSkills(projectPath),
-      ])
+      const [hasClaude, mdPath, mcpServers, defaultModel, commands, skills, settingsRaw, newestSession] =
+        await Promise.all([
+          hasClaudeMdInProject(projectPath),
+          claudeMdPath(projectPath),
+          readMcp(projectPath),
+          resolveProjectModel(projectPath, path.join(claudeDir, 'settings.json')),
+          listCommands(projectPath),
+          listSkills(projectPath),
+          // A malformed .claude/settings.json is silently ignored by Claude, so
+          // surface it rather than letting the user wonder why settings do nothing.
+          readFileUtf8(path.join(projectPath, '.claude', 'settings.json')).catch(() => null),
+          newestSessionUtc(projectPath, claudeDir),
+        ])
       const filename = mdPath !== null ? mdPath.split(/[\\/]/).pop() ?? null : null
+      const settings = validateSettingsJson(settingsRaw)
       return {
         hasClaudeMd: hasClaude,
         claudeMdFilename: filename,
@@ -267,6 +312,8 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
         hasCommands: commands.length > 0,
         hasSkills: skills.length > 0,
         defaultModel,
+        settingsError: settings.isValid ? null : settings.error,
+        newestSessionUtc: newestSession,
       }
     },
 
@@ -517,6 +564,8 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const projectPath = requireString(obj['path'], 'path')
       const targetRoot = requireString(obj['targetRoot'], 'targetRoot')
       const newPath = await moveProjectToRoot(projectPath, targetRoot)
+      // Saved flags, lastUsed, pin, recents and group membership follow the folder.
+      await remapProjectPath(projectPath, newPath)
       return { ok: true, newPath }
     },
 
@@ -714,6 +763,36 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
         return { version: parseClaudeVersion(stdout) }
       } catch {
         return { version: null }
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // claude:latestVersion
+    // Fetches the latest published version of the claude CLI from the public npm
+    // registry so the status bar can flag an available update.
+    //
+    // NETWORK: this is the app's only outbound request. It sends no user data —
+    // a plain GET of a public package document — and is called once per app
+    // launch. Fail-soft: offline, timeout, or any parse problem → null, which
+    // isOutdated() treats as "do not nag".
+    // -----------------------------------------------------------------------
+    'claude:latestVersion': async () => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), NPM_REGISTRY_TIMEOUT_MS)
+      try {
+        // Plain application/json: the abbreviated 'vnd.npm.install-v1+json'
+        // type is only served for full packuments and 406s on /latest.
+        const res = await fetch(NPM_LATEST_URL, {
+          signal: controller.signal,
+          headers: { accept: 'application/json' },
+        })
+        if (!res.ok) return { version: null }
+        const body = (await res.json()) as { version?: unknown }
+        return { version: typeof body.version === 'string' ? body.version : null }
+      } catch {
+        return { version: null }
+      } finally {
+        clearTimeout(timer)
       }
     },
 

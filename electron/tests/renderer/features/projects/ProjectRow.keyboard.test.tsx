@@ -37,7 +37,7 @@ const ENRICHMENT: ProjectEnrichment = {
   hasSettingsError: false,
   settingsError: '',
   hasSession: true,
-  isStale: false,
+  newestSessionUtc: null,
   defaultModel: null,
 }
 

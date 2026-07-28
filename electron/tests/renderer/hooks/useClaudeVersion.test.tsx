@@ -26,4 +26,28 @@ describe('useClaudeVersion', () => {
     const { result } = renderHook(() => useClaudeVersion())
     await waitFor(() => expect(result.current.version).toBeNull())
   })
+
+  it('flags an update when npm publishes a newer version', async () => {
+    setChannelResponse('claude:version', { version: '1.2.3' })
+    setChannelResponse('claude:latestVersion', { version: '1.3.0' })
+    const { result } = renderHook(() => useClaudeVersion())
+    await waitFor(() => expect(result.current.updateAvailable).toBe(true))
+    expect(result.current.latestVersion).toBe('1.3.0')
+  })
+
+  it('does not flag an update when the installed version is current', async () => {
+    setChannelResponse('claude:version', { version: '1.3.0' })
+    setChannelResponse('claude:latestVersion', { version: '1.3.0' })
+    const { result } = renderHook(() => useClaudeVersion())
+    await waitFor(() => expect(result.current.latestVersion).toBe('1.3.0'))
+    expect(result.current.updateAvailable).toBe(false)
+  })
+
+  it('does not flag an update when the registry is unreachable', async () => {
+    setChannelResponse('claude:version', { version: '1.2.3' })
+    setChannelResponse('claude:latestVersion', { version: null })
+    const { result } = renderHook(() => useClaudeVersion())
+    await waitFor(() => expect(result.current.version).toBe('1.2.3'))
+    expect(result.current.updateAvailable).toBe(false)
+  })
 })

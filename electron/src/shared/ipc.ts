@@ -82,6 +82,7 @@ export const IPC = Object.freeze({
   APP_RENDERER_READY: 'app:rendererReady',
   CLAUDE_ON_PATH: 'claude:onPath',
   CLAUDE_VERSION: 'claude:version',
+  CLAUDE_LATEST_VERSION: 'claude:latestVersion',
   FS_IS_DIRECTORY: 'fs:isDirectory',
   CONFIG_ADD_ROOTS: 'config:addRoots',
   APPROVER_STATUS: 'approver:status',
@@ -127,6 +128,10 @@ export interface IpcMap {
       hasSkills: boolean
       /** Effective default model from project/user settings.json, or null. */
       defaultModel: string | null
+      /** Parse error from a malformed .claude/settings.json; null when valid or absent. */
+      settingsError: string | null
+      /** mtime of the project's newest session transcript; null when it has none. */
+      newestSessionUtc: string | null
     }
   }
   'projects:move': { req: { path: string; targetRoot: string }; res: { ok: boolean; newPath: string } }
@@ -177,6 +182,8 @@ export interface IpcMap {
   'app:rendererReady': { req: void; res: void }
   'claude:onPath': { req: void; res: { onPath: boolean } }
   'claude:version': { req: void; res: { version: string | null } }
+  /** Latest published claude CLI version from the public npm registry; null when unreachable. */
+  'claude:latestVersion': { req: void; res: { version: string | null } }
   'fs:isDirectory': { req: { path: string }; res: { ok: boolean } }
   'config:addRoots': { req: { paths: string[] }; res: { added: number } }
   'approver:status': { req: void; res: ApproverStatus }

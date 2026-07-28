@@ -91,12 +91,13 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
             hasMcp: claudeInfo.hasMcp,
             hasCommands: claudeInfo.hasCommands,
             hasSkills: claudeInfo.hasSkills,
-            hasSettingsError: false,
-            settingsError: '',
-            hasSession: true,
-            isStale: project.lastUsedUtc
-              ? Date.now() - new Date(project.lastUsedUtc).getTime() > 7 * 24 * 60 * 60 * 1000
-              : false,
+            hasSettingsError: claudeInfo.settingsError !== null,
+            settingsError: claudeInfo.settingsError ?? '',
+            // Continue only works when the project has a past session on disk.
+            hasSession: claudeInfo.newestSessionUtc !== null,
+            // Staleness also depends on whether a session is running right now,
+            // which this hook does not know — ProjectRow applies that rule.
+            newestSessionUtc: claudeInfo.newestSessionUtc,
             defaultModel: claudeInfo.defaultModel,
           }
 

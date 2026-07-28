@@ -45,6 +45,7 @@ import { TextInput } from './components/ui/TextInput'
 import { deepLinkBuilder } from '../core/links/deepLinkBuilder'
 import { setModel } from '../core/config/flagsEditor'
 import { sessionMatchesProject } from '../core/os/sessionMatch'
+import { ended } from '../core/claude/sessionEndDetector'
 import type { ProjectAction } from './features/projects/projectActions'
 import type { LaunchGroup, LauncherConfig, ProjectInfo, SavedFilter } from '../core/models'
 
@@ -56,7 +57,7 @@ function MainWindow(): React.ReactElement {
   const { openDialog, registerRefresh } = useDialogs()
   const { showToast } = useToast()
   const { onPath: claudeOnPath } = useClaudeOnPath()
-  const { version: claudeVersion } = useClaudeVersion()
+  const { version: claudeVersion, latestVersion: claudeLatestVersion, updateAvailable } = useClaudeVersion()
   const { setTheme } = useTheme()
 
   const [config, setConfig] = useState<LauncherConfig | null>(null)
@@ -129,6 +130,26 @@ function MainWindow(): React.ReactElement {
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [openDialog, config, refresh])
+
+  // Session-ended toast — diff consecutive running-session snapshots and notify
+  // for projects that had a session a moment ago and no longer do. The first
+  // snapshot only seeds the baseline, so app start never toasts.
+  const previousRunningRef = useRef<Set<string> | null>(null)
+  useEffect(() => {
+    const current = new Set(
+      projects
+        .filter((p) => runningSessions.some((s) => sessionMatchesProject(s, p)))
+        .map((p) => p.path),
+    )
+    const previous = previousRunningRef.current
+    previousRunningRef.current = current
+    if (previous === null) return
+
+    for (const path of ended(previous, current)) {
+      const name = projects.find((p) => p.path.toLowerCase() === path.toLowerCase())?.name ?? path
+      showToast(`Session ended — ${name}`, 'info')
+    }
+  }, [runningSessions, projects, showToast])
 
   // Build sidebar from config roots so empty roots still appear
   const sidebarItems = buildSidebarItems(
@@ -742,6 +763,14 @@ function MainWindow(): React.ReactElement {
         )}
         {claudeVersion != null && (
           <span>· Claude v{claudeVersion}</span>
+        )}
+        {updateAvailable && (
+          <span
+            className="text-yellow-500"
+            title={`A newer Claude Code CLI is published on npm (v${claudeLatestVersion}). Update with: npm install -g @anthropic-ai/claude-code`}
+          >
+            · update available (v{claudeLatestVersion})
+          </span>
         )}
         <span>· App v{__APP_VERSION__}</span>
         <span className="ml-auto opacity-60">

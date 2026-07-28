@@ -90,7 +90,7 @@ function enrich(over: Partial<import('../../../../src/renderer/features/projects
     hasSettingsError: false,
     settingsError: '',
     hasSession: true,
-    isStale: false,
+    newestSessionUtc: null,
     defaultModel: null,
     ...over,
   }

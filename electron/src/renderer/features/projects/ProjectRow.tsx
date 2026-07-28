@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Button } from '../../components/ui/Button'
 import { formatRelativeTime } from '../../../core/util/relativeTimeFormatter'
+import { isStale as isSessionStale } from '../../../core/claude/sessionStaleness'
 import { currentModel } from '../../../core/config/flagsEditor'
 import type { ProjectInfo } from '../../../core/models'
 import type { ProjectAction } from './projectActions'
@@ -19,8 +20,10 @@ export interface ProjectEnrichment {
   hasSkills: boolean
   hasSettingsError: boolean
   settingsError: string
+  /** Whether the project has any past session on disk (gates Continue). */
   hasSession: boolean
-  isStale: boolean
+  /** mtime of the newest session transcript; null when the project has none. */
+  newestSessionUtc: string | null
   /** Effective default model from settings.json; null when none set. */
   defaultModel: string | null
 }
@@ -55,6 +58,9 @@ interface ProjectRowProps {
   enrichment: ProjectEnrichment | null
   onAction: (action: ProjectAction) => void
 }
+
+/** Days without session activity before a project is badged "stale". */
+const STALE_THRESHOLD_DAYS = 7
 
 /** The four model choices in the per-row picker. null === "Default" (Claude's own choice). */
 const MODEL_CHOICES: ReadonlyArray<{ label: string; value: string | null }> = [
@@ -168,6 +174,13 @@ export function ProjectRow({
   const rootName = leafName(project.root)
   const hasSession = enrichment?.hasSession ?? true // default true until enrichment completes
 
+  // Stale = has sessions, none running, newest older than a week. isRunning is
+  // only known here, so the core rule is applied at the row rather than in the
+  // enrichment hook.
+  const stale =
+    enrichment != null &&
+    isSessionStale(enrichment.newestSessionUtc, now.toISOString(), isRunning, STALE_THRESHOLD_DAYS)
+
   function handleRowKeyDown(e: React.KeyboardEvent<HTMLDivElement>): void {
     // Only handle keys when the row itself is focused, not an inner button/input
     if (e.target !== e.currentTarget) return
@@ -233,7 +246,7 @@ export function ProjectRow({
             </Badge>
           )}
 
-          {enrichment?.isStale && (
+          {stale && (
             <Badge color="subtle" title="No session activity in over a week.">
               stale
             </Badge>
