@@ -27,6 +27,7 @@ import { deleteProject } from '../services/projectDeleter'
 import { claudeMdPath, hasClaudeMdInProject } from '../services/projectClaudeStore'
 import { resolveProjectModel } from '../services/projectModelStore'
 import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
+import { buildInvocation } from '../../core/launch/batchInvocation'
 import { terminalsForPlatform, WINDOWS_TERMINAL_EXE } from '../../core/launch/terminals'
 import { mruAdd } from '../../core/projects/mruList'
 import * as path from 'node:path'
@@ -696,15 +697,19 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     // Fail-soft: any spawn error → { version: null }.
     // execFileAsync is constructed lazily so test mocks on node:child_process
     // are picked up at call time rather than at module load time.
+    // An npm-global install resolves to claude.cmd, which Node refuses to run
+    // directly (EINVAL) — buildInvocation routes batch shims through cmd.exe.
     // -----------------------------------------------------------------------
     'claude:version': async () => {
       const claudePath = await commandLocator.findOnPath('claude')
       if (claudePath === null) return { version: null }
       try {
+        const inv = buildInvocation(claudePath, ['--version'], { comSpec: process.env['ComSpec'] })
         const execFileAsync = promisify(execFile)
-        const { stdout } = await execFileAsync(claudePath, ['--version'], {
+        const { stdout } = await execFileAsync(inv.file, inv.args, {
           timeout: 5000,
           windowsHide: true,
+          windowsVerbatimArguments: inv.windowsVerbatimArguments,
         })
         return { version: parseClaudeVersion(stdout) }
       } catch {

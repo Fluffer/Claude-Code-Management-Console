@@ -1,8 +1,9 @@
 import * as path from 'node:path'
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import type { HealthResult } from '../../core/models'
 import { parseHealthSpecs } from '../../core/config/mcpHealthSpec'
 import { checkAll, type HealthProbes, type ProbeOutcome } from '../../core/health/healthCheck'
+import { buildInvocation } from '../../core/launch/batchInvocation'
 import { readFileUtf8 } from '../os/atomicFile'
 
 const MCP_FILENAME = '.mcp.json'
@@ -17,23 +18,44 @@ const PROBE_TIMEOUT_MS = 3000
  * SECURITY: shell:false + array args — .mcp.json values are never interpreted by
  * a shell. This DOES execute the user's configured server command, which is why
  * health checks are manual-only (never run on scan).
+ *
+ * Windows: most stdio servers are configured as `npx`, which resolves to
+ * npx.cmd. Node refuses to spawn a .cmd directly (EINVAL), so buildInvocation
+ * routes batch shims through cmd.exe with each token individually quoted.
+ *
+ * Never rejects — a spawn that throws synchronously (EINVAL, bad path, a '%'
+ * that cmd.exe would expand) becomes a failed probe for THIS server, so one
+ * broken entry cannot take down the whole health report.
  */
 function probeStdio(command: string, args: string[]): Promise<ProbeOutcome> {
   return new Promise((resolve) => {
     let settled = false
+    let child: ChildProcess | null = null
+    let timer: ReturnType<typeof setTimeout> | null = null
+
     const finish = (outcome: ProbeOutcome): void => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      if (timer !== null) clearTimeout(timer)
       try {
-        child.kill()
+        child?.kill()
       } catch {
         // already gone
       }
       resolve(outcome)
     }
 
-    const child = spawn(command, args, { shell: false, stdio: 'ignore' })
+    try {
+      const inv = buildInvocation(command, args, { comSpec: process.env['ComSpec'] })
+      child = spawn(inv.file, inv.args, {
+        shell: false,
+        stdio: 'ignore',
+        windowsVerbatimArguments: inv.windowsVerbatimArguments,
+      })
+    } catch (err) {
+      finish({ ok: false, detail: err instanceof Error ? err.message : String(err) })
+      return
+    }
 
     child.on('error', (err) => finish({ ok: false, detail: err.message }))
     child.on('exit', (code) => {
@@ -41,7 +63,7 @@ function probeStdio(command: string, args: string[]): Promise<ProbeOutcome> {
       finish(code === 0 ? { ok: true, detail: 'exited 0' } : { ok: false, detail: `exited ${code ?? 'null'}` })
     })
 
-    const timer = setTimeout(() => finish({ ok: true, detail: 'started' }), PROBE_TIMEOUT_MS)
+    timer = setTimeout(() => finish({ ok: true, detail: 'started' }), PROBE_TIMEOUT_MS)
   })
 }
 

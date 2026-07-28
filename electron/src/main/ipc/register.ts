@@ -5,6 +5,7 @@
  */
 import { spawn } from 'node:child_process'
 import type { IpcMain, BrowserWindow, dialog as ElectronDialog, shell as ElectronShell } from 'electron'
+import { buildInvocation } from '../../core/launch/batchInvocation'
 import { IPC } from '../../shared/ipc'
 import type { IpcMap } from '../../shared/ipc'
 import { createHandlers } from './handlers'
@@ -46,21 +47,34 @@ export function registerIpc(
     return electronShell.openPath(filePath)
   }
 
-  // Wire shell:openInVscode — resolve `code` and spawn it
+  // Wire shell:openInVscode — resolve `code` and spawn it.
+  // On Windows `code` is a .cmd shim, which Node refuses to spawn directly
+  // (EINVAL), so buildInvocation routes it through cmd.exe.
   const openInVscode: IpcHandlerDeps['openInVscode'] = async (filePath) => {
     const codePath = await deps.commandLocator.findOnPath('code')
     if (codePath === null) {
       return { ok: false, error: 'VS Code CLI (code) not found on PATH. Install VS Code and ensure the "code" command is available.' }
     }
     return new Promise((resolve) => {
-      const child = spawn(codePath, [filePath], {
-        shell: false,
-        detached: true,
-        stdio: 'ignore',
-      })
-      child.on('error', (err) => resolve({ ok: false, error: err.message }))
-      child.unref()
-      resolve({ ok: true })
+      try {
+        const inv = buildInvocation(codePath, [filePath], { comSpec: process.env['ComSpec'] })
+        const child = spawn(inv.file, inv.args, {
+          shell: false,
+          detached: true,
+          stdio: 'ignore',
+          windowsVerbatimArguments: inv.windowsVerbatimArguments,
+        })
+        // Resolve only once the OS has actually started the process — resolving
+        // eagerly would report success before an 'error' event could arrive.
+        child.on('error', (err) => resolve({ ok: false, error: err.message }))
+        child.on('spawn', () => {
+          child.unref()
+          resolve({ ok: true })
+        })
+      } catch (err) {
+        // buildInvocation rejects '%' paths; spawn can also throw synchronously.
+        resolve({ ok: false, error: err instanceof Error ? err.message : String(err) })
+      }
     })
   }
 
