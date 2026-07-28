@@ -225,6 +225,7 @@ describe('ConfigSerialization - AppState', () => {
       groups: [],
       savedFilters: [],
       closeToTray: false,
+      terminalId: '',
     }
     const json = serializeState(input)
     const state = parseState(json)
@@ -254,6 +255,7 @@ describe('ConfigSerialization - AppState', () => {
       groups: [],
       savedFilters: [],
       closeToTray: false,
+      terminalId: '',
     }
     const json = serializeState(input)
     const state = parseState(json)
@@ -304,6 +306,7 @@ describe('ConfigSerialization - AppState', () => {
       groups: [],
       savedFilters: [],
       closeToTray: false,
+      terminalId: '',
     }
     const json = serializeState(input)
     const reloaded = parseState(json)
@@ -336,6 +339,7 @@ describe('ConfigSerialization - AppState', () => {
       groups: [{ name: 'Stack', projectPaths: ['C:\\a', 'C:\\b'] }],
       savedFilters: [],
       closeToTray: false,
+      terminalId: '',
     }
     const json = serializeState(input)
     const reloaded = parseState(json)
@@ -367,6 +371,7 @@ describe('ConfigSerialization - AppState', () => {
       groups: [],
       savedFilters: [{ name: 'Active git', pathContains: 'Active', requireGit: true, requireClaudeMd: false, requireRunning: false, requirePinned: false }],
       closeToTray: false,
+      terminalId: '',
     }
     const json = serializeState(input)
     const reloaded = parseState(json)

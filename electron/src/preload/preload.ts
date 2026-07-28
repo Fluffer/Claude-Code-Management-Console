@@ -4,7 +4,7 @@
  * Exposes a typed `window.ccmc` API to the renderer. Raw ipcRenderer is never exposed.
  */
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { IpcMap, IpcEvents } from '../shared/ipc'
+import type { CcmcBridge, IpcMap, IpcEvents } from '../shared/ipc'
 
 const api = {
   /**
@@ -46,6 +46,11 @@ const api = {
 
 export type CcmcApi = typeof api
 
+// Compile-time guarantee that what we expose still matches the contract the
+// renderer types itself against.
+const contractCheck: CcmcBridge = api
+void contractCheck
+
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('ccmc', api)
@@ -53,7 +58,8 @@ if (process.contextIsolated) {
     console.error('[preload] contextBridge.exposeInMainWorld failed:', error)
   }
 } else {
-  // Development fallback — should not occur with sandbox:true
-  // @ts-expect-error non-isolated fallback
-  window.ccmc = api
+  // Development fallback — should not occur with sandbox:true.
+  // Written via globalThis rather than `window` so this file typechecks under
+  // the main-process config (Node libs, no DOM) as well as the test config.
+  ;(globalThis as unknown as { ccmc: CcmcBridge }).ccmc = api
 }

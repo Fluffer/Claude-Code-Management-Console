@@ -36,6 +36,7 @@ const baseState: AppState = {
   groups: [{ name: 'Group One', projectPaths: ['/r1/proj-a'] }],
   savedFilters: [],
   closeToTray: false,
+  terminalId: '',
 }
 
 describe('GroupManagerDialog', () => {

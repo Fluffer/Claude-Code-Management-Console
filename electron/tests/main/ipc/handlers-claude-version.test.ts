@@ -79,7 +79,9 @@ function makeDeps(findOnPathResult: string | null): IpcHandlerDeps {
     },
     pickFolder: vi.fn().mockResolvedValue({ path: null }),
     openPath: vi.fn().mockResolvedValue(''),
+    openExternal: vi.fn().mockResolvedValue(undefined),
     openInVscode: vi.fn().mockResolvedValue({ ok: true }),
+    approver: { init: vi.fn(), status: vi.fn(), set: vi.fn(), dispose: vi.fn() } as unknown as IpcHandlerDeps['approver'],
   }
 }
 

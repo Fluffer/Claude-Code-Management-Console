@@ -39,6 +39,7 @@ const baseState: AppState = {
   groups: [],
   savedFilters: [],
   closeToTray: false,
+  terminalId: '',
 }
 
 describe('ProfileManagerDialog', () => {

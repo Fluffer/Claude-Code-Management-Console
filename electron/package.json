@@ -11,6 +11,10 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "lint": "eslint .",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web && npm run typecheck:test",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "package": "electron-vite build && electron-builder --win appx"
   },

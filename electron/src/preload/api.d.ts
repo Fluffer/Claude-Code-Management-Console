@@ -1,12 +1,13 @@
 /**
  * Window augmentation for the typed ccmc API exposed by the preload script.
- * Import this in renderer entry points or tsconfig lib to get window.ccmc typing.
+ * The shape lives in the shared IPC contract so preload and renderer cannot
+ * drift; preload.ts asserts its exposed object against it.
  */
-import type { CcmcApi } from './preload'
+import type { CcmcBridge } from '../shared/ipc'
 
 declare global {
   interface Window {
-    ccmc: CcmcApi
+    ccmc: CcmcBridge
   }
 }
 

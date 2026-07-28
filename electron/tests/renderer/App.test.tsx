@@ -40,6 +40,7 @@ const STATE: AppState = {
   groups: [],
   savedFilters: [],
   closeToTray: false,
+  terminalId: '',
 }
 
 const PROJECTS = [

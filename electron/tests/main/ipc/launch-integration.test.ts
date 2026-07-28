@@ -57,12 +57,14 @@ function makeLaunchDeps(
     commandLocator: {
       findOnPath: vi.fn().mockResolvedValue(null),
       findWindowsTerminal: vi.fn().mockResolvedValue(wtResult),
+      findTerminalPath: vi.fn().mockResolvedValue(null),
       getPreferredShell: vi.fn().mockResolvedValue(shellResult),
     },
     pickFolder: vi.fn().mockResolvedValue({ path: null }),
     openPath: vi.fn().mockResolvedValue(''),
     openExternal: vi.fn().mockResolvedValue(undefined),
     openInVscode: vi.fn().mockResolvedValue({ ok: true }),
+    approver: { init: vi.fn(), status: vi.fn(), set: vi.fn(), dispose: vi.fn() } as unknown as IpcHandlerDeps['approver'],
   }
 }
 

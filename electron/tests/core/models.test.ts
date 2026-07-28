@@ -166,6 +166,7 @@ const appState: AppState = {
   groups: [launchGroup],
   savedFilters: [savedFilter],
   closeToTray: false,
+  terminalId: '',
 }
 
 // ---------------------------------------------------------------------------

@@ -40,6 +40,7 @@ const baseState: AppState = {
     },
   ],
   closeToTray: false,
+  terminalId: '',
 }
 
 describe('SavedFilterDialog', () => {

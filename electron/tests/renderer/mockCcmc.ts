@@ -68,7 +68,9 @@ export function setChannelResponse<C extends keyof IpcMap>(
   channel: C,
   response: IpcMap[C]['res'],
 ): void {
-  _stubs[channel] = response
+  // Indexing a mapped Partial with a generic key needs the cast; the public
+  // signature above still ties `response` to the channel's real response type.
+  ;(_stubs as Record<string, unknown>)[channel] = response
 }
 
 /** Emit a fake push event from "main". Notifies all registered listeners. */
@@ -96,6 +98,5 @@ export function getMockPathForFile(): ReturnType<typeof vi.fn> {
 
 /** Override pathForFile behaviour for drag-drop tests. */
 export function setPathForFile(fn: (file: File) => string): void {
-  // @ts-expect-error -- accessing internal mock
   ;(window.ccmc as { pathForFile: (f: File) => string }).pathForFile = fn
 }

@@ -16,5 +16,7 @@
       "@renderer/*": ["src/renderer/*"]
     }
   },
-  "include": ["src/renderer/**/*"]
+  // The renderer imports core models/logic and the shared IPC contract, so both
+  // must be part of this project or every import reports TS6307.
+  "include": ["src/renderer/**/*", "src/core/**/*", "src/shared/**/*"]
 }

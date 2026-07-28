@@ -31,6 +31,7 @@ describe('Sidebar', () => {
         selected={ALL_ENTRY}
         onSelect={vi.fn()}
         onSettingsClick={vi.fn()}
+        onHelpClick={vi.fn()}
       />,
     )
     expect(screen.getByText('All (3)')).toBeInTheDocument()
@@ -46,6 +47,7 @@ describe('Sidebar', () => {
         selected={ALL_ENTRY}
         onSelect={onSelect}
         onSettingsClick={vi.fn()}
+        onHelpClick={vi.fn()}
       />,
     )
     await user.click(screen.getByText('r1 (2)'))
@@ -59,6 +61,7 @@ describe('Sidebar', () => {
         selected={ROOT_ENTRY}
         onSelect={vi.fn()}
         onSettingsClick={vi.fn()}
+        onHelpClick={vi.fn()}
       />,
     )
     const selectedItem = screen.getByRole('option', { name: 'r1 (2)' })
@@ -72,6 +75,7 @@ describe('Sidebar', () => {
         selected={ROOT_ENTRY}
         onSelect={vi.fn()}
         onSettingsClick={vi.fn()}
+        onHelpClick={vi.fn()}
       />,
     )
     const unselected = screen.getByRole('option', { name: 'All (3)' })
@@ -87,6 +91,7 @@ describe('Sidebar', () => {
         selected={ALL_ENTRY}
         onSelect={vi.fn()}
         onSettingsClick={onSettings}
+        onHelpClick={vi.fn()}
       />,
     )
     await user.click(screen.getByRole('button', { name: /settings/i }))

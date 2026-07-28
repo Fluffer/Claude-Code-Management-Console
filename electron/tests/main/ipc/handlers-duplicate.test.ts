@@ -21,7 +21,9 @@ async function makeDeps(roots: string[]): Promise<IpcHandlerDeps> {
     commandLocator: {} as IpcHandlerDeps['commandLocator'],
     pickFolder: async () => ({ path: null }),
     openPath: async () => '',
+    openExternal: vi.fn().mockResolvedValue(undefined),
     openInVscode: async () => ({ ok: false }),
+    approver: { init: vi.fn(), status: vi.fn(), set: vi.fn(), dispose: vi.fn() } as unknown as IpcHandlerDeps['approver'],
   } as IpcHandlerDeps
 }
 

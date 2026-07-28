@@ -3,12 +3,16 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "target": "ES2022",
-    "lib": ["ES2022"],
+    // The suite covers renderer components too, so it needs the DOM lib, JSX,
+    // and node types — without them every `window` was TS2304 and every .tsx
+    // import was TS6142 ("--jsx is not set").
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "node"]
   },
-  "include": ["src/core/**/*", "src/main/**/*", "src/shared/**/*", "tests/**/*"]
+  "include": ["src/**/*", "tests/**/*"]
 }

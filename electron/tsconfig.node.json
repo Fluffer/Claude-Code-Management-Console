@@ -13,5 +13,14 @@
     "types": ["electron-vite/node", "node"],
     "paths": {}
   },
-  "include": ["electron.vite.config.*", "src/main/**/*", "src/preload/**/*"]
+  // main and preload both import from src/core and src/shared. Without those
+  // here every such import is a TS6307 ("not listed within the file list of
+  // project"), which drowns out real errors and made typecheck unusable.
+  "include": [
+    "electron.vite.config.*",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/core/**/*",
+    "src/shared/**/*"
+  ]
 }

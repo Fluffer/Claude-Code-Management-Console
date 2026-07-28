@@ -222,3 +222,17 @@ export type TypedSubscribe = <E extends keyof IpcEvents>(
   event: E,
   listener: (payload: IpcEvents[E]) => void,
 ) => () => void
+
+/**
+ * Shape of the `window.ccmc` bridge the preload script exposes.
+ *
+ * Declared here, in the contract both sides already import, so the renderer
+ * does not have to pull the preload implementation into its TS project just to
+ * type `window.ccmc` — and so the two cannot drift (preload asserts against it).
+ */
+export interface CcmcBridge {
+  invoke: TypedInvoke
+  on: TypedSubscribe
+  /** Absolute path for a dropped File; required under sandbox:true. */
+  pathForFile(file: File): string
+}

@@ -31,6 +31,7 @@ function renderBar(o: Overrides = {}): void {
       recent={o.recent ?? []}
       onSelectRecent={o.onSelectRecent ?? vi.fn()}
       onNewProject={o.onNewProject ?? vi.fn()}
+      onCloneRepo={vi.fn()}
       onRefresh={o.onRefresh ?? vi.fn()}
       onStopAll={o.onStopAll ?? vi.fn()}
       onManageProfiles={o.onManageProfiles ?? vi.fn()}
