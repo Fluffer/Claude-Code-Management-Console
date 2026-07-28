@@ -26,18 +26,17 @@ export async function loadConfig(configPath: string): Promise<LauncherConfig> {
   const contents = await readFileUtf8(configPath)
   if (contents === null) return createDefaultConfig()
 
-  const parsed = parseConfig(contents)
-  // parseConfig returns createDefaultConfig() on JSON parse error, but we need
-  // to detect corruption to quarantine the file. Re-check by attempting JSON.parse.
+  // parseConfig swallows a parse error and returns defaults, so corruption is
+  // detected here first — quarantine before falling back, and parse only once
+  // on the healthy path.
   try {
     JSON.parse(contents)
   } catch {
-    // Corrupt JSON — quarantine best-effort
     await quarantineFile(configPath)
     return createDefaultConfig()
   }
 
-  return parsed
+  return parseConfig(contents)
 }
 
 async function quarantineFile(configPath: string): Promise<void> {

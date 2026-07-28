@@ -32,6 +32,7 @@ import { buildInvocation } from '../../core/launch/batchInvocation'
 import { terminalsForPlatform, WINDOWS_TERMINAL_EXE } from '../../core/launch/terminals'
 import { mruAdd } from '../../core/projects/mruList'
 import { remapPathKeys, remapPathList } from '../../core/projects/pathRemap'
+import { isInsideRoots, isWithinRoots, OUTSIDE_ROOTS_MESSAGE } from '../../core/projects/pathGuard'
 import { validateSettingsJson } from '../../core/config/settingsJsonValidator'
 import { readFileUtf8 } from '../os/atomicFile'
 import * as path from 'node:path'
@@ -57,6 +58,8 @@ export interface IpcHandlerDeps {
   pickFolder: (req: { title?: string }) => Promise<{ path: string | null }>
   /** Injected from register.ts — opens a file or folder with the default app. */
   openPath: (filePath: string) => Promise<string>
+  /** Injected from register.ts — opens an http(s) URL in the default browser. */
+  openExternal: (url: string) => Promise<void>
   /** Injected from register.ts — spawns `code <path>`. */
   openInVscode: (filePath: string) => Promise<{ ok: boolean; error?: string }>
   /** Called when the renderer signals its IPC subscriptions are live. */
@@ -115,6 +118,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     commandLocator,
     pickFolder,
     openPath,
+    openExternal,
     openInVscode,
     onRendererReady,
     approver,
@@ -139,6 +143,29 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       ...state,
       recentLaunches: mruAdd(state.recentLaunches, projectPath, 15),
     }))
+  }
+
+  /**
+   * Confines a path to the user's configured source roots.
+   *
+   * Every handler that writes, deletes, executes, or hands a path to the OS
+   * shell goes through here, so a bug (or hostile content rendered) in the
+   * renderer cannot reach ~/.ssh, %APPDATA% or system directories.
+   *
+   * @param mode 'inside' excludes the roots themselves — use it for anything
+   *   destructive, since a root is not a project. 'within' allows a root too.
+   */
+  async function requireConfinedPath(
+    candidate: string,
+    mode: 'inside' | 'within' = 'within',
+  ): Promise<void> {
+    const config = await loadConfig(configPath)
+    const roots = config.roots ?? []
+    const allowed =
+      mode === 'inside' ? isInsideRoots(candidate, roots) : isWithinRoots(candidate, roots)
+    if (!allowed) {
+      throw new Error(OUTSIDE_ROOTS_MESSAGE)
+    }
   }
 
   /**
@@ -261,6 +288,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
       const newName = requireString(obj['newName'], 'newName')
+      await requireConfinedPath(projectPath, 'inside')
       const newPath = await renameProject(projectPath, newName)
       // Saved flags, lastUsed, pin, recents and group membership follow the folder.
       await remapProjectPath(projectPath, newPath)
@@ -283,6 +311,9 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
           'Check the "Permanently delete" checkbox to permanently remove the folder.',
         )
       }
+      // 'inside' excludes the roots themselves — deleting a whole source root
+      // would take every project in it with no undo.
+      await requireConfinedPath(projectPath, 'inside')
       await deleteProject(projectPath)
       return { ok: true }
     },
@@ -349,6 +380,15 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       if (!Number.isInteger(pid) || pid <= 0) {
         throw new RangeError(`IPC validation: 'pid' must be a positive integer, got ${pid}`)
       }
+
+      // Only ever kill a process this app currently reports as a Claude
+      // session. Without this the channel is a "terminate any pid" primitive,
+      // and pids are recycled — a stale id from the UI could hit something else.
+      const sessions = await processInspector.findClaudeSessions()
+      if (!sessions.some((s) => s.pid === pid)) {
+        return { ok: false }
+      }
+
       const ok = await sessionKiller.kill(pid)
       return { ok }
     },
@@ -415,6 +455,13 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       if (branch.trim().length === 0) {
         throw new TypeError(`IPC validation: 'branch' must be a non-empty string`)
       }
+      // A leading '-' would be read by git as an option rather than a branch
+      // name. `git worktree add -b` takes its value positionally, so there is
+      // no '--' to hide behind — reject instead.
+      if (branch.trim().startsWith('-')) {
+        return { ok: false, error: 'Branch name may not start with "-".' }
+      }
+      await requireConfinedPath(repoPath)
       return addWorktree(repoPath, branch)
     },
 
@@ -476,21 +523,27 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     // -----------------------------------------------------------------------
     // env:read
     // -----------------------------------------------------------------------
+    // The renderer names a PROJECT; main derives the .env file itself. That
+    // removes an arbitrary-file-read primitive, and fixes the editor reading
+    // the project directory (EISDIR) instead of its .env.
     'env:read': async (req) => {
       const obj = requireObject(req, 'req')
-      const envPath = requireString(obj['path'], 'path')
-      const contents = await readEnv(envPath)
-      return contents as string
+      const projectPath = requireString(obj['path'], 'path')
+      await requireConfinedPath(projectPath)
+      const contents = await readEnv(path.join(projectPath, '.env'))
+      return contents ?? ''
     },
 
     // -----------------------------------------------------------------------
     // env:write
     // -----------------------------------------------------------------------
+    // Project path in, <project>/.env written. Never an arbitrary file.
     'env:write': async (req) => {
       const obj = requireObject(req, 'req')
-      const envPath = requireString(obj['path'], 'path')
+      const projectPath = requireString(obj['path'], 'path')
       const contents = requireString(obj['contents'], 'contents')
-      await writeEnv(envPath, contents)
+      await requireConfinedPath(projectPath)
+      await writeEnv(path.join(projectPath, '.env'), contents)
     },
 
     // -----------------------------------------------------------------------
@@ -508,6 +561,9 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'mcp:health': async (req) => {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
+      // This executes the commands named in that project's .mcp.json, so the
+      // file it reads must belong to a project the user actually configured.
+      await requireConfinedPath(projectPath)
       return checkMcpHealth(projectPath)
     },
 
@@ -566,6 +622,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
       const obj = requireObject(req, 'req')
       const projectPath = requireString(obj['path'], 'path')
       const targetRoot = requireString(obj['targetRoot'], 'targetRoot')
+      await requireConfinedPath(projectPath, 'inside')
       const newPath = await moveProjectToRoot(projectPath, targetRoot)
       // Saved flags, lastUsed, pin, recents and group membership follow the folder.
       await remapProjectPath(projectPath, newPath)
@@ -577,10 +634,21 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     // Opens a file or folder with the default OS application.
     // Delegates to injected openPath (electron shell.openPath in register.ts).
     // -----------------------------------------------------------------------
+    // Two callers: project files/folders, and the PR URL from git:openPr.
+    // A URL goes to the browser via openExternal (shell.openPath cannot open
+    // one); a file path must resolve inside a configured source root, so this
+    // channel cannot be used to launch an arbitrary file by its OS association.
     'shell:openPath': async (req) => {
       const obj = requireObject(req, 'req')
-      const filePath = requireString(obj['path'], 'path')
-      const errMsg = await openPath(filePath)
+      const target = requireString(obj['path'], 'path')
+
+      if (/^https?:\/\//i.test(target)) {
+        await openExternal(target)
+        return { ok: true }
+      }
+
+      await requireConfinedPath(target)
+      const errMsg = await openPath(target)
       // electron shell.openPath returns '' on success, or an error string
       return errMsg ? { ok: false, error: errMsg } : { ok: true }
     },
@@ -593,6 +661,7 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     'shell:openInVscode': async (req) => {
       const obj = requireObject(req, 'req')
       const filePath = requireString(obj['path'], 'path')
+      await requireConfinedPath(filePath)
       return openInVscode(filePath)
     },
 

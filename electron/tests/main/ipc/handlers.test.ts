@@ -15,6 +15,13 @@ let tmpDir: string
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ipc-handlers-'))
+  // Handlers that write, delete, execute or shell-open a path refuse anything
+  // outside a configured source root, so declare tmpDir as one up front.
+  await fs.writeFile(
+    path.join(tmpDir, 'config.json'),
+    JSON.stringify({ roots: [tmpDir], defaultRoot: null, ignore: [], hidden: [], projects: {} }),
+    'utf8',
+  )
 })
 
 afterEach(async () => {
@@ -55,6 +62,7 @@ function makeDeps(overrides: Partial<IpcHandlerDeps> = {}): IpcHandlerDeps {
     },
     pickFolder: vi.fn().mockResolvedValue({ path: null }),
     openPath: vi.fn().mockResolvedValue(''),
+    openExternal: vi.fn().mockResolvedValue(undefined),
     openInVscode: vi.fn().mockResolvedValue({ ok: true }),
     ...overrides,
   }
@@ -67,6 +75,9 @@ function makeDeps(overrides: Partial<IpcHandlerDeps> = {}): IpcHandlerDeps {
 describe('config:read', () => {
   it('returns default config when file is absent and writes it (first-run)', async () => {
     const deps = makeDeps()
+    // This case is specifically about there being no config yet, so drop the
+    // root-seeding config the shared beforeEach writes.
+    await fs.rm(deps.configPath, { force: true })
     const handlers = createHandlers(deps)
 
     const result = await handlers['config:read'](undefined)
@@ -251,8 +262,20 @@ describe('sessions:listRunning', () => {
 // ---------------------------------------------------------------------------
 
 describe('sessions:kill', () => {
+  /** A pid must be a currently-tracked Claude session before it can be killed. */
+  function trackedSession(pid: number): Partial<IpcHandlerDeps> {
+    return {
+      processInspector: {
+        findAllProcesses: vi.fn().mockResolvedValue([]),
+        findClaudeSessions: vi.fn().mockResolvedValue([
+          { pid, processName: 'claude', workingDirectory: tmpDir },
+        ]),
+      },
+    }
+  }
+
   it('calls sessionKiller.kill and returns { ok: true } on success', async () => {
-    const deps = makeDeps()
+    const deps = makeDeps(trackedSession(5678))
     const handlers = createHandlers(deps)
 
     const result = await handlers['sessions:kill']({ pid: 5678 })
@@ -262,6 +285,7 @@ describe('sessions:kill', () => {
 
   it('returns { ok: false } when killer returns false', async () => {
     const deps = makeDeps({
+      ...trackedSession(999),
       sessionKiller: { kill: vi.fn().mockResolvedValue(false) },
     })
     const handlers = createHandlers(deps)
@@ -538,23 +562,23 @@ describe('terminals:detect', () => {
 // env:read / env:write
 // ---------------------------------------------------------------------------
 
+// The request carries the PROJECT path; main resolves <project>/.env itself.
 describe('env:read', () => {
-  it('returns null for missing env file', async () => {
+  it('returns an empty string when the project has no .env', async () => {
     const deps = makeDeps()
     const handlers = createHandlers(deps)
 
-    const result = await handlers['env:read']({ path: path.join(tmpDir, '.env') })
-    expect(result).toBeNull()
+    const result = await handlers['env:read']({ path: tmpDir })
+    expect(result).toBe('')
   })
 
-  it('returns file contents for existing env file', async () => {
-    const envPath = path.join(tmpDir, '.env')
-    await fs.writeFile(envPath, 'FOO=bar\nBAZ=qux', 'utf8')
+  it('returns the .env contents for a project that has one', async () => {
+    await fs.writeFile(path.join(tmpDir, '.env'), 'FOO=bar\nBAZ=qux', 'utf8')
 
     const deps = makeDeps()
     const handlers = createHandlers(deps)
 
-    const result = await handlers['env:read']({ path: envPath })
+    const result = await handlers['env:read']({ path: tmpDir })
     expect(result).toContain('FOO=bar')
   })
 
@@ -568,14 +592,13 @@ describe('env:read', () => {
 })
 
 describe('env:write', () => {
-  it('writes contents to env file', async () => {
-    const envPath = path.join(tmpDir, '.env')
+  it('writes contents to the project .env file', async () => {
     const deps = makeDeps()
     const handlers = createHandlers(deps)
 
-    await handlers['env:write']({ path: envPath, contents: 'KEY=value' })
+    await handlers['env:write']({ path: tmpDir, contents: 'KEY=value' })
 
-    const result = await fs.readFile(envPath, 'utf8')
+    const result = await fs.readFile(path.join(tmpDir, '.env'), 'utf8')
     expect(result).toBe('KEY=value')
   })
 
@@ -1009,7 +1032,8 @@ describe('git:clone', () => {
   it('returns ok=false when targetRoot is not in configured roots', async () => {
     const deps = makeDeps()
     const handlers = createHandlers(deps)
-    // config has no roots (default is [])
+    // Replace the seeded config so the target really is unconfigured.
+    await handlers['config:write'](createDefaultConfig())
     const result = await handlers['git:clone']({
       url: 'https://x.com/r.git',
       targetRoot: tmpDir,

@@ -29,7 +29,7 @@ type ShellModule = { shell: typeof ElectronShell }
 export function registerIpc(
   ipcMain: IpcMain,
   win: BrowserWindow,
-  deps: Omit<IpcHandlerDeps, 'pickFolder' | 'openPath' | 'openInVscode'>,
+  deps: Omit<IpcHandlerDeps, 'pickFolder' | 'openPath' | 'openExternal' | 'openInVscode'>,
   electronDialog: DialogModule['dialog'],
   electronShell: ShellModule['shell'],
 ): void {
@@ -45,6 +45,12 @@ export function registerIpc(
   // Wire shell:openPath — electron shell.openPath returns '' on success or error string
   const openPath: IpcHandlerDeps['openPath'] = (filePath) => {
     return electronShell.openPath(filePath)
+  }
+
+  // Wire the URL branch of shell:openPath (the PR link from git:openPr).
+  // shell.openPath cannot open a URL — openExternal is the correct API.
+  const openExternal: IpcHandlerDeps['openExternal'] = (url) => {
+    return electronShell.openExternal(url)
   }
 
   // Wire shell:openInVscode — resolve `code` and spawn it.
@@ -78,7 +84,7 @@ export function registerIpc(
     })
   }
 
-  const handlers = createHandlers({ ...deps, pickFolder, openPath, openInVscode })
+  const handlers = createHandlers({ ...deps, pickFolder, openPath, openExternal, openInVscode })
 
   // Bind every channel from the IpcMap
   const channels = Object.values(IPC) as Array<keyof IpcMap>

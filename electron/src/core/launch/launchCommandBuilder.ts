@@ -112,6 +112,19 @@ export interface BuildLaunchSpecOptions {
 }
 
 /**
+ * Escapes a value for Windows Terminal's own command-line parser.
+ *
+ * wt splits its arguments on ';' to chain sub-commands, and does so after
+ * CommandLineToArgvW has removed the quotes — so quoting alone does not protect
+ * it. A semicolon is legal in a Windows folder name, which means a project
+ * called 'a;b' would otherwise break the launch or inject a second wt command.
+ * wt's documented escape is a backslash before the semicolon.
+ */
+export function escapeWtValue(value: string): string {
+  return value.replace(/;/g, '\\;')
+}
+
+/**
  * Builds the argv arrays for Windows Terminal (wt) launch.
  * Exported for composability and testing without going through buildLaunchSpec.
  */
@@ -122,9 +135,9 @@ export function buildWtArgs(
   claudeCommand: string
 ): string[] {
   return [
-    '-w', '0', 'new-tab', '--title', projectName,
-    '-d', projectPath,
-    shell, '-NoExit', '-Command', claudeCommand,
+    '-w', '0', 'new-tab', '--title', escapeWtValue(projectName),
+    '-d', escapeWtValue(projectPath),
+    shell, '-NoExit', '-Command', escapeWtValue(claudeCommand),
   ]
 }
 

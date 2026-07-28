@@ -21,6 +21,13 @@ let tmpDir: string
 
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'launch-int-'))
+  // Path-confined handlers (shell:openPath, openInVscode, projects:move) refuse
+  // anything outside a configured source root, so declare tmpDir as one.
+  await fs.writeFile(
+    path.join(tmpDir, 'config.json'),
+    JSON.stringify({ roots: [tmpDir], defaultRoot: null, ignore: [], hidden: [], projects: {} }),
+    'utf8',
+  )
 })
 
 afterEach(async () => {
@@ -54,6 +61,7 @@ function makeLaunchDeps(
     },
     pickFolder: vi.fn().mockResolvedValue({ path: null }),
     openPath: vi.fn().mockResolvedValue(''),
+    openExternal: vi.fn().mockResolvedValue(undefined),
     openInVscode: vi.fn().mockResolvedValue({ ok: true }),
   }
 }
@@ -220,9 +228,10 @@ describe('shell:openPath handler', () => {
     deps.openPath = vi.fn().mockResolvedValue('') // electron returns '' on success
     const handlers = createHandlers(deps)
 
-    const result = await handlers['shell:openPath']({ path: 'C:\\Dev\\myproject' })
+    const projectPath = path.join(tmpDir, 'myproject')
+    const result = await handlers['shell:openPath']({ path: projectPath })
     expect(result.ok).toBe(true)
-    expect(deps.openPath).toHaveBeenCalledWith('C:\\Dev\\myproject')
+    expect(deps.openPath).toHaveBeenCalledWith(projectPath)
   })
 
   it('returns ok:false when electron returns an error string', async () => {
@@ -230,7 +239,7 @@ describe('shell:openPath handler', () => {
     deps.openPath = vi.fn().mockResolvedValue('The path does not exist')
     const handlers = createHandlers(deps)
 
-    const result = await handlers['shell:openPath']({ path: 'C:\\Nonexistent' })
+    const result = await handlers['shell:openPath']({ path: path.join(tmpDir, 'nonexistent') })
     expect(result.ok).toBe(false)
     expect(result.error).toBe('The path does not exist')
   })
@@ -250,9 +259,10 @@ describe('shell:openInVscode handler', () => {
     deps.openInVscode = vi.fn().mockResolvedValue({ ok: true })
     const handlers = createHandlers(deps)
 
-    const result = await handlers['shell:openInVscode']({ path: 'C:\\Dev\\project' })
+    const projectPath = path.join(tmpDir, 'project')
+    const result = await handlers['shell:openInVscode']({ path: projectPath })
     expect(result.ok).toBe(true)
-    expect(deps.openInVscode).toHaveBeenCalledWith('C:\\Dev\\project')
+    expect(deps.openInVscode).toHaveBeenCalledWith(projectPath)
   })
 
   it('returns ok:false with error when VS Code is not found', async () => {
@@ -260,7 +270,7 @@ describe('shell:openInVscode handler', () => {
     deps.openInVscode = vi.fn().mockResolvedValue({ ok: false, error: 'VS Code CLI (code) not found on PATH.' })
     const handlers = createHandlers(deps)
 
-    const result = await handlers['shell:openInVscode']({ path: 'C:\\Dev\\project' })
+    const result = await handlers['shell:openInVscode']({ path: path.join(tmpDir, 'project') })
     expect(result.ok).toBe(false)
     expect(result.error).toContain('VS Code')
   })

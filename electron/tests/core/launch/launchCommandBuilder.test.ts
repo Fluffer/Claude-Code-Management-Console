@@ -2,9 +2,42 @@ import { describe, it, expect } from 'vitest'
 import {
   buildClaudeCommand,
   buildLaunchSpec,
+  buildWtArgs,
+  escapeWtValue,
   areFlagsSafe,
   UNSAFE_FLAG_MESSAGE,
 } from '../../../src/core/launch/launchCommandBuilder'
+
+describe('Windows Terminal semicolon escaping', () => {
+  it('leaves a value with no semicolon untouched', () => {
+    expect(escapeWtValue('C:\\Dev\\Active\\my-project')).toBe('C:\\Dev\\Active\\my-project')
+  })
+
+  it('escapes a semicolon so wt does not read it as a command separator', () => {
+    expect(escapeWtValue('a;b')).toBe('a\\;b')
+  })
+
+  it('escapes every semicolon', () => {
+    expect(escapeWtValue('a;b;c')).toBe('a\\;b\\;c')
+  })
+
+  it('escapes the title, the -d path and the passthrough command', () => {
+    const args = buildWtArgs('a;b', 'C:\\Dev\\a;b', 'pwsh', "claude -n 'a;b'")
+
+    expect(args[args.indexOf('--title') + 1]).toBe('a\\;b')
+    expect(args[args.indexOf('-d') + 1]).toBe('C:\\Dev\\a\\;b')
+    expect(args[args.indexOf('-Command') + 1]).toBe("claude -n 'a\\;b'")
+  })
+
+  it('does not disturb an ordinary project', () => {
+    const args = buildWtArgs('my-project', 'C:\\Dev\\my-project', 'pwsh', 'claude --continue')
+    expect(args).toEqual([
+      '-w', '0', 'new-tab', '--title', 'my-project',
+      '-d', 'C:\\Dev\\my-project',
+      'pwsh', '-NoExit', '-Command', 'claude --continue',
+    ])
+  })
+})
 
 describe('LaunchCommandBuilder', () => {
   // ---------------------------------------------------------------------------
