@@ -11,11 +11,14 @@
  * Cache: results are cached by path; invalidated on event:fileChanged so
  * the UI refreshes when the file system changes (e.g., git commit).
  */
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import type { ProjectInfo } from '../../core/models'
 import type { ProjectEnrichment } from '../features/projects/ProjectRow'
 
 const CONCURRENCY_LIMIT = 8
+
+/** How long results are buffered before being applied as one state update. */
+const FLUSH_INTERVAL_MS = 60
 
 export interface UseProjectEnrichmentResult {
   enrichments: Record<string, ProjectEnrichment>
@@ -49,13 +52,50 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
   const [enrichments, setEnrichments] = useState<Record<string, ProjectEnrichment>>({})
   const [invalidateKey, setInvalidateKey] = useState(0)
   const mountedRef = useRef(true)
+  const pendingRef = useRef<Record<string, ProjectEnrichment>>({})
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      if (flushTimerRef.current !== null) clearTimeout(flushTimerRef.current)
     }
   }, [])
+
+  /** Applies everything buffered so far in a single state update. */
+  const flushPending = useCallback((): void => {
+    if (flushTimerRef.current !== null) {
+      clearTimeout(flushTimerRef.current)
+      flushTimerRef.current = null
+    }
+    const batch = pendingRef.current
+    pendingRef.current = {}
+    if (!mountedRef.current || Object.keys(batch).length === 0) return
+    setEnrichments((prev) => ({ ...prev, ...batch }))
+  }, [])
+
+  /**
+   * Buffers one project's result and schedules a batched flush.
+   *
+   * Writing state per project meant one render — and one full re-filter and
+   * re-sort of the list — for every project on every enrichment pass. Rows
+   * still fill in progressively, just a batch at a time instead of one by one.
+   */
+  const queueEnrichment = useCallback(
+    (path: string, enrichment: ProjectEnrichment): void => {
+      pendingRef.current[path] = enrichment
+      if (flushTimerRef.current !== null) return
+      flushTimerRef.current = setTimeout(() => {
+        flushTimerRef.current = null
+        const batch = pendingRef.current
+        pendingRef.current = {}
+        if (!mountedRef.current || Object.keys(batch).length === 0) return
+        setEnrichments((prev) => ({ ...prev, ...batch }))
+      }, FLUSH_INTERVAL_MS)
+    },
+    [],
+  )
 
   // Subscribe to file-change events to re-enrich.
   //
@@ -103,13 +143,14 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
             defaultModel: claudeInfo.defaultModel,
           }
 
-          setEnrichments((prev) => ({ ...prev, [project.path]: enrichment }))
+          queueEnrichment(project.path, enrichment)
         } catch {
           // git:info or projects:claudeInfo failed — leave enrichment absent
         }
       })
 
       await withConcurrencyLimit(tasks, CONCURRENCY_LIMIT)
+      if (!cancelled) flushPending()
     }
 
     void enrich()
@@ -117,7 +158,7 @@ export function useProjectEnrichment(projects: ProjectInfo[]): UseProjectEnrichm
     return () => {
       cancelled = true
     }
-  }, [projects, invalidateKey])
+  }, [projects, invalidateKey, queueEnrichment, flushPending])
 
   return { enrichments }
 }

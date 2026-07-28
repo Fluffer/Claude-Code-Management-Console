@@ -19,6 +19,10 @@
 .PARAMETER Classify Enable local-model security gate (mode=classify).
 .PARAMETER Once     One scan pass then exit.
 .PARAMETER SelfTest Offline detection test, then exit.
+.PARAMETER ParentPid
+  PID of the launching app. The daemon exits as soon as that process is gone.
+  Without it, a crashed or force-killed host leaves this script running with no
+  UI to stop it — still pressing keys in the user's terminal tabs.
 
 .EXAMPLE
   pwsh -File Approver.ps1 -SelfTest
@@ -32,7 +36,8 @@ param(
   [switch]$DryRun,
   [switch]$Classify,
   [switch]$Once,
-  [switch]$SelfTest
+  [switch]$SelfTest,
+  [int]$ParentPid = 0
 )
 
 $cfg = Get-Content -Raw -LiteralPath $Config | ConvertFrom-Json
@@ -245,8 +250,22 @@ if ($SelfTest) {
   return
 }
 
+# --- Parent watchdog ---------------------------------------------------------
+# This daemon presses keys in the user's terminals, so it must never outlive the
+# app that owns it. The host stops it on a clean quit; this covers a crash or a
+# force-kill, where no shutdown code runs at all.
+function Test-ParentAlive {
+  if ($ParentPid -le 0) { return $true }
+  try { return $null -ne (Get-Process -Id $ParentPid -ErrorAction Stop) }
+  catch { return $false }
+}
+
 # --- Main loop ---------------------------------------------------------------
-Write-Log ("START engine=console-attach mode={0} dryrun={1} once={2} poll={3}ms" -f $cfg.policy.mode,$DryRun,$Once,$cfg.pollMs)
+Write-Log ("START engine=console-attach mode={0} dryrun={1} once={2} poll={3}ms parent={4}" -f $cfg.policy.mode,$DryRun,$Once,$cfg.pollMs,$ParentPid)
+if (-not (Test-ParentAlive)) {
+  Write-Log "EXIT parent $ParentPid is not running"
+  return
+}
 $handled = @{}          # pid -> @{ hash=...; at=DateTime }
 $tabPids = @()
 $refresh = 0
@@ -283,5 +302,12 @@ while ($true) {
   }
 
   if ($Once) { break }
+
+  # Stop as soon as the owning app is gone, before the next scan pass.
+  if (-not (Test-ParentAlive)) {
+    Write-Log "EXIT parent $ParentPid exited"
+    break
+  }
+
   Start-Sleep -Milliseconds $cfg.pollMs
 }
