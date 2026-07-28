@@ -29,6 +29,19 @@ extraResources:
 
 asar: true
 
+# ccmc://launch?project=... deep links.
+#
+# The app also calls app.setAsDefaultProtocolClient at runtime, but a packaged
+# AppX cannot write the HKCU class registration, so on an installed build that
+# call is a no-op — the association ends up owned by whichever UNPACKED copy
+# ran last, and breaks entirely once that build is deleted. Declaring the
+# protocol here puts it in the AppX manifest, which is the only registration
+# Windows honours for a packaged app.
+protocols:
+  - name: Claude Code Management Console
+    schemes:
+      - ccmc
+
 win:
   icon: resources/app.ico
   target:

@@ -1,6 +1,6 @@
 {
   "name": "ccmc-electron",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Claude Code Management Console — Electron rewrite",
   "main": "./out/main/main.js",
   "author": "Peter",
