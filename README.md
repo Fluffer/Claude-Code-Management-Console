@@ -5,7 +5,7 @@ source-root folders (e.g. `C:\Dev\Active`), lists every project, and opens Claud
 sessions in Windows Terminal tabs — new (`claude`) or continued (`claude --continue`) —
 with per-project flags. Built with Electron, React and TypeScript.
 
-![Stack](https://img.shields.io/badge/Electron-32-blue) ![UI](https://img.shields.io/badge/React-18-61dafb) ![Lang](https://img.shields.io/badge/TypeScript-5-3178c6)
+![Stack](https://img.shields.io/badge/Electron-43-blue) ![UI](https://img.shields.io/badge/React-18-61dafb) ![Lang](https://img.shields.io/badge/TypeScript-5-3178c6)
 
 ## Features
 
