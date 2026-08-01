@@ -15,7 +15,7 @@ Grab the `.appx` from the [latest release](https://github.com/Fluffer/Claude-Cod
 and double-click it, or:
 
 ```powershell
-Add-AppxPackage -Path ".\Claude Code Management Console 0.1.13.appx"
+Add-AppxPackage -Path ".\Claude Code Management Console <version>.appx"
 ```
 
 It is signed with a public Certum code-signing certificate, so it installs without a
@@ -189,8 +189,9 @@ regenerate the taskbar/Start tiles after changing `resources/app.ico`, run
 To publish it, tag the release commit and attach the `.appx`:
 
 ```powershell
-git tag -a v0.1.13 -m "v0.1.13"; git push origin v0.1.13
-gh release create v0.1.13 "electron\dist\Claude Code Management Console 0.1.13.appx" --title "v0.1.13" --notes-file notes.md
+$v = (Get-Content electron\package.json | ConvertFrom-Json).version
+git tag -a "v$v" -m "v$v"; git push origin "v$v"
+gh release create "v$v" "electron\dist\Claude Code Management Console $v.appx" --title "v$v" --notes-file notes.md
 ```
 
 ## Data & compatibility
