@@ -5,7 +5,37 @@ source-root folders (e.g. `C:\Dev\Active`), lists every project, and opens Claud
 sessions in Windows Terminal tabs — new (`claude`) or continued (`claude --continue`) —
 with per-project flags. Built with Electron, React and TypeScript.
 
+[![Release](https://img.shields.io/github/v/release/Fluffer/Claude-Code-Management-Console)](https://github.com/Fluffer/Claude-Code-Management-Console/releases/latest)
+[![CI](https://github.com/Fluffer/Claude-Code-Management-Console/actions/workflows/ci.yml/badge.svg)](https://github.com/Fluffer/Claude-Code-Management-Console/actions/workflows/ci.yml)
 ![Stack](https://img.shields.io/badge/Electron-43-blue) ![UI](https://img.shields.io/badge/React-18-61dafb) ![Lang](https://img.shields.io/badge/TypeScript-5-3178c6)
+
+## Install
+
+Grab the `.appx` from the [latest release](https://github.com/Fluffer/Claude-Code-Management-Console/releases/latest)
+and double-click it, or:
+
+```powershell
+Add-AppxPackage -Path ".\Claude Code Management Console 0.1.13.appx"
+```
+
+It is signed with a public Certum code-signing certificate, so it installs without a
+SmartScreen or trust prompt — no developer mode, no self-signed certificate to trust first.
+
+**You need:**
+
+- Windows 10/11 x64.
+- The `claude` CLI on your `PATH` (`npm i -g @anthropic-ai/claude-code`). The app launches
+  it; it doesn't bundle or proxy it. The status bar shows the version it detected, and warns
+  when it can't find it.
+- Windows Terminal, ideally. Without it sessions open in a bare shell instead, and other
+  installed terminals are detected and selectable in Settings.
+
+On first run there are no source roots configured — add the folder your projects live in
+(e.g. `C:\Dev`) via Settings, and every direct subfolder becomes a project.
+
+To upgrade, install the newer `.appx` over the top. To remove it: `Get-AppxPackage
+*ClaudeCodeManagementConsole* | Remove-AppxPackage`. Your config in `%APPDATA%\ccmc`
+survives both.
 
 ## Features
 
@@ -119,7 +149,10 @@ tools/                 # terminal-auto-approver daemon (shipped with the app)
 docs/                  # design specs & implementation plans
 ```
 
-## Build & run
+## Build from source
+
+Only needed if you want to develop it — the [release](https://github.com/Fluffer/Claude-Code-Management-Console/releases/latest)
+is the way to just use it.
 
 ```powershell
 cd electron
@@ -152,6 +185,13 @@ public Certum code-signing cert (installs with no trust prompt). `SIGNTOOL_PATH`
 at a modern Windows SDK signtool — electron-builder's bundled one fails on this cert. To
 regenerate the taskbar/Start tiles after changing `resources/app.ico`, run
 `electron/scripts/gen-appx-assets.ps1`, then repackage.
+
+To publish it, tag the release commit and attach the `.appx`:
+
+```powershell
+git tag -a v0.1.13 -m "v0.1.13"; git push origin v0.1.13
+gh release create v0.1.13 "electron\dist\Claude Code Management Console 0.1.13.appx" --title "v0.1.13" --notes-file notes.md
+```
 
 ## Data & compatibility
 
