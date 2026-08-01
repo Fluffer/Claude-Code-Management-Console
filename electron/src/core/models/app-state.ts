@@ -37,4 +37,9 @@ export interface AppState {
    * Windows Terminal if present, else a bare shell.
    */
   terminalId: string;
+  /**
+   * --permission-mode applied to every launch that does not already specify one.
+   * '' = leave it to the CLI's own default. Defaults to 'auto'.
+   */
+  defaultPermissionMode: string;
 }

@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc, setChannelResponse, getMockInvoke, setPathForFile } from './mockCcmc'
 import App from '../../src/renderer/App'
@@ -47,6 +48,7 @@ const STATE: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 const PROJECTS = [
@@ -77,12 +79,15 @@ describe('App drag-drop (#19)', () => {
     setChannelResponse('config:addRoots', { added: 1 })
   })
 
-  it('dropping a directory calls config:addRoots with the directory path', async () => {
-    setPathForFile((_file: File) => '/new-root')
-    setChannelResponse('fs:isDirectory', { ok: true })
+  /** Drops `paths` on the app root, with fs:isDirectory answering true. */
+  async function dropDirs(
+    paths: string[],
+    calls: { channel: string; req: unknown }[],
+  ): Promise<void> {
+    let i = 0
+    setPathForFile((_file: File) => paths[i++ % paths.length])
 
     const invoke = getMockInvoke()
-    const addRootsCalls: unknown[] = []
     invoke.mockImplementation(async (channel: string, req: unknown) => {
       if (channel === 'config:read') return CONFIG
       if (channel === 'state:read') return STATE
@@ -94,8 +99,12 @@ describe('App drag-drop (#19)', () => {
       if (channel === 'projects:scan') return PROJECTS
       if (channel === 'fs:isDirectory') return { ok: true }
       if (channel === 'config:addRoots') {
-        addRootsCalls.push(req)
-        return { added: 1 }
+        calls.push({ channel, req })
+        return { added: paths.length }
+      }
+      if (channel === 'launch:run') {
+        calls.push({ channel, req })
+        return { ok: true, pid: 42 }
       }
       return undefined
     })
@@ -104,18 +113,69 @@ describe('App drag-drop (#19)', () => {
     await waitFor(() => expect(screen.getByText('alpha')).toBeInTheDocument())
 
     const appRoot = document.querySelector('.flex.flex-col.h-screen') as HTMLElement
-
-    const file = new File([], '/new-root')
-    const dropEvent = makeDropEvent([file])
-
+    const dropEvent = makeDropEvent(paths.map((p) => new File([], p)))
     fireEvent.dragEnter(appRoot, dropEvent)
     fireEvent.drop(appRoot, dropEvent)
+  }
 
-    await waitFor(() => {
-      expect(addRootsCalls.length).toBeGreaterThan(0)
-      const req = addRootsCalls[0] as { paths: string[] }
-      expect(req.paths).toContain('/new-root')
-    })
+  // One folder is ambiguous — a projects folder to scan, or a repo to work in
+  // now — so it asks instead of guessing.
+  it('dropping one directory asks what to do instead of adding it silently', async () => {
+    const calls: { channel: string; req: unknown }[] = []
+    await dropDirs(['/new-root'], calls)
+
+    await waitFor(() => expect(screen.getByText(/dropped a folder/i)).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /add as source root/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /launch claude here/i })).toBeInTheDocument()
+    expect(calls).toEqual([])
+  })
+
+  it('choosing "Add as source root" calls config:addRoots with that path', async () => {
+    const user = userEvent.setup()
+    const calls: { channel: string; req: unknown }[] = []
+    await dropDirs(['/new-root'], calls)
+
+    await waitFor(() => expect(screen.getByText(/dropped a folder/i)).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /add as source root/i }))
+
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
+    expect(calls[0].channel).toBe('config:addRoots')
+    expect((calls[0].req as { paths: string[] }).paths).toContain('/new-root')
+  })
+
+  it('choosing "Launch Claude here" starts a session without recording usage', async () => {
+    const user = userEvent.setup()
+    const calls: { channel: string; req: unknown }[] = []
+    await dropDirs(['/repos/widget'], calls)
+
+    await waitFor(() => expect(screen.getByText(/dropped a folder/i)).toBeInTheDocument())
+    await user.click(screen.getByRole('button', { name: /launch claude here/i }))
+
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
+    expect(calls[0].channel).toBe('launch:run')
+    const req = calls[0].req as {
+      projectPath: string
+      projectName: string
+      continueSession: boolean
+      recordUsage: boolean
+    }
+    expect(req.projectPath).toBe('/repos/widget')
+    // Session name is the folder leaf, not the full path.
+    expect(req.projectName).toBe('widget')
+    expect(req.continueSession).toBe(false)
+    // A dropped folder is not necessarily a tracked project, so it must not
+    // enter lastUsed or the recents MRU.
+    expect(req.recordUsage).toBe(false)
+  })
+
+  it('dropping several directories adds them all as roots without asking', async () => {
+    const calls: { channel: string; req: unknown }[] = []
+    await dropDirs(['/a', '/b'], calls)
+
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0))
+    expect(calls[0].channel).toBe('config:addRoots')
+    expect((calls[0].req as { paths: string[] }).paths).toEqual(['/a', '/b'])
+    expect(screen.queryByText(/dropped a folder/i)).not.toBeInTheDocument()
   })
 
   it('dropping a non-directory does not call config:addRoots', async () => {

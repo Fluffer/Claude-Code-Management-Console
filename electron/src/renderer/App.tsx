@@ -634,6 +634,14 @@ function MainWindow(): React.ReactElement {
         return
       }
 
+      // A single folder is ambiguous — a projects folder to scan, or one repo to
+      // work in right now. Ask. Several at once is unambiguously "add roots":
+      // nobody drags five folders meaning to start five sessions.
+      if (dirs.length === 1) {
+        openDialog({ kind: 'dropped-folder', path: dirs[0], onToast: showToast })
+        return
+      }
+
       const { added } = await window.ccmc.invoke('config:addRoots', { paths: dirs })
 
       if (added === 0) {

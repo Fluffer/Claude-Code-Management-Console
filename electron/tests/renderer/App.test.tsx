@@ -41,6 +41,7 @@ const STATE: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 const PROJECTS = [

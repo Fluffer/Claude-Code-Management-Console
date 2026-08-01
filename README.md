@@ -48,7 +48,12 @@ with per-project flags. Built with Electron, React and TypeScript.
 - **Pinned favourites**, sort by recent use or name
 - **Auto-refresh** — file watchers pick up projects created or removed outside the app, and
   config/state edited by another instance
-- **Drag & drop** a folder onto the window to add it as a source root
+- **Drag & drop** a folder onto the window and choose: add it as a source root, or start a
+  one-off session in it (not added to the project list or Recent). Dropping several folders
+  adds them all as roots
+- **Default permission mode** — Settings sets the `--permission-mode` every session starts
+  with, `auto` out of the box. A project's own flags or an applied profile always win, so a
+  project pinned to `plan` stays on `plan`
 - **First-run onboarding**, tooltips on every control, full F1 help guide
 - **Theming** — System/Light/Dark plus accent colour and UI font pickers, with live preview
 - **Terminal detection** — Windows Terminal by default; installed alternatives are detected

@@ -37,6 +37,7 @@ const baseState: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 describe('GroupManagerDialog', () => {

@@ -167,6 +167,7 @@ const appState: AppState = {
   savedFilters: [savedFilter],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 // ---------------------------------------------------------------------------

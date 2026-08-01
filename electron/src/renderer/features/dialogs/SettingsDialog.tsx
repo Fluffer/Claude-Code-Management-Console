@@ -71,6 +71,7 @@ export function SettingsDialog({
   const [selectedHidden, setSelectedHidden] = useState<string | null>(null)
   const [terminals, setTerminals] = useState<{ id: string; name: string; path: string }[]>([])
   const [terminalId, setTerminalId] = useState('')
+  const [defaultPermissionMode, setDefaultPermissionMode] = useState('auto')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [approver, setApprover] = useState<ApproverStatus | null>(null)
@@ -97,6 +98,7 @@ export function SettingsDialog({
       setCloseToTray(state.closeToTray)
       setTerminals(detected)
       setTerminalId(state.terminalId ?? '')
+      setDefaultPermissionMode(state.defaultPermissionMode ?? 'auto')
       const accentId = ACCENTS.some((a) => a.id === state.accent) ? state.accent : 'default'
       const fontId = FONTS.some((f) => f.id === state.font) ? state.font : 'default'
       setSelectedAccent(accentId)
@@ -195,6 +197,7 @@ export function SettingsDialog({
         theme: themeValue,
         closeToTray,
         terminalId,
+        defaultPermissionMode,
         accent: selectedAccent,
         font: selectedFont,
       }
@@ -277,6 +280,41 @@ export function SettingsDialog({
                 <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
+          </div>
+          <div className="flex items-start gap-3">
+            <label
+              className="text-sm text-[var(--text-secondary)] w-20 shrink-0 pt-1.5"
+              htmlFor="settings-permission-mode"
+            >
+              Permissions
+            </label>
+            <div className="flex-1">
+              <select
+                id="settings-permission-mode"
+                aria-label="Default permission mode"
+                value={defaultPermissionMode}
+                onChange={(e) => setDefaultPermissionMode(e.target.value)}
+                className={[
+                  'w-full rounded px-2 py-1.5 text-sm',
+                  'bg-[var(--control-fill)] border border-[var(--control-border)]',
+                  'text-[var(--text-primary)]',
+                  'focus:outline focus:outline-2 focus:outline-[var(--accent)]',
+                ].join(' ')}
+              >
+                <option value="auto">auto — fewer prompts (default)</option>
+                <option value="plan">plan — plan first, change nothing</option>
+                <option value="acceptEdits">acceptEdits — auto-accept file edits</option>
+                <option value="manual">manual — ask every time</option>
+                <option value="dontAsk">dontAsk</option>
+                <option value="bypassPermissions">bypassPermissions — no checks at all</option>
+                <option value="">Leave it to the claude CLI</option>
+              </select>
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
+                Passed as <code className="font-mono">--permission-mode</code> to every session
+                this app starts, unless the project&rsquo;s own flags or an applied profile
+                already set one. Lower-prompt modes let Claude act without stopping to ask.
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <label className="text-sm text-[var(--text-secondary)] w-20 shrink-0" htmlFor="settings-accent">

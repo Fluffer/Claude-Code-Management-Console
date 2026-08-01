@@ -415,6 +415,65 @@ describe('launch:run', () => {
     expect(deps.terminalLauncher.launch).toHaveBeenCalledOnce()
   })
 
+  // Every launch path in the app funnels through launch:run, so the app-wide
+  // permission-mode default is applied here or nowhere.
+  describe('default permission mode', () => {
+    async function captureFlags(
+      stateJson: string | null,
+      requestFlags?: string,
+    ): Promise<string> {
+      const statePath = makeStatePath()
+      if (stateJson !== null) await fs.writeFile(statePath, stateJson, 'utf8')
+      let captured = ''
+      const deps = makeDeps({
+        statePath,
+        terminalLauncher: {
+          launch: vi.fn().mockImplementation((spec: { arguments: string }) => {
+            captured = spec.arguments
+            return Promise.resolve({ ok: true, pid: 1 })
+          }),
+        },
+      })
+      const handlers = createHandlers(deps)
+      await handlers['launch:run']({
+        projectName: 'p',
+        projectPath: tmpDir,
+        continueSession: false,
+        ...(requestFlags !== undefined ? { flags: requestFlags } : {}),
+      })
+      return captured
+    }
+
+    it('applies the configured default when the project sets none', async () => {
+      const flags = await captureFlags('{"defaultPermissionMode":"auto"}')
+      expect(flags).toContain('--permission-mode auto')
+    })
+
+    it('leaves a project that already picked a mode alone', async () => {
+      const flags = await captureFlags('{"defaultPermissionMode":"auto"}', '--permission-mode plan')
+      expect(flags).toContain('--permission-mode plan')
+      expect(flags).not.toContain('--permission-mode auto')
+    })
+
+    it('adds nothing when the default is blank', async () => {
+      const flags = await captureFlags('{"defaultPermissionMode":""}')
+      expect(flags).not.toContain('--permission-mode')
+    })
+
+    it('defaults to auto for a state file that predates the setting', async () => {
+      const flags = await captureFlags('{"theme":"System"}')
+      expect(flags).toContain('--permission-mode auto')
+    })
+
+    it('falls back to the app default when state is corrupt', async () => {
+      // loadState treats corrupt state as "not precious" and returns defaults
+      // rather than throwing (stateStore.ts), so this lands on the same 'auto'
+      // a fresh install gets — not on the no-default path.
+      const flags = await captureFlags('{ not json')
+      expect(flags).toContain('--permission-mode auto')
+    })
+  })
+
   it('spec filePath is the resolved shell, not "claude"', async () => {
     let captured: import('../../../src/core/models').LaunchSpec | null = null
     const deps = makeDeps({

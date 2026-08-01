@@ -32,6 +32,7 @@ const defaultState: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 describe('loadState', () => {

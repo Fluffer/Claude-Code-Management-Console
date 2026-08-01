@@ -17,6 +17,7 @@ const DEFAULT_STATE: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 describe('useAppState', () => {

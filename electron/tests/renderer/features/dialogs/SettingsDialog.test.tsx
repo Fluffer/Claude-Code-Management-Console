@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { ThemeProvider } from '../../../../src/renderer/theme/ThemeProvider'
@@ -35,6 +35,7 @@ const baseState: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 const baseConfig: LauncherConfig = {
@@ -132,9 +133,10 @@ describe('SettingsDialog', () => {
     const user = userEvent.setup()
     renderSettings()
     const select = await screen.findByLabelText(/open sessions in/i)
-    // Auto + the two detected terminals
-    expect(screen.getByRole('option', { name: /Auto/i })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Windows Terminal AI' })).toBeInTheDocument()
+    // Auto + the two detected terminals. Scoped to this select: the permission
+    // mode picker also has an option whose name contains "auto".
+    expect(within(select).getByRole('option', { name: /Auto/i })).toBeInTheDocument()
+    expect(within(select).getByRole('option', { name: 'Windows Terminal AI' })).toBeInTheDocument()
 
     await user.selectOptions(select, 'wtai')
     await user.click(screen.getByRole('button', { name: /save/i }))
@@ -142,6 +144,37 @@ describe('SettingsDialog', () => {
       expect(getMockInvoke()).toHaveBeenCalledWith(
         'state:write',
         expect.objectContaining({ terminalId: 'wtai' }),
+      )
+    })
+  })
+
+  it('defaults the permission mode to auto and persists a change', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+    const select = (await screen.findByLabelText(/default permission mode/i)) as HTMLSelectElement
+    expect(select.value).toBe('auto')
+
+    await user.selectOptions(select, 'plan')
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => {
+      expect(getMockInvoke()).toHaveBeenCalledWith(
+        'state:write',
+        expect.objectContaining({ defaultPermissionMode: 'plan' }),
+      )
+    })
+  })
+
+  it('can hand the permission decision back to the CLI', async () => {
+    const user = userEvent.setup()
+    renderSettings()
+    const select = (await screen.findByLabelText(/default permission mode/i)) as HTMLSelectElement
+
+    await user.selectOptions(select, '')
+    await user.click(screen.getByRole('button', { name: /save/i }))
+    await waitFor(() => {
+      expect(getMockInvoke()).toHaveBeenCalledWith(
+        'state:write',
+        expect.objectContaining({ defaultPermissionMode: '' }),
       )
     })
   })

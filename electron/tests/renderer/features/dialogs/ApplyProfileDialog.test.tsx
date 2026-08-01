@@ -39,6 +39,7 @@ const STATE: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  defaultPermissionMode: 'auto',
 }
 
 const CONFIG: LauncherConfig = {

@@ -33,6 +33,7 @@ import { DuplicateProjectDialog } from './DuplicateProjectDialog'
 import { CommitDialog } from './CommitDialog'
 import { OpenPrDialog } from './OpenPrDialog'
 import { ApplyProfileDialog } from './ApplyProfileDialog'
+import { DroppedFolderDialog } from './DroppedFolderDialog'
 import type { ProjectInfo } from '../../../core/models'
 
 // ---------------------------------------------------------------------------
@@ -52,6 +53,7 @@ export type DialogRequest =
   | { kind: 'manage-groups'; projects: ProjectInfo[] }
   | { kind: 'manage-profiles' }
   | { kind: 'apply-profile'; project: ProjectInfo }
+  | { kind: 'dropped-folder'; path: string; onToast: (m: string, k: 'info' | 'error') => void }
   | { kind: 'manage-filters' }
   | { kind: 'settings' }
   | { kind: 'pick-worktree'; project: ProjectInfo }
@@ -218,6 +220,16 @@ export function DialogsProvider({
           project={active.project}
           onClose={handleClose}
           onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'dropped-folder' && (
+        <DroppedFolderDialog
+          open={true}
+          path={active.path}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+          onToast={active.onToast}
         />
       )}
 

@@ -24,3 +24,37 @@ export function currentModel(flags: string | null): string | null {
   const m = /--model\s+(\S+)/.exec(flags ?? '')
   return m ? m[1] : null
 }
+
+/** Matches --permission-mode in either the flag=value or flag value form. */
+const PERMISSION_MODE_FLAG = /--permission-mode(\s+|=)\S+/
+
+/**
+ * Returns the value of the --permission-mode flag, or null if absent.
+ */
+export function currentPermissionMode(flags: string | null): string | null {
+  const m = /--permission-mode(?:\s+|=)(\S+)/.exec(flags ?? '')
+  return m ? m[1] : null
+}
+
+/**
+ * Appends the app-wide default --permission-mode, but only when the flags do
+ * not already carry one.
+ *
+ * Anything the user set explicitly wins: a per-project flag, or an applied
+ * launch profile, both of which land in the same flags string. This only fills
+ * the gap for projects that never said anything about permissions, so turning
+ * the default on cannot silently override a project deliberately pinned to
+ * `plan`.
+ *
+ * A blank or null `mode` is "no default" and leaves the flags untouched.
+ */
+export function withDefaultPermissionMode(
+  flags: string | null,
+  mode: string | null,
+): string {
+  const existing = (flags ?? '').trim()
+  if (!mode || mode.trim().length === 0) return existing
+  if (PERMISSION_MODE_FLAG.test(existing)) return existing
+  const token = `--permission-mode ${mode.trim()}`
+  return existing.length === 0 ? token : `${existing} ${token}`
+}

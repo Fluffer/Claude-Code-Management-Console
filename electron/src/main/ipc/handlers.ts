@@ -27,6 +27,7 @@ import { renameProject, moveProjectToRoot } from '../services/projectMover'
 import { deleteProject } from '../services/projectDeleter'
 import { claudeMdPath, hasClaudeMdInProject } from '../services/projectClaudeStore'
 import { resolveProjectModel } from '../services/projectModelStore'
+import { withDefaultPermissionMode } from '../../core/config/flagsEditor'
 import { buildLaunchSpec } from '../../core/launch/launchCommandBuilder'
 import { buildInvocation } from '../../core/launch/batchInvocation'
 import { terminalsForPlatform, WINDOWS_TERMINAL_EXE } from '../../core/launch/terminals'
@@ -213,6 +214,24 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
     if (!exe) return null
     const resolved = await commandLocator.findTerminalPath(exe)
     return resolved !== null ? { id: terminalId, path: resolved } : null
+  }
+
+  /**
+   * The app-wide default --permission-mode from state.json.
+   *
+   * Corrupt or absent state does not reach the catch — loadState returns app
+   * defaults for that case, so it yields the same 'auto' a fresh install gets.
+   * The catch is for a genuine IO failure (locked file, permission denied),
+   * where '' hands the decision to the CLI rather than assuming a more
+   * permissive mode than the user chose. Either way a launch is never blocked
+   * by a bad state file.
+   */
+  async function resolveDefaultPermissionMode(): Promise<string> {
+    try {
+      return (await loadState(statePath)).defaultPermissionMode ?? ''
+    } catch {
+      return ''
+    }
   }
 
   return {
@@ -478,7 +497,12 @@ export function createHandlers(deps: IpcHandlerDeps): HandlerMap {
         throw new TypeError(`IPC validation: 'continueSession' must be a boolean`)
       }
       const continueSession = obj['continueSession'] as boolean
-      const flags = typeof obj['flags'] === 'string' ? obj['flags'] : ''
+      const requestedFlags = typeof obj['flags'] === 'string' ? obj['flags'] : ''
+      // Every launch path in the app funnels through here — rows, palette,
+      // groups, recents, tray jump list, deep links — so this is the one place
+      // the app-wide permission-mode default has to be applied. It never
+      // overrides a mode already in the project's flags or an applied profile.
+      const flags = withDefaultPermissionMode(requestedFlags, await resolveDefaultPermissionMode())
       const initialPrompt =
         obj['initialPrompt'] === null || obj['initialPrompt'] === undefined
           ? null

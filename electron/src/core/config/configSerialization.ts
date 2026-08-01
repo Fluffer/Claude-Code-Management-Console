@@ -207,6 +207,10 @@ const APP_STATE_DEFAULTS: AppState = {
   savedFilters: [],
   closeToTray: false,
   terminalId: '',
+  // Sessions start in auto permission mode unless the project's own flags or an
+  // applied profile say otherwise. Set to '' in Settings to hand the decision
+  // back to the CLI's own default.
+  defaultPermissionMode: 'auto',
 }
 
 /**
@@ -246,6 +250,9 @@ export function parseState(json: string): AppState {
     savedFilters,
     closeToTray: (raw.closeToTray as boolean | undefined) ?? false,
     terminalId: (raw.terminalId as string | undefined) ?? '',
+    // ?? not ||, so an explicit '' (user chose "leave it to the CLI") survives a
+    // round-trip instead of snapping back to 'auto'.
+    defaultPermissionMode: (raw.defaultPermissionMode as string | undefined) ?? 'auto',
   }
 }
 
@@ -315,6 +322,7 @@ export function serializeState(state: AppState): string {
     })),
     closeToTray: state.closeToTray,
     terminalId: state.terminalId ?? '',
+    defaultPermissionMode: state.defaultPermissionMode ?? 'auto',
   }
 
   return encObj(obj, 0)
