@@ -62,6 +62,9 @@ function MainWindow(): React.ReactElement {
 
   const [config, setConfig] = useState<LauncherConfig | null>(null)
   const [searchText, setSearchText] = useState('')
+  // Focused by Ctrl+F, which the placeholder, status bar and onboarding banner
+  // all advertise.
+  const searchRef = useRef<HTMLInputElement>(null)
   const [selectedSidebar, setSelectedSidebar] = useState<SidebarEntry | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -104,6 +107,14 @@ function MainWindow(): React.ReactElement {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'p')) {
         e.preventDefault()
         setPaletteOpen((o) => !o)
+      }
+      // Ctrl/Cmd+F → focus the search box and select what's there, so a second
+      // search overwrites rather than appends. Not blocked while typing: the
+      // whole point is to jump to search from wherever you are.
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault()
+        searchRef.current?.focus()
+        searchRef.current?.select()
       }
       // Ctrl/Cmd+N → new project dialog (blocked while typing in inputs)
       if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
@@ -286,7 +297,7 @@ function MainWindow(): React.ReactElement {
           break
 
         case 'apply-profile':
-          openDialog({ kind: 'manage-profiles' })
+          openDialog({ kind: 'apply-profile', project: action.project })
           break
 
         case 'move-to-root':
@@ -693,6 +704,7 @@ function MainWindow(): React.ReactElement {
           {/* Search row */}
           <div className="flex gap-2 mb-2">
             <TextInput
+              ref={searchRef}
               value={searchText}
               onChange={setSearchText}
               placeholder="Search projects   (Ctrl+F)"

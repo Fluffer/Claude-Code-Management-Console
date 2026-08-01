@@ -9,7 +9,8 @@ import { createProcessInspector } from './os/processInspector'
 import { createSessionKiller } from './os/sessionKiller'
 import { createTerminalLauncher } from './os/terminalLauncher'
 import { createCommandLocator } from './os/commandLocator'
-import { watchPaths } from './os/fileWatch'
+import { watchPaths, type Disposer } from './os/fileWatch'
+import { loadConfig } from './services/configStore'
 import { consumeSelfWrite } from './os/selfWriteTracker'
 import { registerIpc } from './ipc/register'
 import { createApproverService } from './services/approverService'
@@ -213,7 +214,63 @@ if (!gotLock) {
       // Tray menu and jump list are built from state.json, so they must follow
       // our own writes too — a pin change has to show up there immediately.
       shellIntegration.refresh()
+
+      // The set of roots may have just changed (Settings, drag-drop, clone), so
+      // re-point the source-root watcher at whatever is configured now.
+      void resyncRootWatcher()
     })
+
+    // ------------------------------------------------------------------------
+    // Source-root watcher — picks up project folders created or removed outside
+    // the app. Separate from the config/state watcher above because it needs
+    // different options: depth 0, since a root's immediate children are the
+    // projects and descending into each project's node_modules would be
+    // ruinous; and directory events, since a new project IS a new directory and
+    // nothing else about it changes.
+    //
+    // Rebuilt whenever config changes, because roots are user-editable at
+    // runtime. Roots are ordinary source folders, so unlike ~/.claude they
+    // watch cleanly.
+    // ------------------------------------------------------------------------
+    let disposeRootWatcher: Disposer | null = null
+    let watchedRoots: string[] = []
+
+    async function resyncRootWatcher(): Promise<void> {
+      let roots: string[]
+      try {
+        roots = (await loadConfig(configPath)).roots ?? []
+      } catch (err) {
+        console.warn('[watch] could not read roots:', (err as Error)?.message ?? err)
+        return
+      }
+
+      // Cheap identity check — config changes for many reasons (a launch stamps
+      // lastUsed), and tearing down chokidar on every one of them is waste.
+      const same =
+        roots.length === watchedRoots.length && roots.every((r, i) => r === watchedRoots[i])
+      if (same && disposeRootWatcher !== null) return
+
+      if (disposeRootWatcher !== null) {
+        await disposeRootWatcher()
+        disposeRootWatcher = null
+      }
+      watchedRoots = roots
+      if (roots.length === 0) return
+
+      console.log('[watch] source roots:', roots.join(', '))
+      disposeRootWatcher = watchPaths(
+        roots,
+        (changed) => {
+          console.log('[watch] project folder changed:', changed.join(', '))
+          if (mainWindow !== null && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('event:fileChanged', { path: changed[0] })
+          }
+        },
+        { depth: 0, watchDirectories: true },
+      )
+    }
+
+    void resyncRootWatcher()
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) {

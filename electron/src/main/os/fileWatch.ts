@@ -14,7 +14,28 @@ export type Disposer = () => Promise<void>
  * `ignoreInitial: true` suppresses the synthetic "add" events on startup so
  * only real filesystem mutations trigger the callback.
  */
-export function watchPaths(paths: string[], onChange: (changed: string[]) => void): Disposer {
+export interface WatchOptions {
+  /**
+   * chokidar traversal depth. Defaults to 3, which suits watching individual
+   * files. Pass 0 when watching a directory whose immediate children are the
+   * only thing of interest — source roots hold project folders that each
+   * contain node_modules, and recursing into those is ruinous.
+   */
+  depth?: number
+  /**
+   * Also report directory add/remove. Off by default: the config/state watcher
+   * only cares about files, and reporting dirs there would fire on the atomic
+   * write staging folder. Source-root watching needs it — a new project IS a
+   * new directory, and nothing else about it changes.
+   */
+  watchDirectories?: boolean
+}
+
+export function watchPaths(
+  paths: string[],
+  onChange: (changed: string[]) => void,
+  options: WatchOptions = {},
+): Disposer {
   let timer: ReturnType<typeof setTimeout> | null = null
   let pending = new Set<string>()
 
@@ -42,12 +63,16 @@ export function watchPaths(paths: string[], onChange: (changed: string[]) => voi
     ignorePermissionErrors: true,
     // Avoid recursing into huge/volatile trees (e.g. ~/.claude/projects with
     // thousands of session files) which is both expensive and EPERM-prone.
-    depth: 3,
+    depth: options.depth ?? 3,
   })
 
   watcher.on('add', debounced)
   watcher.on('change', debounced)
   watcher.on('unlink', debounced)
+  if (options.watchDirectories === true) {
+    watcher.on('addDir', debounced)
+    watcher.on('unlinkDir', debounced)
+  }
   // CRITICAL: chokidar emits 'error' (e.g. EPERM) as an EventEmitter event.
   // With no listener, Node re-throws it as an uncaught exception that takes
   // down the main process. Swallow + log instead — a watch failure on one path

@@ -1,5 +1,8 @@
 /**
  * TextInput — Fluent-ish single-line text input (maps to WinUI TextBox).
+ *
+ * Forwards its ref to the underlying <input> so callers can focus it
+ * programmatically (the search box does this for Ctrl+F).
  */
 import React from 'react'
 
@@ -8,9 +11,13 @@ interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement
   onChange: (value: string) => void
 }
 
-export function TextInput({ value, onChange, className = '', ...props }: TextInputProps): React.ReactElement {
+export const TextInput = React.forwardRef<HTMLInputElement, TextInputProps>(function TextInput(
+  { value, onChange, className = '', ...props },
+  ref,
+): React.ReactElement {
   return (
     <input
+      ref={ref}
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -27,4 +34,4 @@ export function TextInput({ value, onChange, className = '', ...props }: TextInp
       {...props}
     />
   )
-}
+})

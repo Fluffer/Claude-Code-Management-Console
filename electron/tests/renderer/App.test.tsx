@@ -86,6 +86,34 @@ describe('App (integration)', () => {
     expect(screen.getByText('alpha')).toBeInTheDocument()
   })
 
+  it('Ctrl+F focuses the search box', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('alpha')).toBeInTheDocument())
+
+    const searchBox = screen.getByPlaceholderText(/search/i)
+    expect(searchBox).not.toHaveFocus()
+
+    await user.keyboard('{Control>}f{/Control}')
+    expect(searchBox).toHaveFocus()
+  })
+
+  it('Ctrl+F selects existing text so the next search replaces it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('alpha')).toBeInTheDocument())
+
+    const searchBox = screen.getByPlaceholderText(/search/i) as HTMLInputElement
+    await user.type(searchBox, 'alp')
+    // Focus something else, then come back via the shortcut.
+    searchBox.blur()
+
+    await user.keyboard('{Control>}f{/Control}')
+    expect(searchBox).toHaveFocus()
+    expect(searchBox.selectionStart).toBe(0)
+    expect(searchBox.selectionEnd).toBe('alp'.length)
+  })
+
   it('shows running badge when a session matches a project path', async () => {
     const session: RunningSession = {
       pid: 1001,

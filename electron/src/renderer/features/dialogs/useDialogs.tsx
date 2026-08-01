@@ -32,6 +32,7 @@ import { CloneRepoDialog } from './CloneRepoDialog'
 import { DuplicateProjectDialog } from './DuplicateProjectDialog'
 import { CommitDialog } from './CommitDialog'
 import { OpenPrDialog } from './OpenPrDialog'
+import { ApplyProfileDialog } from './ApplyProfileDialog'
 import type { ProjectInfo } from '../../../core/models'
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ export type DialogRequest =
   | { kind: 'run-command'; project: ProjectInfo }
   | { kind: 'manage-groups'; projects: ProjectInfo[] }
   | { kind: 'manage-profiles' }
+  | { kind: 'apply-profile'; project: ProjectInfo }
   | { kind: 'manage-filters' }
   | { kind: 'settings' }
   | { kind: 'pick-worktree'; project: ProjectInfo }
@@ -205,6 +207,15 @@ export function DialogsProvider({
       {active?.kind === 'manage-profiles' && (
         <ProfileManagerDialog
           open={true}
+          onClose={handleClose}
+          onRefresh={handleRefresh}
+        />
+      )}
+
+      {active?.kind === 'apply-profile' && (
+        <ApplyProfileDialog
+          open={true}
+          project={active.project}
           onClose={handleClose}
           onRefresh={handleRefresh}
         />

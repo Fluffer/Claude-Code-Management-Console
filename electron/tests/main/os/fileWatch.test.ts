@@ -88,4 +88,75 @@ describe('watchPaths', () => {
 
     expect(called).toBe(true)
   }, 8000)
+
+  // The source-root watcher's configuration: a new project is a new directory,
+  // and nothing below the root's immediate children is worth descending into.
+  describe('watchDirectories', () => {
+    it('ignores a new subdirectory by default', async () => {
+      let called = false
+      const disposer = watchPaths([tmpDir], () => { called = true })
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 300))
+      await fs.mkdir(path.join(tmpDir, 'new-project'))
+      await new Promise<void>((resolve) => setTimeout(resolve, 600))
+      await disposer()
+
+      expect(called).toBe(false)
+    }, 8000)
+
+    it('reports a new subdirectory when enabled', async () => {
+      const changed: string[] = []
+      const disposer = watchPaths([tmpDir], (paths) => { changed.push(...paths) }, {
+        depth: 0,
+        watchDirectories: true,
+      })
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 300))
+      const projectDir = path.join(tmpDir, 'new-project')
+      await fs.mkdir(projectDir)
+      await new Promise<void>((resolve) => setTimeout(resolve, 600))
+      await disposer()
+
+      expect(changed).toContain(projectDir)
+    }, 8000)
+
+    it('reports a removed subdirectory when enabled', async () => {
+      const projectDir = path.join(tmpDir, 'doomed-project')
+      await fs.mkdir(projectDir)
+
+      const changed: string[] = []
+      const disposer = watchPaths([tmpDir], (paths) => { changed.push(...paths) }, {
+        depth: 0,
+        watchDirectories: true,
+      })
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 300))
+      await fs.rm(projectDir, { recursive: true, force: true })
+      await new Promise<void>((resolve) => setTimeout(resolve, 600))
+      await disposer()
+
+      expect(changed).toContain(projectDir)
+    }, 8000)
+
+    it('does not descend past the root at depth 0', async () => {
+      // A project's own contents (node_modules and friends) must not register —
+      // that recursion is what makes watching source roots expensive.
+      const projectDir = path.join(tmpDir, 'proj')
+      const nested = path.join(projectDir, 'node_modules')
+      await fs.mkdir(nested, { recursive: true })
+
+      const changed: string[] = []
+      const disposer = watchPaths([tmpDir], (paths) => { changed.push(...paths) }, {
+        depth: 0,
+        watchDirectories: true,
+      })
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 300))
+      await fs.writeFile(path.join(nested, 'dep.js'), 'module.exports = 1', 'utf8')
+      await new Promise<void>((resolve) => setTimeout(resolve, 600))
+      await disposer()
+
+      expect(changed).toEqual([])
+    }, 8000)
+  })
 })
