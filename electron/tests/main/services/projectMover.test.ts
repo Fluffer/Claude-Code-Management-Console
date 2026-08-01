@@ -71,7 +71,6 @@ describe('renameProject', () => {
   })
 
   it('rejects case-only rename with invalid characters', async () => {
-    const original = path.join(tmpDir, 'my:proj')
     // Can't create folder with colon on Windows — test the guard directly
     // by testing a rename where old and new differ only in case but new has bad chars
     // We test the guard via a valid-name folder

@@ -60,7 +60,6 @@ describe('EnvEditorDialog', () => {
       <EnvEditorDialog open={true} project={project} onClose={vi.fn()} onRefresh={vi.fn()} />,
     )
     await waitFor(() => screen.getByText('API_KEY'))
-    const inputs = screen.getAllByDisplayValue('')
     // password inputs don't show values — check that type="password" inputs exist
     const passwordInputs = document.querySelectorAll('input[type="password"]')
     expect(passwordInputs.length).toBeGreaterThan(0)

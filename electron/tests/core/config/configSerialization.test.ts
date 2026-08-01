@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseConfig, serializeConfig, parseState, serializeState, createDefaultConfig } from '../../../src/core/config/configSerialization'
-import type { LauncherConfig, AppState } from '../../../src/core/models'
+import type { AppState } from '../../../src/core/models'
 
 // ---------------------------------------------------------------------------
 // LauncherConfig parse / serialize

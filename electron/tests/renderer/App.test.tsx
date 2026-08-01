@@ -109,7 +109,7 @@ describe('App (integration)', () => {
     const user = userEvent.setup()
     const invoke = getMockInvoke()
     let scanCount = 0
-    invoke.mockImplementation(async (channel: string, req: unknown) => {
+    invoke.mockImplementation(async (channel: string, _req: unknown) => {
       if (channel === 'config:read') return CONFIG
       if (channel === 'state:read') return STATE
       if (channel === 'state:write') return undefined

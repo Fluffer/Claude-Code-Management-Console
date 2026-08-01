@@ -23,14 +23,6 @@ const PROJECT: ProjectInfo = {
   description: '',
 }
 
-const CONFIG = {
-  roots: ['/r1'],
-  defaultRoot: '/r1',
-  ignore: null,
-  hidden: null,
-  projects: null,
-}
-
 describe('DeleteProjectDialog', () => {
   beforeEach(() => {
     mockMatchMedia()

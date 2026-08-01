@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
-import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
+import { installMockCcmc, getMockInvoke } from '../../mockCcmc'
 import { RenameProjectDialog } from '../../../../src/renderer/features/dialogs/RenameProjectDialog'
 import type { ProjectInfo } from '../../../../src/core/models'
 
@@ -21,14 +21,6 @@ const PROJECT: ProjectInfo = {
   lastUsedUtc: null,
   flags: '',
   description: '',
-}
-
-const CONFIG = {
-  roots: ['/r1'],
-  defaultRoot: '/r1',
-  ignore: null,
-  hidden: null,
-  projects: null,
 }
 
 describe('RenameProjectDialog', () => {

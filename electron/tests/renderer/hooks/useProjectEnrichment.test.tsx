@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
-import { installMockCcmc, setChannelResponse, emitEvent, getMockInvoke } from '../mockCcmc'
+import { installMockCcmc, emitEvent, getMockInvoke } from '../mockCcmc'
 import { useProjectEnrichment } from '../../../src/renderer/hooks/useProjectEnrichment'
 import type { ProjectInfo, GitInfo } from '../../../src/core/models'
 
@@ -52,8 +52,7 @@ describe('useProjectEnrichment', () => {
 
   it('normalizes an empty branch ("" from non-git paths) to null', async () => {
     const invoke = getMockInvoke()
-    invoke.mockImplementation(async (channel: string, req: unknown) => {
-      const r = req as { path: string }
+    invoke.mockImplementation(async (channel: string, _req: unknown) => {
       if (channel === 'git:info') return { branch: '', isDirty: null } as GitInfo
       if (channel === 'projects:claudeInfo') return CLAUDE_INFO_DEFAULT
       throw new Error(`Unhandled: ${channel}`)

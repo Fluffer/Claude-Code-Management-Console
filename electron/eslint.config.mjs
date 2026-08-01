@@ -9,7 +9,7 @@ export default [
     ignores: ['out/**', 'dist/**', '.vite/**', 'node_modules/**']
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
     languageOptions: {
       parser: tsparser,
       parserOptions: {
@@ -25,6 +25,14 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ],
       'react/react-in-jsx-scope': 'off',
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn'

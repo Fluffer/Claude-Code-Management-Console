@@ -52,7 +52,7 @@ describe('listSessions', () => {
     const line1 = JSON.stringify({ message: { content: 'Hello first' } })
     const line2 = JSON.stringify({ message: { content: 'Hello second' } })
 
-    const f1 = await writeSessionFile(dir, id1, line1)
+    await writeSessionFile(dir, id1, line1)
     await new Promise<void>((r) => setTimeout(r, 50))
     await writeSessionFile(dir, id2, line2)
 
