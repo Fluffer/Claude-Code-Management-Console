@@ -38,11 +38,11 @@ describe('McpViewerDialog', () => {
     ])
   })
 
-  it('renders the dialog title', () => {
+  it('renders the dialog title', async () => {
     render(
       <McpViewerDialog open={true} project={project} onClose={vi.fn()} />,
     )
-    expect(screen.getByText(/MCP servers — my-project/i)).toBeInTheDocument()
+    expect(await screen.findByText(/MCP servers — my-project/i)).toBeInTheDocument()
   })
 
   it('displays server list from mcp:read', async () => {

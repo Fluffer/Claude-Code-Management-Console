@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { settle } from '../../settle'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
@@ -47,6 +48,7 @@ describe('ResumeSessionDialog', () => {
       />,
     )
     expect(screen.getByText('Sessions')).toBeInTheDocument()
+    await settle()
   })
 
   it('loads and displays sessions from sessions:listHistory', async () => {

@@ -195,7 +195,12 @@ export interface IpcMap {
 // ---------------------------------------------------------------------------
 
 export interface IpcEvents {
-  'event:deepLink': { url: string }
+  /**
+   * `trusted` is set for links the app raised itself (tray menu, jump list),
+   * which reuse the deep-link path for delivery. Untrusted links come from
+   * outside the app and are confirmed before a session starts.
+   */
+  'event:deepLink': { url: string; trusted?: boolean }
   'event:fileChanged': { path: string }
   'event:openPalette': void
 }

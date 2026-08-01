@@ -17,7 +17,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
-    "package": "electron-vite build && electron-builder --win appx"
+    "package": "electron-vite build && electron-builder --win appx",
+    "release": "npm version patch --no-git-tag-version && npm run package"
   },
   "dependencies": {
     "chokidar": "^3.6.0",

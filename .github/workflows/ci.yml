@@ -1,0 +1,58 @@
+name: CI
+
+# The suite only gated releases when someone remembered to run it locally.
+# Windows runner because the app is Windows-only: the process inspector, the
+# terminal launcher and the approver daemon all take the win32 branch, and a
+# Linux runner would silently skip exactly the code most likely to break.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: electron
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+  powershell:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Separate job: PSScriptAnalyzer is a module install, and this needs none
+      # of the npm setup above. Kept out of `npm run lint` for the same reason —
+      # a machine without the module should still be able to lint the JS.
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+
+      # Invoked directly rather than via `npm run lint:ps`, so this job needs no
+      # node install at all — the script only shells out to PSScriptAnalyzer.
+      - name: Lint PowerShell
+        shell: pwsh
+        run: ./electron/scripts/lint-ps.ps1

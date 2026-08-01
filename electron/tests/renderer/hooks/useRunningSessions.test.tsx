@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
+import { settle } from '../settle'
 import { installMockCcmc, setChannelResponse, emitEvent, getMockInvoke } from '../mockCcmc'
 import { useRunningSessions } from '../../../src/renderer/hooks/useRunningSessions'
 import type { RunningSession } from '../../../src/core/models'
@@ -19,10 +20,11 @@ describe('useRunningSessions', () => {
     vi.useRealTimers()
   })
 
-  it('starts in loading state', () => {
+  it('starts in loading state', async () => {
     setChannelResponse('sessions:listRunning', [])
     const { result } = renderHook(() => useRunningSessions())
     expect(result.current.loading).toBe(true)
+    await settle()
   })
 
   it('loads running sessions on mount', async () => {

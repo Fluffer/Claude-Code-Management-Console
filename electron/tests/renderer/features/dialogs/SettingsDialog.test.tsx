@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
+import { settle } from '../../settle'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { ThemeProvider } from '../../../../src/renderer/theme/ThemeProvider'
@@ -78,6 +79,7 @@ describe('SettingsDialog', () => {
   it('renders the dialog title', async () => {
     renderSettings()
     expect(screen.getByText('Settings')).toBeInTheDocument()
+    await settle()
   })
 
   it('shows source roots from config:read', async () => {

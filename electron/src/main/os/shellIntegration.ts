@@ -24,7 +24,7 @@ export function installShellIntegration(deps: {
   win: BrowserWindow
   statePath: string
   iconPath: string | null
-  deliverDeepLink: (url: string) => void
+  deliverDeepLink: (url: string, trusted?: boolean) => void
   deliverOpenPalette: () => void
 }): ShellIntegration {
   const { app, win, statePath, iconPath, deliverDeepLink, deliverOpenPalette } = deps
@@ -67,7 +67,8 @@ export function installShellIntegration(deps: {
           return {
             label: item.label,
             click: () => {
-              deliverDeepLink(deepLinkBuilder.build(item.path))
+              // Trusted: the user clicked this entry in our own tray menu.
+              deliverDeepLink(deepLinkBuilder.build(item.path), true)
             },
           }
         case 'separator':

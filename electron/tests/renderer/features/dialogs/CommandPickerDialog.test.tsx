@@ -39,11 +39,11 @@ describe('CommandPickerDialog', () => {
     setChannelResponse('launch:run', { ok: true })
   })
 
-  it('renders the dialog title', () => {
+  it('renders the dialog title', async () => {
     render(
       <CommandPickerDialog open={true} project={project} onClose={vi.fn()} />,
     )
-    expect(screen.getByText(/Run command — my-project/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Run command — my-project/i)).toBeInTheDocument()
   })
 
   it('lists commands with leading slash from commands:list response', async () => {

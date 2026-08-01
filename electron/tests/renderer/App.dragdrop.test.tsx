@@ -8,6 +8,7 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { settle } from './settle'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc, setChannelResponse, getMockInvoke, setPathForFile } from './mockCcmc'
@@ -209,6 +210,8 @@ describe('App drag-drop (#19)', () => {
 
     fireEvent.dragEnter(appRoot, dropEvent)
     fireEvent.drop(appRoot, dropEvent)
+    // The drop handler is async (fs:isDirectory then a toast); let it finish.
+    await settle()
 
     // Give async drop handler time to complete
     await new Promise((r) => setTimeout(r, 50))

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { settle } from '../../settle'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
@@ -53,6 +54,7 @@ describe('GroupManagerDialog', () => {
       <GroupManagerDialog open={true} projects={projects} onClose={vi.fn()} onRefresh={vi.fn()} />,
     )
     expect(screen.getByText('Launch Groups')).toBeInTheDocument()
+    await settle()
   })
 
   it('loads existing groups from state:read', async () => {

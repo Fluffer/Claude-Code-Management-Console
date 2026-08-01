@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { settle } from '../../settle'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
@@ -43,11 +44,11 @@ describe('WorktreePickerDialog', () => {
     setChannelResponse('git:addWorktree', { ok: true, path: '/r1/my-project-feat-x' })
   })
 
-  it('renders the dialog title', () => {
+  it('renders the dialog title', async () => {
     render(
       <WorktreePickerDialog open={true} project={project} onClose={vi.fn()} />,
     )
-    expect(screen.getByText(/Worktrees — my-project/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Worktrees — my-project/i)).toBeInTheDocument()
   })
 
   it('lists worktrees from git:worktrees', async () => {
@@ -141,6 +142,7 @@ describe('WorktreePickerDialog', () => {
       <WorktreePickerDialog open={true} project={project} onClose={vi.fn()} />,
     )
     expect(screen.getByRole('button', { name: /create & launch/i })).toBeDisabled()
+    await settle()
   })
 
   it('shows a live resolved path preview as the branch is typed', async () => {

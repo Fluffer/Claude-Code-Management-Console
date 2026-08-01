@@ -23,61 +23,89 @@ const PROJECTS: ProjectInfo[] = [
   },
 ]
 
+function setup(): {
+  onAction: ReturnType<typeof vi.fn>
+  onUnresolved: ReturnType<typeof vi.fn>
+  onConfirm: ReturnType<typeof vi.fn>
+  unmount: () => void
+} {
+  const onAction = vi.fn()
+  const onUnresolved = vi.fn()
+  const onConfirm = vi.fn()
+  const { unmount } = renderHook(() =>
+    useDeepLink({ projects: PROJECTS, onAction, onUnresolved, onConfirm }),
+  )
+  return { onAction, onUnresolved, onConfirm, unmount }
+}
+
 describe('useDeepLink', () => {
   beforeEach(() => {
     installMockCcmc()
   })
 
-  it('dispatches launch-continue when newSession is false (match by path)', () => {
-    const onAction = vi.fn()
-    const onUnresolved = vi.fn()
-
-    renderHook(() => useDeepLink({ projects: PROJECTS, onAction, onUnresolved }))
-
-    act(() => {
-      emitEvent('event:deepLink', { url: 'ccmc://launch?project=C%3A%5CDev%5Cmy-app' })
-    })
-
-    expect(onAction).toHaveBeenCalledOnce()
-    expect(onAction).toHaveBeenCalledWith({ kind: 'launch-continue', project: PROJECTS[0] })
-    expect(onUnresolved).not.toHaveBeenCalled()
-  })
-
-  it('dispatches launch-new when newSession is true (match by name)', () => {
-    const onAction = vi.fn()
-    const onUnresolved = vi.fn()
-
-    renderHook(() => useDeepLink({ projects: PROJECTS, onAction, onUnresolved }))
+  // The security property: a deep link is the one launch path the app does not
+  // initiate, so it must never reach onAction (the launcher) on its own.
+  it('never launches without confirmation', () => {
+    const { onAction, onConfirm } = setup()
 
     act(() => {
       emitEvent('event:deepLink', { url: 'ccmc://launch?project=my-app&new=true' })
     })
 
-    expect(onAction).toHaveBeenCalledOnce()
-    expect(onAction).toHaveBeenCalledWith({ kind: 'launch-new', project: PROJECTS[0] })
+    expect(onAction).not.toHaveBeenCalled()
+    expect(onConfirm).toHaveBeenCalledOnce()
+  })
+
+  it('launches a trusted link straight away (tray menu, jump list)', () => {
+    const { onAction, onConfirm } = setup()
+
+    act(() => {
+      emitEvent('event:deepLink', {
+        url: 'ccmc://launch?project=my-app',
+        trusted: true,
+      })
+    })
+
+    expect(onAction).toHaveBeenCalledWith({ kind: 'launch-continue', project: PROJECTS[0] })
+    expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('asks to confirm a continue (match by path)', () => {
+    const { onUnresolved, onConfirm } = setup()
+
+    act(() => {
+      emitEvent('event:deepLink', { url: 'ccmc://launch?project=C%3A%5CDev%5Cmy-app' })
+    })
+
+    expect(onConfirm).toHaveBeenCalledOnce()
+    expect(onConfirm).toHaveBeenCalledWith(PROJECTS[0], false)
+    expect(onUnresolved).not.toHaveBeenCalled()
+  })
+
+  it('asks to confirm a new session (match by name)', () => {
+    const { onUnresolved, onConfirm } = setup()
+
+    act(() => {
+      emitEvent('event:deepLink', { url: 'ccmc://launch?project=my-app&new=true' })
+    })
+
+    expect(onConfirm).toHaveBeenCalledWith(PROJECTS[0], true)
     expect(onUnresolved).not.toHaveBeenCalled()
   })
 
   it('matches project name case-insensitively', () => {
-    const onAction = vi.fn()
-    const onUnresolved = vi.fn()
-
-    renderHook(() => useDeepLink({ projects: PROJECTS, onAction, onUnresolved }))
+    const { onUnresolved, onConfirm } = setup()
 
     act(() => {
       emitEvent('event:deepLink', { url: 'ccmc://launch?project=OTHER+PROJECT' })
     })
 
-    expect(onAction).toHaveBeenCalledOnce()
-    expect(onAction).toHaveBeenCalledWith({ kind: 'launch-continue', project: PROJECTS[1] })
+    expect(onConfirm).toHaveBeenCalledWith(PROJECTS[1], false)
     expect(onUnresolved).not.toHaveBeenCalled()
   })
 
   it('calls onUnresolved when project is not found', () => {
-    const onAction = vi.fn()
-    const onUnresolved = vi.fn()
-
-    renderHook(() => useDeepLink({ projects: PROJECTS, onAction, onUnresolved }))
+    const { onAction, onUnresolved, onConfirm } = setup()
 
     act(() => {
       emitEvent('event:deepLink', { url: 'ccmc://launch?project=does-not-exist' })
@@ -86,13 +114,11 @@ describe('useDeepLink', () => {
     expect(onUnresolved).toHaveBeenCalledOnce()
     expect(onUnresolved).toHaveBeenCalledWith('Deep link: no project "does-not-exist"')
     expect(onAction).not.toHaveBeenCalled()
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 
   it('ignores non-launch actions', () => {
-    const onAction = vi.fn()
-    const onUnresolved = vi.fn()
-
-    renderHook(() => useDeepLink({ projects: PROJECTS, onAction, onUnresolved }))
+    const { onAction, onUnresolved, onConfirm } = setup()
 
     act(() => {
       emitEvent('event:deepLink', { url: 'ccmc://open?project=my-app' })
@@ -100,13 +126,11 @@ describe('useDeepLink', () => {
 
     expect(onAction).not.toHaveBeenCalled()
     expect(onUnresolved).not.toHaveBeenCalled()
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 
   it('ignores malformed / unparseable URLs', () => {
-    const onAction = vi.fn()
-    const onUnresolved = vi.fn()
-
-    renderHook(() => useDeepLink({ projects: PROJECTS, onAction, onUnresolved }))
+    const { onAction, onUnresolved, onConfirm } = setup()
 
     act(() => {
       emitEvent('event:deepLink', { url: 'not a url at all' })
@@ -114,15 +138,11 @@ describe('useDeepLink', () => {
 
     expect(onAction).not.toHaveBeenCalled()
     expect(onUnresolved).not.toHaveBeenCalled()
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 
   it('unsubscribes from event:deepLink on unmount', () => {
-    const onAction = vi.fn()
-    const onUnresolved = vi.fn()
-
-    const { unmount } = renderHook(() =>
-      useDeepLink({ projects: PROJECTS, onAction, onUnresolved }),
-    )
+    const { onAction, onConfirm, unmount } = setup()
 
     unmount()
 
@@ -131,5 +151,6 @@ describe('useDeepLink', () => {
     })
 
     expect(onAction).not.toHaveBeenCalled()
+    expect(onConfirm).not.toHaveBeenCalled()
   })
 })

@@ -125,24 +125,32 @@ docs/                  # design specs & implementation plans
 cd electron
 npm install
 npm run dev          # launch the app in development
-npm run lint         # eslint
+npm run lint         # eslint (src + tests)
+npm run lint:ps      # PSScriptAnalyzer over the .ps1 scripts (needs the module installed)
 npm test             # vitest run
 npm run build        # compile main/preload/renderer into out/
 ```
+
+Lint, typecheck and the test suite also run in CI on every push and pull request
+(`.github/workflows/ci.yml`, Windows runners — the app is Windows-only and a Linux runner
+would skip the platform code most likely to break).
 
 ### Package a signed MSIX/AppX
 
 ```powershell
 cd electron
 $env:SIGNTOOL_PATH = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe"
-npm run package      # electron-vite build && electron-builder --win appx
+npm run release      # bump the patch version, then build + package
 ```
+
+`npm run release` exists because AppX refuses to install over the same version, and bumping
+by hand is easy to forget until the install fails. It bumps without tagging, so the release
+commit stays hand-written. Use `npm run package` to build without bumping.
 
 Output lands in `electron/dist\Claude Code Management Console <ver>.appx`, signed with a
 public Certum code-signing cert (installs with no trust prompt). `SIGNTOOL_PATH` must point
-at a modern Windows SDK signtool — electron-builder's bundled one fails on this cert. Bump
-`electron/package.json` `version` before each release, or AppX refuses to install over the
-same version. To regenerate the taskbar/Start tiles after changing `resources/app.ico`, run
+at a modern Windows SDK signtool — electron-builder's bundled one fails on this cert. To
+regenerate the taskbar/Start tiles after changing `resources/app.ico`, run
 `electron/scripts/gen-appx-assets.ps1`, then repackage.
 
 ## Data & compatibility
@@ -163,6 +171,11 @@ same version. To regenerate the taskbar/Start tiles after changing `resources/ap
 - Session detection probes `%USERPROFILE%\.claude\projects\<encoded-path>` — an
   undocumented Claude Code internal. If the encoding ever changes, Continue simply
   reverts to always-enabled; nothing breaks.
+- Launches pass `claude -n <project name>`, and two features read that back: the terminal tab
+  keeps the name for the life of the session, and the live-session badge falls back to it when
+  a process's working directory can't be read (`core/os/sessionMatch.ts`). If `-n` ever changes
+  or goes away, neither breaks outright — the badge just gets less accurate, quietly. Same
+  class of dependency as the transcript-path encoding above.
 - Every handler that writes, deletes, executes or hands a path to the shell first confines it
   to a configured source root (`requireConfinedPath` in `electron/src/main/ipc/handlers.ts`),
   so a malformed IPC request cannot reach outside your project folders.

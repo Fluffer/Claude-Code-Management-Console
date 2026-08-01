@@ -530,6 +530,8 @@ function MainWindow(): React.ReactElement {
     projects,
     onAction,
     onUnresolved: (m) => showToast(m, 'error'),
+    onConfirm: (project, newSession) =>
+      openDialog({ kind: 'confirm-deep-link', project, newSession, onAction }),
   })
 
   useEffect(() => {

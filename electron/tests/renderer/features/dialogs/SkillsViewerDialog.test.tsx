@@ -38,11 +38,11 @@ describe('SkillsViewerDialog', () => {
     ])
   })
 
-  it('renders the dialog title', () => {
+  it('renders the dialog title', async () => {
     render(
       <SkillsViewerDialog open={true} project={project} onClose={vi.fn()} />,
     )
-    expect(screen.getByText(/Skills — my-project/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Skills — my-project/i)).toBeInTheDocument()
   })
 
   it('populates the list from the skills:list response', async () => {

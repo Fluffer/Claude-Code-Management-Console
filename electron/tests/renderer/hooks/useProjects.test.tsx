@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor, act } from '@testing-library/react'
+import { settle } from '../settle'
 import { installMockCcmc, setChannelResponse, emitEvent, getMockInvoke } from '../mockCcmc'
 import { useProjects } from '../../../src/renderer/hooks/useProjects'
 import type { LauncherConfig } from '../../../src/core/models'
@@ -25,10 +26,11 @@ describe('useProjects', () => {
     installMockCcmc()
   })
 
-  it('starts in loading state', () => {
+  it('starts in loading state', async () => {
     setChannelResponse('config:read', CONFIG_NO_ROOTS)
     const { result } = renderHook(() => useProjects())
     expect(result.current.loading).toBe(true)
+    await settle()
   })
 
   it('returns empty array when no roots configured', async () => {

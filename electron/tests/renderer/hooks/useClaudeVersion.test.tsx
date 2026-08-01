@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
+import { settle } from '../settle'
 import { installMockCcmc, setChannelResponse } from '../mockCcmc'
 import { useClaudeVersion } from '../../../src/renderer/hooks/useClaudeVersion'
 
@@ -8,11 +9,12 @@ describe('useClaudeVersion', () => {
     installMockCcmc()
   })
 
-  it('returns null before resolving', () => {
+  it('returns null before resolving', async () => {
     setChannelResponse('claude:version', { version: '1.2.3' })
     const { result } = renderHook(() => useClaudeVersion())
     // Synchronously null before the promise resolves
     expect(result.current.version).toBeNull()
+    await settle()
   })
 
   it('returns the version string after IPC resolves', async () => {

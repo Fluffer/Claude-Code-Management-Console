@@ -34,7 +34,9 @@ import { CommitDialog } from './CommitDialog'
 import { OpenPrDialog } from './OpenPrDialog'
 import { ApplyProfileDialog } from './ApplyProfileDialog'
 import { DroppedFolderDialog } from './DroppedFolderDialog'
+import { ConfirmDeepLinkDialog } from './ConfirmDeepLinkDialog'
 import type { ProjectInfo } from '../../../core/models'
+import type { ProjectAction } from '../projects/projectActions'
 
 // ---------------------------------------------------------------------------
 // Dialog request union
@@ -54,6 +56,12 @@ export type DialogRequest =
   | { kind: 'manage-profiles' }
   | { kind: 'apply-profile'; project: ProjectInfo }
   | { kind: 'dropped-folder'; path: string; onToast: (m: string, k: 'info' | 'error') => void }
+  | {
+      kind: 'confirm-deep-link'
+      project: ProjectInfo
+      newSession: boolean
+      onAction: (action: ProjectAction) => void
+    }
   | { kind: 'manage-filters' }
   | { kind: 'settings' }
   | { kind: 'pick-worktree'; project: ProjectInfo }
@@ -230,6 +238,24 @@ export function DialogsProvider({
           onClose={handleClose}
           onRefresh={handleRefresh}
           onToast={active.onToast}
+        />
+      )}
+
+      {active?.kind === 'confirm-deep-link' && (
+        <ConfirmDeepLinkDialog
+          open={true}
+          project={active.project}
+          newSession={active.newSession}
+          onClose={handleClose}
+          onConfirm={() => {
+            const { project, newSession, onAction } = active
+            handleClose()
+            onAction(
+              newSession
+                ? { kind: 'launch-new', project }
+                : { kind: 'launch-continue', project },
+            )
+          }}
         />
       )}
 

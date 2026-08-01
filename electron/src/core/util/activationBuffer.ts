@@ -12,20 +12,27 @@
  */
 
 export interface ActivationSink {
-  sendDeepLink: (url: string) => void
+  sendDeepLink: (url: string, trusted: boolean) => void
   sendOpenPalette: () => void
 }
 
 export interface ActivationBuffer {
   /** Renderer signalled it has subscribed; flush pending deliveries. */
   setReady(): void
-  deliverDeepLink(url: string): void
+  /**
+   * `trusted` marks a link the app raised itself — the tray menu and jump list
+   * build ccmc:// URLs internally to reuse this delivery path. Those are already
+   * a deliberate click and must not be second-guessed. Everything arriving from
+   * outside (argv on cold start, second-instance) defaults to untrusted and is
+   * confirmed before it can start a session.
+   */
+  deliverDeepLink(url: string, trusted?: boolean): void
   deliverOpenPalette(): void
 }
 
 export function createActivationBuffer(sink: ActivationSink): ActivationBuffer {
   let ready = false
-  let pendingDeepLink: string | null = null
+  let pendingDeepLink: { url: string; trusted: boolean } | null = null
   let pendingOpenPalette = false
 
   return {
@@ -34,7 +41,7 @@ export function createActivationBuffer(sink: ActivationSink): ActivationBuffer {
       ready = true
 
       if (pendingDeepLink !== null) {
-        sink.sendDeepLink(pendingDeepLink)
+        sink.sendDeepLink(pendingDeepLink.url, pendingDeepLink.trusted)
         pendingDeepLink = null
       }
       if (pendingOpenPalette) {
@@ -43,11 +50,11 @@ export function createActivationBuffer(sink: ActivationSink): ActivationBuffer {
       }
     },
 
-    deliverDeepLink(url: string): void {
+    deliverDeepLink(url: string, trusted = false): void {
       if (ready) {
-        sink.sendDeepLink(url)
+        sink.sendDeepLink(url, trusted)
       } else {
-        pendingDeepLink = url
+        pendingDeepLink = { url, trusted }
       }
     },
 

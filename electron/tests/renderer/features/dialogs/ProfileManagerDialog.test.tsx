@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
+import { settle } from '../../settle'
 import userEvent from '@testing-library/user-event'
 import React from 'react'
 import { installMockCcmc, setChannelResponse, getMockInvoke } from '../../mockCcmc'
@@ -56,6 +57,7 @@ describe('ProfileManagerDialog', () => {
       <ProfileManagerDialog open={true} onClose={vi.fn()} onRefresh={vi.fn()} />,
     )
     expect(screen.getByText('Launch Profiles')).toBeInTheDocument()
+    await settle()
   })
 
   it('loads existing profiles from state:read', async () => {

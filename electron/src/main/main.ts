@@ -23,9 +23,9 @@ let mainWindow: BrowserWindow | null = null
 // Renderer-ready handshake buffer — created at module scope so the sink closure
 // captures the module-level mainWindow variable and follows reassignment.
 const activation = createActivationBuffer({
-  sendDeepLink: (url) => {
+  sendDeepLink: (url, trusted) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('event:deepLink', { url })
+      mainWindow.webContents.send('event:deepLink', { url, trusted })
     }
   },
   sendOpenPalette: () => {
@@ -183,7 +183,7 @@ if (!gotLock) {
       win: mainWindow,
       statePath,
       iconPath: resolvedIconPath,
-      deliverDeepLink: (url) => activation.deliverDeepLink(url),
+      deliverDeepLink: (url, trusted) => activation.deliverDeepLink(url, trusted),
       deliverOpenPalette: () => activation.deliverOpenPalette(),
     })
 
@@ -282,7 +282,7 @@ if (!gotLock) {
             win: mainWindow,
             statePath,
             iconPath: resolvedIconPath,
-            deliverDeepLink: (url) => activation.deliverDeepLink(url),
+            deliverDeepLink: (url, trusted) => activation.deliverDeepLink(url, trusted),
             deliverOpenPalette: () => activation.deliverOpenPalette(),
           })
         }

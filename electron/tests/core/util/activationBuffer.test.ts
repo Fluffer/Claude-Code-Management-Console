@@ -19,7 +19,7 @@ describe('ActivationBuffer', () => {
     expect(sendDeepLink).not.toHaveBeenCalled()
     buf.setReady()
     expect(sendDeepLink).toHaveBeenCalledOnce()
-    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=foo')
+    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=foo', false)
   })
 
   it('BufferThenReady_FlushesPaletteAfterDeepLink', () => {
@@ -38,7 +38,7 @@ describe('ActivationBuffer', () => {
     buf.setReady()
     buf.deliverDeepLink('ccmc://launch?project=baz')
     expect(sendDeepLink).toHaveBeenCalledOnce()
-    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=baz')
+    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=baz', false)
   })
 
   it('DeliverAfterReady_IsImmediate_Palette', () => {
@@ -66,7 +66,7 @@ describe('ActivationBuffer', () => {
     buf.deliverDeepLink('ccmc://launch?project=third')
     buf.setReady()
     expect(sendDeepLink).toHaveBeenCalledOnce()
-    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=third')
+    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=third', false)
   })
 
   it('DoubleSetReady_SecondCallIsNoOp', () => {
@@ -82,5 +82,21 @@ describe('ActivationBuffer', () => {
     buf.setReady()
     expect(sendDeepLink).not.toHaveBeenCalled()
     expect(sendOpenPalette).not.toHaveBeenCalled()
+  })
+  // The tray menu and jump list reuse this path for links the user already
+  // clicked in our own UI; that trust has to survive the cold-start buffer,
+  // or a tray click during startup would get second-guessed.
+  it('carries the trusted flag through, immediately and via the buffer', () => {
+    const buf = createActivationBuffer(sink)
+    buf.setReady()
+    buf.deliverDeepLink('ccmc://launch?project=tray', true)
+    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=tray', true)
+
+    sendDeepLink.mockClear()
+    const cold = createActivationBuffer(sink)
+    cold.deliverDeepLink('ccmc://launch?project=tray', true)
+    expect(sendDeepLink).not.toHaveBeenCalled()
+    cold.setReady()
+    expect(sendDeepLink).toHaveBeenCalledWith('ccmc://launch?project=tray', true)
   })
 })
