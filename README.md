@@ -9,7 +9,7 @@ with per-project flags. Built with Electron, React and TypeScript.
 
 ## Features
 
-- **Fluent-style design** with a System/Light/Dark theme toggle
+- **Fluent-style design**, themed to match Windows
 - **Keyboard-first**: `Enter` = Continue, `Ctrl+Enter` = New, `Ctrl+F` = search,
   `Ctrl+N` = new project, `Ctrl+P` = command palette, `Ctrl+Shift+Enter` = quick prompt,
   `F5` = refresh, `F1` = help
@@ -29,17 +29,30 @@ with per-project flags. Built with Electron, React and TypeScript.
 - **Update nudge** — the status bar flags when a newer `claude` CLI is published on npm
 - **Smart Continue** — the Continue button greys out (with an explanatory tooltip)
   when no previous Claude session exists for that folder
-- **Flags builder** — `＋ Flag` inserts common claude flags with plain-English descriptions
+- **Per-project flags** — saved per project and passed to both New and Continue; set them
+  with the row's model picker or by applying a launch profile. F1 lists the common flags
+  with plain-English descriptions
 - **Git awareness** — branch name + dirty indicator per row (async, never blocks the UI)
+- **Commit & open PR** — right-click → Commit… stages all + commits (optionally pushing);
+  Open PR… commits if dirty, pushes, then runs `gh pr create` and offers the URL
 - **Live-session badges** — green "live" pill on projects with a claude process actually
   running in their folder (detected by inspecting claude/node process working directories;
-  recent-transcript fallback), with a total count in the status bar
-- **Rename & move** — right-click → Rename… or Move to root (e.g. Archive/Stable);
-  saved flags, last-used and pin follow the project automatically
+  where the working directory can't be read, falls back to the session name this app set at
+  launch, so hand-started sessions may be missed), with a total count in the status bar
+- **Rename, move, duplicate, hide & delete** — right-click → Rename… or Move to root (e.g.
+  Archive/Stable), with saved flags, last-used and pin following the project automatically;
+  Hide drops a folder from the list without touching disk; Delete offers recycle-bin or
+  permanent and refuses while a session is running
+- **Clone a repo** — ⤓ Clone repo… clones a URL straight into a source root
+- **Open in VS Code** or in Explorer from the context menu
 - **Pinned favourites**, sort by recent use or name
-- **Auto-refresh** — a file watcher picks up folders created/removed outside the app
-- **Drag & drop** a folder to add it as a source root or launch Claude in it one-off
+- **Auto-refresh** — file watchers pick up projects created or removed outside the app, and
+  config/state edited by another instance
+- **Drag & drop** a folder onto the window to add it as a source root
 - **First-run onboarding**, tooltips on every control, full F1 help guide
+- **Theming** — System/Light/Dark plus accent colour and UI font pickers, with live preview
+- **Terminal detection** — Windows Terminal by default; installed alternatives are detected
+  and selectable in Settings
 - Status bar shows the detected `claude` CLI version and the app version
 
 ### Power-user (Tier 2)
@@ -60,16 +73,18 @@ with per-project flags. Built with Electron, React and TypeScript.
   click from the **Groups** dropdown
 - **Global summon hotkey** — `Ctrl+Alt+Space` brings the app forward and opens the command
   palette from anywhere (fail-soft if the combo is already taken)
-- **Transcript browser & cost** — Resume session… surfaces the past transcript with token
-  usage and an estimated per-project cost
+- **Transcript browser & cost** — Resume session… surfaces the past transcript alongside an
+  estimated per-project cost, derived from the token counts recorded in each transcript.
+  Treat it as a rough figure: it is list-price arithmetic that cannot see your plan, so on a
+  subscription (where marginal cost is flat) it does not represent money actually spent
 - **MCP health check** — probe a project's configured MCP servers (spawn / http) on demand
 
 ### Niche & polish (Tier 3)
 
 - **Sticky terminal title** — a launched session's terminal tab is titled with the project
   folder name and keeps it for the life of the session (`claude -n` owns the title)
-- **Clean first-run config** — a fresh install ships with no source roots; the Settings
-  dialog opens once to guide a new user to add their projects folder
+- **Clean first-run config** — a fresh install ships with no source roots; a dismissible
+  onboarding banner points a new user at Settings to add their projects folder
 - **Saved filters** — name a set of conditions (path-contains, has-git, has-CLAUDE.md,
   has-running-session, pinned) from the **Filters** button; each appears as a sidebar entry
 - **MCP viewer** — projects with a `.mcp.json` show an MCP pill; right-click → View MCP
@@ -79,7 +94,7 @@ with per-project flags. Built with Electron, React and TypeScript.
 - **Duplicate a project** — right-click → Duplicate… clones a project (git clone or exact
   copy) into a new folder
 - **Deep link** — `ccmc://launch?project=<name>[&new=true]` launches/continues a
-  project (packaged build only; routes on a cold start)
+  project; routes on a cold start as well as into a running instance
 - **Terminal auto-approver** — an optional daemon that auto-approves terminal prompts across
   Windows Terminal tabs (`tools/terminal-auto-approver`)
 - **Session-ended toast** — a toast appears when a tracked Claude session exits
@@ -130,13 +145,24 @@ same version. To regenerate the taskbar/Start tiles after changing `resources/ap
 - `%APPDATA%\ccmc\config.json` — roots, default root, per-project lastUsed/flags.
   On first run the app migrates any existing legacy data; a corrupt file is quarantined to
   `config.json.bad` and regenerated.
-- `%APPDATA%\ccmc\state.json` — UI state (theme, sort, pins, onboarding).
+- `%APPDATA%\ccmc\state.json` — UI state (theme, sort, pins, onboarding, profiles, groups,
+  saved filters).
 - Single instance: launching a second copy activates the existing window.
+- The app never writes your real `.claude/settings.json`. Model, permission-mode and tool
+  allowlists are stored as CCMC's own per-project flags and passed as CLI arguments, so
+  nothing it does leaks into a plain terminal session. The one exception is the `.env`
+  editor, which writes the project file you asked it to edit.
 
 ## Notes
 
 - Session detection probes `%USERPROFILE%\.claude\projects\<encoded-path>` — an
   undocumented Claude Code internal. If the encoding ever changes, Continue simply
   reverts to always-enabled; nothing breaks.
-- The flag catalog (`electron/src/core/config/flagCatalog.ts`) is curated by hand — re-check
-  it against `claude --help` occasionally, as CLI flags drift between versions.
+- Every handler that writes, deletes, executes or hands a path to the shell first confines it
+  to a configured source root (`requireConfinedPath` in `electron/src/main/ipc/handlers.ts`),
+  so a malformed IPC request cannot reach outside your project folders.
+- The flag catalog (`electron/src/core/config/flagCatalog.ts`) is reference material shown in
+  the F1 help and is curated by hand — re-check it against `claude --help` occasionally, as
+  CLI flags drift between versions.
+- macOS support is stubbed, not implemented: the platform factories resolve to `*.mac.ts`
+  placeholders that reject. Windows is the only working target today.

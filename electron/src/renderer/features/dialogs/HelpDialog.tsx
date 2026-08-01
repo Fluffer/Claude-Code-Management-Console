@@ -101,9 +101,10 @@ export function HelpDialog({ open, onClose }: HelpDialogProps): React.ReactEleme
 
         <Section title="Flags">
           <Para>
-            The Flags box holds extra command-line options for the selected project — for example
-            &lsquo;--model opus&rsquo;. Flags are saved per project as you type and are used by
-            both New and Continue. The ＋ Flag button offers common flags with descriptions:
+            Flags are extra command-line options saved per project — for example
+            &lsquo;--model opus&rsquo; — and are passed to both New and Continue. Set them with
+            the model picker on each row, or apply a launch profile (Profiles… in the sidebar)
+            to write a whole bundle at once. Common flags:
           </Para>
           <div className="mt-2 flex flex-col gap-2 pl-3">
             {PRESETS.map((preset) => (
