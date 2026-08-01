@@ -52,6 +52,6 @@ Save-Square 71  'Square71x71Logo.png'
 Save-Square 150 'Square150x150Logo.png'
 Save-Square 310 'Square310x310Logo.png'
 Save-Square 50  'StoreLogo.png'
-Save-Wide 310 150 'Wide310x150Logo.png'
+Save-Wide -w 310 -h 150 -name 'Wide310x150Logo.png'
 $src.Dispose()
 Write-Host 'done'

@@ -1,4 +1,4 @@
-#requires -Version 7.0
+﻿#requires -Version 7.0
 <#
 .SYNOPSIS
   Terminal Auto-Approver (console-attach engine).
@@ -46,8 +46,11 @@ $logFile = if ([System.IO.Path]::IsPathRooted($cfg.logPath)) { $cfg.logPath } el
 
 function Write-Log([string]$msg) {
   $line = "[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $msg
-  try { Write-Host $line } catch {}
-  try { Add-Content -LiteralPath $logFile -Value $line } catch {}
+  # Both writes are best-effort by design: the console is gone after the first
+  # AttachConsole (see .DESCRIPTION), and the log file can be locked by a tail.
+  # Logging must never take the daemon down, so swallow and carry on.
+  try { Write-Host $line } catch { $null = $_ }
+  try { Add-Content -LiteralPath $logFile -Value $line } catch { $null = $_ }
 }
 
 # --- Win32 console attach: read buffer + write input -------------------------
@@ -120,7 +123,7 @@ Add-Type -TypeDefinition $src -Language CSharp
 
 # --- Find every WT tab's console-client shell PID ----------------------------
 # Tab shells are direct children of WindowsTerminal.exe that are not OpenConsole.exe.
-function Get-TabPids {
+function Get-TabPid {
   $all = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue
   $wt  = $all | Where-Object Name -eq 'WindowsTerminal.exe'
   if (-not $wt) { return @() }
@@ -271,7 +274,7 @@ $tabPids = @()
 $refresh = 0
 
 while ($true) {
-  if ($refresh -le 0) { $tabPids = @(Get-TabPids); $refresh = 10 }
+  if ($refresh -le 0) { $tabPids = @(Get-TabPid); $refresh = 10 }
   $refresh--
 
   foreach ($tp in $tabPids) {
